@@ -3,7 +3,7 @@
 version: 2.1
 
 description: >
-    QQQ Orb to handle the branching, testing, releasing, and auto updating of 
+    QQQ Orb to handle the branching, testing, releasing, and auto updating of
     all maven and npm based projects within the Kingsrook/QRunIO Repo world.
 
 display:
