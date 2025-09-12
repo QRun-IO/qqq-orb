@@ -1,0 +1,14 @@
+description: >
+  Validates API version compatibility across middleware components
+  - Builds the project without running tests
+  - Assembles the Javalin middleware application
+  - Runs ValidateApiVersions tool to check API compatibility
+  - Ensures all middleware components have compatible API versions
+steps:
+  - checkout
+  - run:
+      name: Build and Run ValidateApiVersions
+      command: |
+        mvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress install -DskipTests
+        mvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress -pl qqq-middleware-javalin package appassembler:assemble -DskipTests
+        qqq-middleware-javalin/target/appassembler/bin/ValidateApiVersions -r $(pwd)

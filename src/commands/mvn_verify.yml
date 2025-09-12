@@ -1,0 +1,38 @@
+description: >
+  Runs the complete Maven lifecycle including tests and generates reports
+  - Restores Maven dependency cache
+  - Runs Maven verify (compile, test, package, verify)
+  - Collects JaCoCo code coverage reports
+  - Stores test output artifacts
+  - Saves JUnit test results for CircleCI test reporting
+
+steps:
+  - checkout
+  - run:
+      name: Run Maven Verify
+      command: |
+        mvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress verify
+  - run:
+      name: Collect JaCoCo reports
+      command: .circleci/collect-jacoco-reports.sh
+      when: always
+  - store_artifacts:
+      path: /home/circleci/jacoco-reports
+      destination: jacoco-reports
+      when: always
+  - run:
+      name: Concatenate test output files
+      command: .circleci/concatenate-test-output.sh
+      when: always
+  - store_artifacts:
+      path: /home/circleci/test-output-artifacts
+      destination: test-output
+      when: always
+  - run:
+      name: Save test results
+      command: |
+        mkdir -p ~/test-results/junit/
+        find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} ~/test-results/junit/ \;
+      when: always
+  - store_test_results:
+      path: ~/test-results

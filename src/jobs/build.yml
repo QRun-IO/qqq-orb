@@ -1,0 +1,8 @@
+description: >
+  Basic build job that compiles the project
+  Used by: test_only workflow for feature branches
+
+executor: localstack/default
+
+steps:
+  - mvn_build

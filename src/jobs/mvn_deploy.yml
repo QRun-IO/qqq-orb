@@ -1,0 +1,12 @@
+description: >
+  Deploys snapshot versions to Maven Central
+  Used by: deploy_snapshot workflow for develop branch
+  Publishes: X.Y.Z-SNAPSHOT versions to snapshots repository
+executor: localstack/default
+
+steps:
+  - mvn_build
+  - manage_version
+  - mvn_verify
+  - check_middleware_api_versions
+  - mvn_jar_deploy

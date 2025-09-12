@@ -1,6 +1,6 @@
 ---
 
-version: 2.1
+version: 0.1
 
 description: >
     QQQ Orb to handle the branching, testing, releasing, and auto updating of
@@ -9,3 +9,8 @@ description: >
 display:
   home_url: "https://www.qrun.io"
   source_url: "https://github.com/Kingsrook/qqq-orb"
+
+orbs:
+  localstack: localstack/platform@2.1
+  browser-tools: circleci/browser-tools@1.4.7
+  slack: circleci/slack@5.2.1

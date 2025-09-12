@@ -1,0 +1,27 @@
+description: >
+  Builds the project and sets up the development environment
+  - Restores Maven dependency cache for faster builds
+  - Installs Chrome/ChromeDriver for browser testing
+  - Creates .env file with database credentials
+  - Compiles the project with Maven
+  - Saves Maven cache for future builds
+
+steps:
+  - checkout
+  - restore_cache:
+      keys:
+        - v1-dependencies-{{ checksum "pom.xml" }}
+  - browser-tools/install-chrome
+  - browser-tools/install-chromedriver
+  - run:
+      name: Write .env
+      command: |
+        echo "RDBMS_PASSWORD=$RDBMS_PASSWORD" >> qqq-sample-project/.env
+  - run:
+      name: Run Maven Compile
+      command: |
+        mvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress compile
+  - save_cache:
+      paths:
+        - ~/.m2
+      key: v1-dependencies-{{ checksum "pom.xml" }}

@@ -1,0 +1,12 @@
+description: >
+  Installs AsciiDoc processor for generating HTML documentation
+  - Updates package list and installs asciidoctor
+  - Used by publish_asciidoc job for documentation generation
+
+steps:
+  - checkout
+  - run:
+      name: Install asciidoctor
+      command: |
+        sudo apt-get update
+        sudo apt install -y asciidoctor

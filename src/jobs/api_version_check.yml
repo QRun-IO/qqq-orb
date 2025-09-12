@@ -1,0 +1,9 @@
+description: >
+  Validates API version compatibility across middleware components
+  Used by: test_only workflow for feature branches
+  Dependencies: Requires build job to complete first
+
+executor: localstack/default
+
+steps:
+  - check_middleware_api_versions

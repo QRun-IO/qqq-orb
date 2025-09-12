@@ -1,0 +1,30 @@
+description: >
+  Automated version management using calculate-version.sh
+  - Determines appropriate version based on branch type and current version
+  - Uses versions-maven-plugin to update pom.xml
+  - Handles GitFlow versioning strategy automatically
+  - Supports RC increments, hotfix patches, and develop version bumps
+steps:
+  - add_ssh_keys   # injects the CircleCI User Key (write-capable)
+  - run:
+      name: Set up Git identity for version commits
+      command: |
+        git config user.email "ci@kingsrook.com"
+        git config user.name "CircleCI"
+  - run:
+      name: Calculate and set version
+      command: |
+        chmod +x .circleci/calculate-version.sh
+        .circleci/calculate-version.sh
+  - run:
+      name: Commit version change if modified
+      command: |
+        if [[ -n "$(git status --porcelain pom.xml)" ]]; then
+          NEW_VERSION=$(grep '<revision>' pom.xml | sed 's/.*<revision>//;s/<.*//')
+          git add pom.xml
+          git commit -m "Bump version to $NEW_VERSION [skip ci]"
+          git push origin "HEAD:${CIRCLE_BRANCH}"
+          echo "Version updated to: $NEW_VERSION and pushed"
+        else
+          echo "No version change needed"
+        fi

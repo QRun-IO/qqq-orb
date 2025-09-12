@@ -1,0 +1,15 @@
+description: >
+  Generates HTML documentation from AsciiDoc source files
+  - Processes docs/index.adoc to create HTML documentation
+  - Stores generated HTML as CircleCI artifacts
+  - Used by publish_asciidoc job for documentation publishing
+
+steps:
+- run:
+    name: Run asciidoctor
+    command: |
+      cd docs
+      asciidoctor -a docinfo=shared index.adoc
+- store_artifacts:
+    path: docs/index.html
+    when: always

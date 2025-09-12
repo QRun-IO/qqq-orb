@@ -1,0 +1,15 @@
+description: >
+  Publishes production releases to Maven Central and creates GitHub releases
+  Used by: production_release workflow for main branch
+  Publishes: X.Y.Z versions to releases repository
+  Creates: Git tags and GitHub releases automatically
+
+executor: localstack/default
+
+steps:
+  - mvn_build
+  - manage_version
+  - mvn_verify
+  - check_middleware_api_versions
+  - mvn_jar_deploy
+  - create_github_release
