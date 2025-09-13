@@ -104,21 +104,50 @@ calculate_next_version() {
         "main")
             ###############################################################################
             ## Main should always have stable versions                                   ##
-            ## Check if we just merged a release branch and need to convert RC to stable ##
+            ## Check for version tags to detect releases instead of merge commits       ##
             ###############################################################################
-            RECENT_RELEASE_MERGES=$(git log --oneline -5 --grep="Merge.*release.*into.*main" --grep="Merge.*release.*back.*main" --grep="Merge.*R.*back.*main" || true)
             
-            if [[ -n "$RECENT_RELEASE_MERGES" ]] && [[ "$CURRENT_VERSION" =~ -RC\.[0-9]+$ ]]; then
-                ########################################################################
-                ## We just merged a release and have an RC version, convert to stable ##
-                ########################################################################
-                NEW_VERSION="${CURRENT_VERSION%-RC.*}"
-                echo "Release merge detected, converting RC version to stable: $NEW_VERSION"
+            # Look for the most recent version tag
+            LATEST_TAG=$(git describe --tags --abbrev=0 --match="v*" 2>/dev/null || echo "")
+            
+            if [[ -n "$LATEST_TAG" ]]; then
+                # Extract version from tag (e.g., v1.5.0 -> 1.5.0)
+                if [[ "$LATEST_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+                    TAG_VERSION=${BASH_REMATCH[1]}
+                    echo "Latest release tag: $LATEST_TAG (version: $TAG_VERSION)"
+                    
+                    # Check if current version matches the tag
+                    if [[ "$CURRENT_VERSION" == "$TAG_VERSION" ]]; then
+                        ################################################################
+                        ## We're at the tagged release, keep stable version            ##
+                        ################################################################
+                        NEW_VERSION="$CURRENT_VERSION"
+                        echo "Version matches release tag, keeping stable version"
+                    elif [[ "$CURRENT_VERSION" =~ -RC\.[0-9]+$ ]]; then
+                        ########################################################################
+                        ## We have an RC version but there's a newer tag, convert to stable ##
+                        ########################################################################
+                        NEW_VERSION="${CURRENT_VERSION%-RC.*}"
+                        echo "Release tag detected, converting RC version to stable: $NEW_VERSION"
+                    else
+                        #####################################################################
+                        ## Keep current version (might be ahead of tag)                    ##
+                        #####################################################################
+                        NEW_VERSION="$CURRENT_VERSION"
+                        echo "Keeping current version (ahead of tag)"
+                    fi
+                else
+                    echo "Warning: Tag format not recognized: $LATEST_TAG"
+                    NEW_VERSION="$CURRENT_VERSION"
+                fi
             else
                 #####################################################################
-                ## No recent release merge or already stable, keep current version ##
+                ## No tags found - main branch should always have a release tag   ##
                 #####################################################################
-                NEW_VERSION="$CURRENT_VERSION"
+                echo "ERROR: No version tags found on main branch"
+                echo "Main branch should always have a corresponding release tag (e.g., v1.5.0)"
+                echo "Please create a release tag before deploying from main"
+                exit 1
             fi
             ;;
             
