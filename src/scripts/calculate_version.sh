@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ############################################################################
-## calculate-version.sh
+## calculate_version.sh
 ## Intelligent version calculation for GitFlow branching strategy
 ## 
 ## This script determines the appropriate version based on:
@@ -9,7 +9,7 @@
 ## - Current version in pom.xml
 ## - GitFlow conventions
 ##
-## Usage: ./calculate-version.sh [--dry-run]
+## Usage: ./calculate_version.sh [--dry-run]
 ## Output: Sets version in pom.xml and prints the new version
 ############################################################################
 

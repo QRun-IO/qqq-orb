@@ -5,4 +5,4 @@ description: >
 steps:
   - run:
       name: Calculate and set version
-      command: <<include(scripts/manage_version_calculate.sh)>>
+      command: <<include(scripts/calculate_version.sh)>>
