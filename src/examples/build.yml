@@ -22,7 +22,7 @@ usage:
           ignore: [develop, main, /release\/.*/, /hotfix\/.*/]
 
     # Snapshot deployment for develop branch
-    deploy_snapshot:
+    publish_snapshot:
       jobs:
         - qqq-orb/publish_snapshot:
             context: [ qqq-maven-registry-credentials ]
@@ -31,7 +31,7 @@ usage:
           only: [develop]
 
     # Release candidate workflow
-    release_candidate:
+    publish_release_candidate:
       jobs:
         - qqq-orb/publish_release_candidate:
             context: [ qqq-maven-registry-credentials ]
@@ -40,16 +40,16 @@ usage:
           only: [/release\/.*/]
 
     # Production release workflow
-    production_release:
+    publish_release:
       jobs:
-        - qqq-orb/production_release:
+        - qqq-orb/publish_release:
             context: [ qqq-maven-registry-credentials ]
       filters:
         branches:
           only: [main]
 
     # Hotfix release workflow
-    hotfix_release:
+    publish_hotfix_release::
       jobs:
         - qqq-orb/publish_hotfix_release:
             context: [ qqq-maven-registry-credentials ]
