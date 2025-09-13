@@ -6,7 +6,8 @@ executor: localstack/default
 
 steps:
   - mvn_build
-  - attach_workspace
+  - attach_workspace:
+      at: .
   - manage_version
   - mvn_verify
   - check_middleware_api_versions
