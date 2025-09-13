@@ -22,8 +22,7 @@ steps:
         npm install --legacy-peer-deps
   - run:
       name: Run Maven Compile
-      command: |
-        mvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress compile
+      command: <<include(scripts/frontend_build_compile.sh)>>
   - run:
       name: Build React application
       command: |

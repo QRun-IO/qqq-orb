@@ -14,10 +14,7 @@ steps:
   # Ensure no stale Chrome/Driver is shadowing the PATH (your base image had Chrome 109)
   - run:
       name: Remove any preinstalled Chrome/ChromeDriver
-      command: |
-        sudo apt-get remove -y google-chrome-stable || true
-        sudo rm -f /usr/bin/google-chrome /opt/google/chrome/chrome || true
-        sudo rm -f /usr/local/bin/chromedriver /usr/bin/chromedriver || true
+      command: <<include(scripts/frontend_test_cleanup.sh)>>
 
   # Install current Chrome; DO NOT install chromedriver (let Selenium 4 auto-manage it)
   - browser-tools/install-chrome
@@ -25,19 +22,12 @@ steps:
   # System libs Chrome needs in headless CI
   - run:
       name: Install browser dependencies
-      command: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          libnss3-dev libgdk-pixbuf2.0-dev libgtk-3-dev libxss-dev
+      command: <<include(scripts/frontend_test_dependencies.sh)>>
 
   # Utility to wait for the dev server to come up
   - run:
       name: Install dockerize (wait-for utility)
-      command: |
-        DOCKERIZE_VERSION=v0.3.0
-        wget -q https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
-        sudo tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
-        rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+      command: <<include(scripts/frontend_test_dockerize.sh)>>
 
   # Restore Maven deps (Node deps are expected from prior build step; optional guard below)
   - restore_cache:
@@ -47,43 +37,25 @@ steps:
   # (Optional) Guard: if node_modules is missing, install it quickly so "npm run build" works
   - run:
       name: Ensure Node dependencies exist (optional guard)
-      command: |
-        if [ ! -d node_modules ]; then
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> ~/.npmrc || true
-          npm ci --legacy-peer-deps
-        fi
+      command: <<include(scripts/frontend_test_npm_guard.sh)>>
 
   # Diagnostics: confirm Chrome present; ensure no chromedriver on PATH (Selenium should fetch it)
   - run:
       name: Chrome diagnostics
-      command: |
-        which google-chrome || true
-        google-chrome --version || /opt/google/chrome/chrome --version || true
-        which chromedriver || echo "chromedriver not present (expected)"
-        env | grep -i -E 'chrome|driver|selenium' || true
+      command: <<include(scripts/frontend_test_diagnostics.sh)>>
 
   # Build the React app, start it, wait until it's live, then run Selenium tests via Maven.
   # Note: Using 'mvn test' to avoid GPG signing during testing phase.
   # GPG signing will happen later in mvn_jar_deploy when deploying to Maven Central.
   - run:
       name: Build app, start server, run tests
-      command: |
-        echo "HTTPS=true" >> ./.env
-        npm run build
-        export REACT_APP_PROXY_LOCALHOST_PORT=8001
-        export PORT=3001
-        npm run start &
-        dockerize -wait tcp://localhost:3001 -timeout 3m
-        export QQQ_SELENIUM_HEADLESS=true
-        mvn -s .circleci/mvn-settings.xml --no-transfer-progress -B test
+      command: <<include(scripts/frontend_test_run.sh)>>
 
   # Always collect and publish test results & screenshots
   - run:
       name: Collect JUnit XML test results
       when: always
-      command: |
-        mkdir -p ~/test-results/junit/
-        find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} ~/test-results/junit/ \; || true
+      command: <<include(scripts/frontend_test_collect_results.sh)>>
   - store_test_results:
       path: ~/test-results
   - store_artifacts:

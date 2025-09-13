@@ -6,7 +6,4 @@ description: >
 steps:
   - run:
       name: Package React app into Maven JAR
-      command: |
-        rm -rf src/main/resources/material-dashboard
-        mkdir -p src/main/resources/material-dashboard
-        cp -r build/* src/main/resources/material-dashboard
+      command: <<include(scripts/frontend_package_jar.sh)>>
