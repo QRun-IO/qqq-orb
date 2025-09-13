@@ -6,9 +6,17 @@
   <component name="ChangeListManager">
     <list default="true" id="39f8d35a-1bb7-489b-b59c-b0ba3ffefe23" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/@orb.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/@orb.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/examples/build.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/build.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scripts/greet.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scripts/calculate-version.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/scripts/calculate-version.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scripts/check_middleware_api_versions.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/scripts/check_middleware_api_versions.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scripts/create_github_release.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/scripts/create_github_release.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scripts/manage_version_calculate.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/scripts/manage_version_calculate.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scripts/manage_version_commit.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/scripts/manage_version_commit.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scripts/manage_version_git_config.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/scripts/manage_version_git_config.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scripts/mvn_build_compile.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/scripts/mvn_build_compile.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scripts/mvn_jar_deploy_deploy.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/scripts/mvn_jar_deploy_deploy.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scripts/mvn_jar_deploy_gpg_setup.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/scripts/mvn_jar_deploy_gpg_setup.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scripts/mvn_verify_save_test_results.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/scripts/mvn_verify_save_test_results.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scripts/mvn_verify_verify.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/scripts/mvn_verify_verify.sh" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -99,7 +107,7 @@
       <workItem from="1757634683262" duration="86000" />
       <workItem from="1757634778652" duration="275000" />
       <workItem from="1757635061044" duration="63000" />
-      <workItem from="1757721395861" duration="2712000" />
+      <workItem from="1757721395861" duration="3728000" />
     </task>
     <servers />
   </component>
