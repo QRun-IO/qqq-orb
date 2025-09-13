@@ -2,7 +2,13 @@ description: >
   Manages version calculations
   - Calculates the next version based on the branch type
   - Sets the version in the pom.xml file
+  - Persists changes for subsequent jobs
 steps:
   - run:
       name: Calculate and set version
       command: <<include(scripts/calculate_version.sh)>>
+  - persist_to_workspace:
+      root: .
+      paths:
+        - pom.xml
+        - "*/pom.xml"

@@ -16,67 +16,6 @@ The QQQ Orb is designed to handle the complete CI/CD lifecycle for Maven-based p
 - **Documentation Generation**: AsciiDoc to HTML documentation processing
 - **Browser Testing Support**: Chrome/ChromeDriver installation for web testing
 
-## Repository Structure
-
-```
-src/
-├── @orb.yml                    # Main orb definition file
-├── commands/                   # Reusable commands
-│   ├── check_middleware_api_versions.yml
-│   ├── create_github_release.yml
-│   ├── install_asciidoctor.yml
-│   ├── manage_version.yml
-│   ├── mvn_build.yml
-│   ├── mvn_jar_deploy.yml
-│   ├── mvn_verify.yml
-│   └── run_asciidoctor.yml
-├── executors/                  # Execution environments
-│   └── default.yml
-├── jobs/                       # Complete workflow jobs
-│   ├── api_version_check.yml
-│   ├── build.yml
-│   ├── mvn_deploy.yml
-│   ├── publish_asciidoc.yml
-│   ├── publish_hotfix.yml
-│   ├── publish_rc.yml
-│   ├── publish_release.yml
-│   └── test.yml
-├── scripts/                    # Shell scripts (inlined via <<include()>>)
-│   ├── calculate_version.sh
-│   ├── check_middleware_api_versions.sh
-│   ├── collect_jacoco_reports.sh
-│   ├── concatenate_test_output.sh
-│   ├── create_github_release.sh
-│   ├── manage_version_commit.sh
-│   ├── manage_version_git_config.sh
-│   ├── mvn_build_compile.sh
-│   ├── mvn_jar_deploy_deploy.sh
-│   ├── mvn_jar_deploy_gpg_setup.sh
-│   ├── mvn_verify_save_test_results.sh
-│   ├── mvn_verify_verify.sh
-│   └── setup_maven_settings.sh
-└── examples/                   # Usage examples
-    └── build.yml
-```
-
-## Design Principles
-
-### 1. Modular Architecture
-- **Commands**: Reusable, single-purpose operations
-- **Jobs**: Complete workflow definitions combining multiple commands
-- **Scripts**: Shell scripts inlined via `<<include()>>` for maintainability
-
-### 2. GitFlow Integration
-- **develop**: SNAPSHOT versions (X.Y.Z-SNAPSHOT)
-- **release/**: Release candidates (X.Y.0-RC.n)
-- **main**: Production releases (X.Y.Z)
-- **hotfix/**: Hotfix releases (X.Y.(Z+1))
-
-### 3. Best Practices Compliance
-- Follows CircleCI orb best practices (RC002, RC009, etc.)
-- Uses `<<include()>>` for complex commands to avoid RC009 violations
-- Comprehensive descriptions for all components
-- Proper error handling and cleanup
 
 ## Development Workflow
 
@@ -255,8 +194,36 @@ The orb automatically manages versions based on GitFlow:
 
 - **develop**: Increments minor version (1.5.0-SNAPSHOT → 1.6.0-SNAPSHOT)
 - **release/1.5**: Creates RC versions (1.5.0-RC.1, 1.5.0-RC.2, etc.)
-- **main**: Converts RC to stable (1.5.0-RC.3 → 1.5.0)
+- **main**: Converts RC to stable (1.5.0-RC.3 → 1.5.0) **requires release tag**
 - **hotfix/1.5.1**: Increments patch (1.5.0 → 1.5.1)
+
+### Release Tag Requirements
+
+**Main branch deployments require a corresponding release tag:**
+
+- **Tag Format**: `v{MAJOR}.{MINOR}.{PATCH}` (e.g., `v1.5.0`)
+- **Purpose**: Ensures main branch always represents a released version
+- **Failure**: Deployment fails if no `v*` tag is found
+
+#### Creating Release Tags
+
+```bash
+# After merging release branch to main
+git checkout main
+git pull origin main
+
+# Create the release tag
+git tag -a v1.5.0 -m "Release version 1.5.0"
+git push origin v1.5.0
+```
+
+#### Tag-Based Version Detection
+
+The orb uses tag detection instead of merge commit parsing for reliability:
+
+- **Reliable**: Works with fast-forward merges, squash merges, and rebases
+- **Explicit**: Tags are intentionally created for releases
+- **Auditable**: Clear record of what was released when
 
 ## Troubleshooting
 
@@ -266,6 +233,8 @@ The orb automatically manages versions based on GitFlow:
 2. **Authentication errors**: Verify context variables are set correctly
 3. **Version conflicts**: Check that your `pom.xml` uses `<revision>` property
 4. **Script not found**: Ensure `<<include()>>` directives are properly resolved
+5. **Main branch deployment fails**: Create a release tag (`v1.5.0`) before deploying from main
+6. **Tag format not recognized**: Use `v*.*.*` format (e.g., `v1.5.0`, not `version-1.5.0`)
 
 ### Debugging
 
