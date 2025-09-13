@@ -5,4 +5,5 @@ description: >
 executor: localstack/default
 
 steps:
+  - checkout
   - mvn_verify

@@ -5,6 +5,7 @@ description: >
 executor: localstack/default
 
 steps:
+  - checkout
   - mvn_build
   - manage_version
   - attach_workspace:

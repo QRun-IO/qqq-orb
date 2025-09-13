@@ -6,4 +6,5 @@ description: >
 executor: localstack/default
 
 steps:
+  - checkout
   - check_middleware_api_versions

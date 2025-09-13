@@ -7,6 +7,7 @@ description: >
 executor: localstack/default
 
 steps:
+  - checkout
   - mvn_build
   - mvn_verify
   - check_middleware_api_versions
