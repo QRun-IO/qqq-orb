@@ -35,6 +35,29 @@ fi
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 CURRENT_VERSION=$(grep '<revision>' $POM_FILE | sed 's/.*<revision>//;s/<.*//')
 
+# Check if we're on a tag (HEAD means we're on a tag)
+if [[ "$CURRENT_BRANCH" == "HEAD" ]]; then
+    # Get the tag name we're on
+    CURRENT_TAG=$(git describe --tags --exact-match HEAD 2>/dev/null || echo "")
+    if [[ -n "$CURRENT_TAG" ]]; then
+        echo "Currently on tag: $CURRENT_TAG"
+        # Determine the branch type based on tag format
+        if [[ "$CURRENT_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "This is a production release tag, treating as main branch"
+            CURRENT_BRANCH="main"
+        elif [[ "$CURRENT_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-RC\.[0-9]+$ ]]; then
+            echo "This is a release candidate tag, treating as release branch"
+            CURRENT_BRANCH="release/$(echo $CURRENT_TAG | sed 's/v\([0-9]*\.[0-9]*\).*/\1/')"
+        else
+            echo "Unknown tag format: $CURRENT_TAG"
+            CURRENT_BRANCH="unknown"
+        fi
+    else
+        echo "On HEAD but not on a tag, treating as main branch"
+        CURRENT_BRANCH="main"
+    fi
+fi
+
 echo "Current branch: $CURRENT_BRANCH"
 echo "Current version: $CURRENT_VERSION"
 
@@ -107,13 +130,21 @@ calculate_next_version() {
             ## Check for version tags to detect releases instead of merge commits       ##
             ###############################################################################
             echo "In Main - Looking for the most recent version tag"
-            LATEST_TAG=$(git describe --tags --abbrev=0 --match="v*" 2>/dev/null || echo "")
+            
+            # If we're on a tag, use that tag; otherwise find the latest tag
+            if [[ "$CURRENT_BRANCH" == "main" && -n "$CURRENT_TAG" ]]; then
+                LATEST_TAG="$CURRENT_TAG"
+                echo "Using current tag: $LATEST_TAG"
+            else
+                LATEST_TAG=$(git describe --tags --abbrev=0 --match="v*" 2>/dev/null || echo "")
+                echo "Found latest tag: $LATEST_TAG"
+            fi
             
             if [[ -n "$LATEST_TAG" ]]; then
                 # Extract version from tag (e.g., v1.5.0 -> 1.5.0)
                 if [[ "$LATEST_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
                     TAG_VERSION=${BASH_REMATCH[1]}
-                    echo "Latest release tag: $LATEST_TAG (version: $TAG_VERSION)"
+                    echo "Release tag: $LATEST_TAG (version: $TAG_VERSION)"
                     
                     # Check if current version matches the tag
                     if [[ "$CURRENT_VERSION" == "$TAG_VERSION" ]]; then
@@ -124,10 +155,10 @@ calculate_next_version() {
                         echo "Version matches release tag, keeping stable version"
                     elif [[ "$CURRENT_VERSION" =~ -RC\.[0-9]+$ ]]; then
                         ########################################################################
-                        ## We have an RC version but there's a newer tag, convert to stable ##
+                        ## We have an RC version, convert to the tag version              ##
                         ########################################################################
-                        NEW_VERSION="${CURRENT_VERSION%-RC.*}"
-                        echo "Release tag detected, converting RC version to stable: $NEW_VERSION"
+                        NEW_VERSION="$TAG_VERSION"
+                        echo "Converting RC version to tag version: $NEW_VERSION"
                     else
                         #####################################################################
                         ## Keep current version (might be ahead of tag)                    ##
