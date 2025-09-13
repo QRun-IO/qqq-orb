@@ -7,7 +7,6 @@ description: >
   - Saves JUnit test results for CircleCI test reporting
 
 steps:
-  - checkout
   - run:
       name: Setup Maven Settings
       command: <<include(scripts/setup_maven_settings.sh)>>

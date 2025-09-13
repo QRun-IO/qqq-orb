@@ -5,7 +5,6 @@ description: >
   - Runs ValidateApiVersions tool to check API compatibility
   - Ensures all middleware components have compatible API versions
 steps:
-  - checkout
   - run:
       name: Setup Maven Settings
       command: <<include(scripts/setup_maven_settings.sh)>>

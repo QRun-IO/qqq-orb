@@ -4,7 +4,6 @@ description: >
   - Used by publish_asciidoc job for documentation generation
 
 steps:
-  - checkout
   - run:
       name: Install asciidoctor
       command: |

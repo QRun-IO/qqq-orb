@@ -5,6 +5,5 @@ description: >
   - Used by workflow jobs for documentation publishing
 
 steps:
-  - checkout
   - install_asciidoctor
   - run_asciidoctor
