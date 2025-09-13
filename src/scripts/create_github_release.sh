@@ -2,7 +2,7 @@
 set -e
 
 VERSION=$(grep '<revision>' pom.xml | sed 's/.*<revision>//;s/<.*//')
-echo "Creating tag for version: $VERSION
+echo "Creating tag for version: $VERSION"
 
 # Create and push tag (if not already created)
 if ! git tag --list | grep -q "v$VERSION"; then
