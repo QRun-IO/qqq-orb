@@ -1,17 +1,8 @@
 description: >
-  Automated version management using calculate-version.sh
-  - Determines appropriate version based on branch type and current version
-  - Uses versions-maven-plugin to update pom.xml
-  - Handles GitFlow versioning strategy automatically
-  - Supports RC increments, hotfix patches, and develop version bumps
+  Manages version calculations
+  - Calculates the next version based on the branch type
+  - Sets the version in the pom.xml file
 steps:
-  - add_ssh_keys   # injects the CircleCI User Key (write-capable)
-  - run:
-      name: Set up Git identity for version commits
-      command: <<include(scripts/manage_version_git_config.sh)>>
   - run:
       name: Calculate and set version
       command: <<include(scripts/manage_version_calculate.sh)>>
-  - run:
-      name: Commit version change if modified
-      command: <<include(scripts/manage_version_commit.sh)>>

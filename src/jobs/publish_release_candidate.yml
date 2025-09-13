@@ -10,4 +10,5 @@ steps:
   - mvn_verify
   - check_middleware_api_versions
   - manage_version
+  - git_operations
   - mvn_jar_deploy
