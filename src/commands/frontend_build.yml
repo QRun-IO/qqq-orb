@@ -2,7 +2,6 @@ description: >
   Builds the React application
   - Restores Maven dependency cache
   - Installs Chrome/ChromeDriver for browser testing
-  - Creates .env file with database credentials
   - Compiles the project with Maven
   - Saves Maven cache for future builds
 steps:
@@ -10,8 +9,6 @@ steps:
       keys:
         - v1-dependencies-{{ checksum "pom.xml" }}
         - v1-npm-dependencies-{{ checksum "package.json" }}
-  - browser-tools/install-chrome
-  - browser-tools/install-chromedriver
   - run:
       name: Setup NPM authentication
       command: |
