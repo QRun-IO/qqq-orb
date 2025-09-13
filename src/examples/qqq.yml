@@ -26,7 +26,7 @@ workflows:
           context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
           filters:
             branches:
-              only: 
+              only:
                 - develop
 
   publish_release_candidate:
@@ -44,10 +44,10 @@ workflows:
           context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
           filters:
             branches:
-              only: 
+              only:
                 - main
             tags:
-              only: 
+              only:
                 - /v.*/
 
   publish_hotfix_release:
@@ -56,5 +56,5 @@ workflows:
           context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
           filters:
             branches:
-              only: 
+              only:
                 - /hotfix\/.*/
