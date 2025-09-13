@@ -1,0 +1,573 @@
+###############################################################################
+## 
+## CircleCI Configuration for QQQ Frontend Material Dashboard
+## =========================================================
+##
+## This configuration implements a GitFlow-based CI/CD strategy for the frontend dashboard,
+## using the qqq-orb for Maven/GitFlow operations and custom commands for frontend-specific tasks.
+##
+## 🚀 WORKFLOWS OVERVIEW:
+## ----------------------
+## 1. test_only          - Feature branches (build, test, coverage)
+## 2. deploy_snapshot    - develop branch (publishes -SNAPSHOT versions to Maven Central + Public NPM)
+## 3. release_candidate  - release/* branches (publishes -RC.n versions to Maven Central + Public NPM)
+## 4. production_release - main branch (publishes stable versions to Maven Central + Public NPM + GitHub releases)
+## 5. hotfix_release     - hotfix/* branches (publishes patch versions to Maven Central + Public NPM + GitHub releases)
+##
+## 🌿 GITFLOW BRANCHING STRATEGY:
+## ------------------------------
+## - main: Production releases (X.Y.Z) → Maven Central releases + Public NPM + GitHub releases
+## - develop: Development snapshots (X.Y.Z-SNAPSHOT) → Maven Central snapshots + Public NPM  
+## - release/*: Release candidates (X.Y.0-RC.n) → Maven Central releases + Public NPM
+## - hotfix/*: Hotfix releases (X.Y.(Z+1)) → Maven Central releases + Public NPM + GitHub releases
+## - feature/*: Feature development → Build and test only (no publishing)
+##
+## 🔄 VERSION MANAGEMENT:
+## ---------------------
+## - Maven versions: Automatically calculated using qqq-orb/manage_version
+## - GitFlow versioning: RC increments, hotfix patches, develop bumps
+## - Automatic Git tags: vX.Y.Z format (e.g., v1.0.0)
+## - GitHub releases: Created automatically for production and hotfix releases
+## - Maven Central: Publishing via qqq-orb/mvn_jar_deploy
+##
+## 🔐 AUTHENTICATION & SECURITY:
+## -----------------------------
+## - Maven Central: CENTRAL_USERNAME, CENTRAL_PASSWORD
+## - GPG Signing: GPG_PRIVATE_KEY_B64, GPG_KEYNAME, GPG_PASSPHRASE
+## - GitHub Integration: GITHUB_TOKEN (for creating releases and tags)
+## - NPM Registry: NPM_TOKEN (for public NPM package access)
+## - All artifacts are GPG signed for verification
+## - Credentials stored securely as environment variables
+##
+## 🛠️ BUILD TOOLS & DEPENDENCIES:
+## ------------------------------
+## - qqq-orb@2.1: Maven/GitFlow operations (version management, deployment, releases)
+## - localstack/platform@2.1: Consistent execution environment
+## - browser-tools@1.4.7: Chrome/ChromeDriver for testing
+## - Maven: Java build tool and dependency management
+## - Node.js: JavaScript runtime and package management
+## - npm: Node.js package manager with React build tools
+##
+## 📁 KEY SCRIPTS & FILES:
+## ------------------------
+## - Frontend-specific commands: frontend_build, frontend_test, frontend_package
+## - mvn-settings.xml: Maven Central repository configuration
+## - config.yml: This CircleCI configuration file
+##
+## 🎯 VERSION PATTERNS BY BRANCH:
+## ------------------------------
+## | Branch Type | Version Pattern | Example | Repository |
+## |-------------|----------------|---------|------------|
+## | main        | X.Y.Z          | 1.0.0   | Maven Central (releases) |
+## | develop     | X.Y.Z-SNAPSHOT | 1.0.0-SNAPSHOT | Maven Central (snapshots) |
+## | release/*   | X.Y.0-RC.n     | 1.0.0-RC.1 | Maven Central (releases) |
+## | hotfix/*    | X.Y.(Z+1)      | 1.0.1   | Maven Central (releases) |
+## | feature/*   | Inherits from develop | 1.0.0-SNAPSHOT | No publishing |
+##
+###############################################################################
+version: 2.1
+
+###############################################################################
+## ORBS (Reusable CI Components)
+## =============================
+## qqq-orb@2.1: Maven/GitFlow operations (version management, deployment, releases)
+## localstack/platform@2.1: Provides consistent execution environment across all jobs
+## browser-tools@1.4.7: Installs Chrome and ChromeDriver for browser-based testing
+###############################################################################
+orbs:
+  qqq-orb: kingsrook/qqq-orb@2.1
+  localstack: localstack/platform@2.1
+  browser-tools: circleci/browser-tools@1.4.7
+  slack: circleci/slack@5.2.1
+
+###############################################################################
+## COMMANDS (Frontend-Specific Operations)
+## ======================================
+## These commands handle frontend-specific operations that complement the qqq-orb.
+## The orb handles Maven/GitFlow operations, while these handle React/NPM operations.
+###############################################################################
+commands:
+
+  ###############################################################################
+  ## 🏗️ FRONTEND BUILD COMMAND
+  ## ==========================
+  ## Builds the frontend project and sets up the complete development environment
+  ## 
+  ## What it does:
+  ## - Restores Maven dependency cache for faster builds
+  ## - Restores NPM dependency cache for faster builds  
+  ## - Installs Chrome/ChromeDriver for browser testing
+  ## - Installs Node.js dependencies (npm install --legacy-peer-deps)
+  ## - Uses qqq-orb/mvn_build for Maven compilation
+  ## - Builds React application (npm run build)
+  ## - Saves both Maven and NPM caches for future builds
+  ##
+  ## Cache Strategy:
+  ## - Maven: Based on pom.xml checksum
+  ## - NPM: Based on package.json checksum
+  ## - Both caches are saved together for consistency
+  ###############################################################################
+  frontend_build:
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "pom.xml" }}
+            - v1-npm-dependencies-{{ checksum "package.json" }}
+      - browser-tools/install-chrome
+      - browser-tools/install-chromedriver
+      - run:
+          name: Setup NPM authentication
+          command: |
+            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> ~/.npmrc
+      - run:
+          name: Install Node.js dependencies
+          command: |
+            npm install --legacy-peer-deps
+      - qqq-orb/mvn_build  # Use orb's Maven build command
+      - run:
+          name: Build React application
+          command: |
+            npm run build
+      - save_cache:
+          paths:
+            - ~/.m2
+            - node_modules
+          key: v1-dependencies-{{ checksum "pom.xml" }}
+
+  ###############################################################################
+  ## 🚀 FRONTEND INTEGRATION TEST COMMAND
+  ## =====================================
+  ## Runs integration tests with the React app running
+  ## 
+  ## What it does:
+  ## - Sets up environment variables for React app
+  ## - Starts React app in background
+  ## - Waits for app to be ready using dockerize
+  ## - Runs Maven verify with app running
+  ## - Collects test results and screenshots
+  ##
+  ## Integration Testing:
+  ## - React app runs on port 3001
+  ## - Proxy configured for localhost:8001
+  ## - Selenium tests run against running app
+  ## - Screenshots captured for debugging
+  ###############################################################################
+  frontend_test:
+    steps:
+      - checkout
+
+      # Ensure no stale Chrome/Driver is shadowing the PATH (your base image had Chrome 109)
+      - run:
+          name: Remove any preinstalled Chrome/ChromeDriver
+          command: |
+            sudo apt-get remove -y google-chrome-stable || true
+            sudo rm -f /usr/bin/google-chrome /opt/google/chrome/chrome || true
+            sudo rm -f /usr/local/bin/chromedriver /usr/bin/chromedriver || true
+
+      # Install current Chrome; DO NOT install chromedriver (let Selenium 4 auto-manage it)
+      - browser-tools/install-chrome
+
+      # System libs Chrome needs in headless CI
+      - run:
+          name: Install browser dependencies
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y \
+              libnss3-dev libgdk-pixbuf2.0-dev libgtk-3-dev libxss-dev
+
+      # Utility to wait for the dev server to come up
+      - run:
+          name: Install dockerize (wait-for utility)
+          command: |
+            DOCKERIZE_VERSION=v0.3.0
+            wget -q https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+            sudo tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+            rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+
+      # Restore Maven deps (Node deps are expected from prior build step; optional guard below)
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "pom.xml" }}
+
+      # (Optional) Guard: if node_modules is missing, install it quickly so "npm run build" works
+      - run:
+          name: Ensure Node dependencies exist (optional guard)
+          command: |
+            if [ ! -d node_modules ]; then
+              echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> ~/.npmrc || true
+              npm ci --legacy-peer-deps
+            fi
+
+      # Diagnostics: confirm Chrome present; ensure no chromedriver on PATH (Selenium should fetch it)
+      - run:
+          name: Chrome diagnostics
+          command: |
+            which google-chrome || true
+            google-chrome --version || /opt/google/chrome/chrome --version || true
+            which chromedriver || echo "chromedriver not present (expected)"
+            env | grep -i -E 'chrome|driver|selenium' || true
+
+      # Build the React app, start it, wait until it's live, then run Selenium tests via Maven.
+      # Note: Using 'mvn test' to avoid GPG signing during testing phase.
+      # GPG signing will happen later in mvn_jar_deploy when deploying to Maven Central.
+      - run:
+          name: Build app, start server, run tests
+          command: |
+            echo "HTTPS=true" >> ./.env
+            npm run build
+            export REACT_APP_PROXY_LOCALHOST_PORT=8001
+            export PORT=3001
+            npm run start &
+            dockerize -wait tcp://localhost:3001 -timeout 3m
+            export QQQ_SELENIUM_HEADLESS=true
+            mvn -s .circleci/mvn-settings.xml --no-transfer-progress -B test
+
+      # Always collect and publish test results & screenshots
+      - run:
+          name: Collect JUnit XML test results
+          when: always
+          command: |
+            mkdir -p ~/test-results/junit/
+            find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} ~/test-results/junit/ \; || true
+      - store_test_results:
+          path: ~/test-results
+      - store_artifacts:
+          path: /tmp/QSeleniumScreenshots
+          when: always
+
+      # Re-cache Maven deps
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: v1-dependencies-{{ checksum "pom.xml" }}
+          
+  ###############################################################################
+  ## 📦 FRONTEND PACKAGING COMMAND
+  ## =============================
+  ## Packages the React app into the Maven JAR for distribution
+  ## 
+  ## What it does:
+  ## - Removes old material-dashboard resources
+  ## - Creates new material-dashboard directory
+  ## - Copies built React app to Maven resources
+  ## - Prepares JAR for deployment
+  ##
+  ## Frontend Integration:
+  ## - React build artifacts packaged into Maven JAR
+  ## - Enables distribution as single artifact
+  ## - Maintains frontend-backend integration
+  ###############################################################################
+  frontend_package:
+    steps:
+      - run:
+          name: Package React app into Maven JAR
+          command: |
+            rm -rf src/main/resources/material-dashboard
+            mkdir -p src/main/resources/material-dashboard
+            cp -r build/* src/main/resources/material-dashboard
+
+###############################################################################
+## JOBS (Workflow Execution Units)
+## ===============================
+## Jobs define the actual work to be done in each workflow.
+## Each job uses the localstack/default executor for consistent environment.
+###############################################################################
+jobs:
+
+  ###############################################################################
+  ## 🏗️ BUILD JOB
+  ## =============
+  ## Basic build job that compiles the frontend project
+  ## 
+  ## Purpose: Compile and build the complete frontend application
+  ## Used by: test_only workflow for feature branches
+  ## 
+  ## What it does:
+  ## - Sets up development environment
+  ## - Installs all dependencies (Maven + NPM)
+  ## - Compiles Java components with Maven
+  ## - Builds React application with npm
+  ## - Manages dependency caching for performance
+  ###############################################################################
+  build:
+    executor: localstack/default
+    steps:
+      - frontend_build
+
+  ###############################################################################
+  ## 🧪 TEST JOB
+  ## ===========
+  ## Comprehensive testing job that runs all tests
+  ## 
+  ## Purpose: Validate code quality and functionality
+  ## Used by: test_only workflow for feature branches
+  ## Dependencies: Requires build job to complete first
+  ## 
+  ## What it does:
+  ## - Runs Maven verify lifecycle (compile, test, package, verify)
+  ## - Executes NPM tests with coverage reporting
+  ## - Collects test artifacts and coverage reports
+  ## - Stores results as CircleCI artifacts for analysis
+  ###############################################################################
+  test:
+    executor: localstack/default
+    steps:
+      - frontend_test
+
+  ###############################################################################
+  ## 📦 SNAPSHOT DEPLOYMENT JOB
+  ## ===========================
+  ## Deploys snapshot versions to Maven Central
+  ## 
+  ## Purpose: Provide nightly builds for developers and QA testing
+  ## Used by: deploy_snapshot workflow for develop branch
+  ## Publishes: X.Y.Z-SNAPSHOT versions to snapshots repository
+  ## 
+  ## What it does:
+  ## - Builds the complete frontend project
+  ## - Manages versions (Maven + NPM sync)
+  ## - Runs comprehensive tests
+  ## - Deploys to Maven Central snapshots repository
+  ## - Enables continuous integration and nightly builds
+  ###############################################################################
+  mvn_deploy:
+    executor: localstack/default
+    steps:
+      - frontend_build
+      - qqq-orb/manage_version  # Use orb's version management
+      - frontend_test
+      - frontend_package
+      - qqq-orb/mvn_jar_deploy  # Use orb's Maven deployment
+
+  ###############################################################################
+  ## 🧪 RELEASE CANDIDATE JOB
+  ## =========================
+  ## Publishes release candidate versions to Maven Central
+  ## 
+  ## Purpose: Provide RC builds for QA testing and stakeholder review
+  ## Used by: release_candidate workflow for release/* branches
+  ## Publishes: X.Y.0-RC.n versions to releases repository
+  ## 
+  ## What it does:
+  ## - Builds the complete frontend project
+  ## - Runs comprehensive tests for quality assurance
+  ## - Manages versions (RC increments)
+  ## - Deploys to Maven Central releases repository
+  ## - Prepares stable versions for production deployment
+  ###############################################################################
+  publish_rc:
+    executor: localstack/default
+    steps:
+      - frontend_build
+      - frontend_test
+      - qqq-orb/manage_version
+      - frontend_package
+      - qqq-orb/mvn_jar_deploy 
+
+  ###############################################################################
+  ## 🚀 PRODUCTION RELEASE JOB
+  ## ==========================
+  ## Publishes production releases to Maven Central and creates GitHub releases
+  ## 
+  ## Purpose: Deploy stable versions to production and create GitHub releases
+  ## Used by: production_release workflow for main branch
+  ## Publishes: X.Y.Z versions to releases repository
+  ## Creates: Git tags and GitHub releases automatically
+  ## 
+  ## What it does:
+  ## - Builds the complete frontend project
+  ## - Manages versions (stable release)
+  ## - Runs comprehensive tests for production validation
+  ## - Deploys to Maven Central releases repository
+  ## - Creates Git tags (vX.Y.Z) for version tracking
+  ## - Creates GitHub releases with automated notes
+  ###############################################################################
+  publish_release:
+    executor: localstack/default
+    steps:
+      - frontend_build
+      - qqq-orb/manage_version
+      - frontend_test
+      - frontend_package
+      - qqq-orb/mvn_jar_deploy
+      - qqq-orb/create_github_release  # Use orb's GitHub release
+
+  ###############################################################################
+  ## 🔥 HOTFIX RELEASE JOB
+  ## ======================
+  ## Publishes hotfix releases to Maven Central and creates GitHub releases
+  ## 
+  ## Purpose: Deploy critical bug fixes and security patches
+  ## Used by: hotfix_release workflow for hotfix/* branches
+  ## Publishes: X.Y.(Z+1) versions to releases repository
+  ## Creates: Git tags and GitHub releases automatically
+  ## 
+  ## What it does:
+  ## - Builds the complete frontend project
+  ## - Manages versions (patch increment)
+  ## - Runs comprehensive tests for hotfix validation
+  ## - Deploys to Maven Central releases repository
+  ## - Creates Git tags (vX.Y.Z+1) for version tracking
+  ## - Creates GitHub releases with automated notes
+  ## - Enables urgent production fixes
+  ###############################################################################
+  publish_hotfix:
+    executor: localstack/default
+    steps:
+      - frontend_build
+      - qqq-orb/manage_version 
+      - frontend_test
+      - frontend_package
+      - qqq-orb/mvn_jar_deploy
+      - qqq-orb/create_github_release
+
+###############################################################################
+## WORKFLOWS (CI/CD Pipeline Orchestration)
+## =======================================
+## Workflows define when and how jobs are executed based on branch patterns and triggers.
+## Each workflow implements a specific part of the GitFlow branching strategy.
+###############################################################################
+workflows:
+
+  ###############################################################################
+  ## 🧪 TEST ONLY WORKFLOW
+  ## =====================
+  ## Runs on feature branches and other non-protected branches
+  ## 
+  ## Purpose: Validate code quality and functionality before merging
+  ## Triggers: Any push to branches NOT matching develop, main, release/*, hotfix/*
+  ## Jobs: build → test (sequential execution)
+  ## 
+  ## What it does:
+  ## - Builds the frontend project
+  ## - Runs comprehensive tests
+  ## - Generates coverage reports
+  ## - Stores build artifacts and test results
+  ###############################################################################
+  test_only:
+    jobs:
+      - build:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              ignore: /(develop|main|release/.*|hotfix/.*)/
+            tags:
+              ignore: /(version|snapshot)-.*/
+      - test:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          requires:
+            - build
+          filters:
+            branches:
+              ignore: /(develop|main|release/.*|hotfix/.*)/
+            tags:
+              ignore: /(version|snapshot)-.*/
+
+  ###############################################################################
+  ## 📦 SNAPSHOT DEPLOYMENT WORKFLOW
+  ## =================================
+  ## Runs on develop branch to publish development snapshots
+  ## 
+  ## Purpose: Provide nightly builds for developers and QA testing
+  ## Triggers: Push to develop branch
+  ## Publishes: X.Y.Z-SNAPSHOT versions to Maven Central snapshots repository
+  ## Jobs: mvn_deploy (Maven Central publishing)
+  ## 
+  ## What it does:
+  ## - Builds and tests the frontend project
+  ## - Manages versions (Maven + NPM sync)
+  ## - Deploys to Maven Central snapshots
+  ## - Enables continuous integration and nightly builds
+  ###############################################################################
+  deploy_snapshot:
+    jobs:
+      - mvn_deploy:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              only: 
+                - develop
+
+  ###############################################################################
+  ## 🧪 RELEASE CANDIDATE WORKFLOW
+  ## =============================
+  ## Runs on release/* branches to publish release candidates
+  ## 
+  ## Purpose: Provide RC builds for QA testing and stakeholder review
+  ## Triggers: Push to any branch matching release/* pattern
+  ## Publishes: X.Y.0-RC.n versions to Maven Central releases repository
+  ## Jobs: publish_rc (build, test, RC artifact creation)
+  ## 
+  ## What it does:
+  ## - Builds and tests the frontend project
+  ## - Manages versions (RC increments)
+  ## - Deploys to Maven Central releases
+  ## - Prepares stable versions for production
+  ###############################################################################
+  release_candidate:
+    jobs:
+      - publish_rc:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              only:
+                - /release\/.*/
+
+  ###############################################################################
+  ## 🚀 PRODUCTION RELEASE WORKFLOW
+  ## ===============================
+  ## Runs on main branch to publish production releases
+  ## 
+  ## Purpose: Deploy stable versions to production and create GitHub releases
+  ## Triggers: Push to main branch (typically after merging release branches)
+  ## Publishes: X.Y.Z versions to Maven Central releases repository
+  ## Creates: Git tags (vX.Y.Z) and GitHub releases automatically
+  ## Jobs: publish_release (build, test, Maven Central deploy, GitHub release)
+  ## 
+  ## What it does:
+  ## - Builds and tests the frontend project
+  ## - Manages versions (stable release)
+  ## - Deploys to Maven Central releases
+  ## - Creates Git tags for version tracking
+  ## - Creates GitHub releases with automated notes
+  ###############################################################################
+  production_release:
+    jobs:
+      - publish_release:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              only: 
+                - main
+            tags:
+              only: 
+                - /v.*/
+
+  ###############################################################################
+  ## 🔥 HOTFIX RELEASE WORKFLOW
+  ## ===========================
+  ## Runs on hotfix/* branches to publish urgent production fixes
+  ## 
+  ## Purpose: Deploy critical bug fixes and security patches
+  ## Triggers: Push to any branch matching hotfix/* pattern
+  ## Publishes: X.Y.(Z+1) versions to Maven Central releases repository
+  ## Creates: Git tags (vX.Y.(Z+1)) and GitHub releases automatically
+  ## Jobs: publish_hotfix (build, test, Maven Central deploy, GitHub release)
+  ## 
+  ## What it does:
+  ## - Builds and tests the frontend project
+  ## - Manages versions (patch increment)
+  ## - Deploys to Maven Central releases
+  ## - Creates Git tags for version tracking
+  ## - Creates GitHub releases with automated notes
+  ## - Enables urgent production fixes
+  ###############################################################################
+  hotfix_release:
+    jobs:
+      - publish_hotfix:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              only: 
+                - /hotfix\/.*/

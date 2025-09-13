@@ -1,0 +1,13 @@
+description: >
+  Complete test-only workflow for feature branches
+  Runs build, test, API version check, and documentation generation
+  Used by: test_only workflow for feature branches
+  Triggers: Any push to branches NOT matching develop, main, release/*, hotfix/*
+
+executor: localstack/default
+
+steps:
+  - mvn_build
+  - mvn_verify
+  - check_middleware_api_versions
+  - publish_asciidoc

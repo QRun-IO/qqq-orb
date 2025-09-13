@@ -1,0 +1,239 @@
+###############################################################################
+## 
+## CircleCI Configuration for QQQ Project
+## =====================================
+##
+## This configuration implements a GitFlow-based CI/CD strategy using the qqq-orb
+## for all Maven/GitFlow operations and documentation generation.
+##
+## WORKFLOWS:
+## ----------
+## 1. test_only          - Runs on feature branches (build, test, API version check)
+## 2. deploy_snapshot    - Runs on develop branch (publishes -SNAPSHOT versions)
+## 3. release_candidate  - Runs on release/* branches (publishes -RC.n versions)
+## 4. production_release - Runs on main branch with v* tags (publishes stable versions)
+## 5. hotfix_release     - Runs on hotfix/* branches (publishes patch versions)
+##
+## BRANCH STRATEGY:
+## ----------------
+## - main: Production releases (X.Y.Z) → Maven Central releases repository
+## - develop: Development snapshots (X.Y.Z-SNAPSHOT) → Maven Central snapshots repository  
+## - release/*: Release candidates (X.Y.0-RC.n) → Maven Central releases repository
+## - hotfix/*: Hotfix releases (X.Y.(Z+1)) → Maven Central releases repository
+## - feature/*: Feature development → Build and test only
+##
+## VERSION MANAGEMENT:
+## ------------------
+## - Versions are managed automatically using qqq-orb/manage_version
+## - CI automatically calculates and sets appropriate versions based on branch type
+## - Supports GitFlow versioning: RC increments, hotfix patches, develop bumps
+## - CI automatically creates Git tags and GitHub releases
+## - Maven Central publishing is handled by qqq-orb/mvn_jar_deploy
+##
+## AUTHENTICATION:
+## ---------------
+## - Maven Central: CENTRAL_USERNAME, CENTRAL_PASSWORD
+## - GPG Signing: GPG_PRIVATE_KEY_B64, GPG_KEYNAME, GPG_PASSPHRASE
+## - GitHub: GITHUB_TOKEN (for creating releases and tags)
+##
+## DEPENDENCIES:
+## -------------
+## - qqq-orb@2.1: Complete Maven/GitFlow operations and documentation generation
+## - localstack/platform@2.1: For consistent execution environment
+## - browser-tools@1.4.7: For Chrome/ChromeDriver in testing
+##
+###############################################################################
+version: 2.1
+
+###############################################################################
+## ORBS (Reusable CI Components)
+## =============================
+## qqq-orb@2.1: Complete Maven/GitFlow operations and documentation generation
+## localstack/platform@2.1: Provides consistent execution environment across all jobs
+## browser-tools@1.4.7: Installs Chrome and ChromeDriver for browser-based testing
+###############################################################################
+orbs:
+  qqq-orb: kingsrook/qqq-orb@2.1
+  localstack: localstack/platform@2.1
+  browser-tools: circleci/browser-tools@1.4.7
+  slack: circleci/slack@5.2.1
+
+###############################################################################
+## WORKFLOWS (CI/CD Pipeline Orchestration)
+## =======================================
+## Workflows define when and how jobs are executed based on branch patterns and triggers.
+## Each workflow implements a specific part of the GitFlow branching strategy.
+## All jobs are provided by the qqq-orb for consistency and maintainability.
+###############################################################################
+workflows:
+
+  ###############################################################################
+  ## 🧪 TEST ONLY WORKFLOW
+  ## =====================
+  ## Runs on feature branches and other non-protected branches
+  ## 
+  ## Purpose: Validate code quality and functionality before merging
+  ## Triggers: Any push to branches NOT matching develop, main, release/*, hotfix/*
+  ## Jobs: build → test → api_version_check → publish_asciidoc (sequential execution)
+  ## 
+  ## What it does:
+  ## - Builds the project
+  ## - Runs comprehensive tests with JaCoCo coverage
+  ## - Validates API compatibility
+  ## - Generates documentation
+  ## - Stores build artifacts and test results
+  ###############################################################################
+  test_only:
+    jobs:
+      - qqq-orb/build:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              ignore: /(develop|main|release/.*|hotfix/.*|integration.*)/
+            tags:
+              ignore: /(version|snapshot)-.*/
+      - qqq-orb/test:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          requires:
+            - qqq-orb/build
+          filters:
+            branches:
+              ignore: /(develop|main|release/.*|hotfix/.*|integration.*)/
+            tags:
+              ignore: /(version|snapshot)-.*/
+      - qqq-orb/api_version_check:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          requires:
+            - qqq-orb/build
+          filters:
+            branches:
+              ignore: /(develop|main|release/.*|hotfix/.*|integration.*)/
+            tags:
+              ignore: /(version|snapshot)-.*/
+      - qqq-orb/publish_asciidoc:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          requires:
+            - qqq-orb/build
+          filters:
+            branches:
+              ignore: /(develop|main|release/.*|hotfix/.*|integration.*)/
+            tags:
+              ignore: /(version|snapshot)-.*/
+
+  ###############################################################################
+  ## 📦 SNAPSHOT DEPLOYMENT WORKFLOW
+  ## =================================
+  ## Runs on develop branch to publish development snapshots
+  ## 
+  ## Purpose: Provide nightly builds for developers and QA testing
+  ## Triggers: Push to develop branch
+  ## Publishes: X.Y.Z-SNAPSHOT versions to Maven Central snapshots repository
+  ## Jobs: mvn_deploy (Maven Central publishing) + publish_asciidoc (documentation)
+  ## 
+  ## What it does:
+  ## - Builds and tests the project
+  ## - Manages versions (Maven + GitFlow)
+  ## - Validates API compatibility
+  ## - Deploys to Maven Central snapshots
+  ## - Generates documentation
+  ## - Enables continuous integration and nightly builds
+  ###############################################################################
+  deploy_snapshot:
+    jobs:
+      - qqq-orb/mvn_deploy:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              only: 
+                - develop
+      - qqq-orb/publish_asciidoc:
+          filters:
+            branches:
+              only: 
+                - develop
+
+  ###############################################################################
+  ## 🧪 RELEASE CANDIDATE WORKFLOW
+  ## =============================
+  ## Runs on release/* branches to publish release candidates
+  ## 
+  ## Purpose: Provide RC builds for QA testing and stakeholder review
+  ## Triggers: Push to any branch matching release/* pattern
+  ## Publishes: X.Y.0-RC.n versions to Maven Central releases repository
+  ## Jobs: publish_rc (build, test, API check, RC artifact creation)
+  ## 
+  ## What it does:
+  ## - Builds and tests the project
+  ## - Validates API compatibility
+  ## - Manages versions (RC increments)
+  ## - Deploys to Maven Central releases
+  ## - Prepares stable versions for production
+  ###############################################################################
+  release_candidate:
+    jobs:
+      - qqq-orb/publish_rc:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              only:
+                - /release\/.*/
+
+  ###############################################################################
+  ## 🚀 PRODUCTION RELEASE WORKFLOW
+  ## ===============================
+  ## Runs on main branch to publish production releases
+  ## 
+  ## Purpose: Deploy stable versions to production and create GitHub releases
+  ## Triggers: Push to main branch (typically after merging release branches)
+  ## Publishes: X.Y.Z versions to Maven Central releases repository
+  ## Creates: Git tags (vX.Y.Z) and GitHub releases automatically
+  ## Jobs: publish_release (build, test, API check, Maven Central deploy, GitHub release)
+  ## 
+  ## What it does:
+  ## - Builds and tests the project
+  ## - Manages versions (stable release)
+  ## - Validates API compatibility
+  ## - Deploys to Maven Central releases
+  ## - Creates Git tags for version tracking
+  ## - Creates GitHub releases with automated notes
+  ###############################################################################
+  production_release:
+    jobs:
+      - qqq-orb/publish_release:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              only: 
+                - main
+            tags:
+              only: 
+                - /v.*/
+
+  ###############################################################################
+  ## 🔥 HOTFIX RELEASE WORKFLOW
+  ## ===========================
+  ## Runs on hotfix/* branches to publish urgent production fixes
+  ## 
+  ## Purpose: Deploy critical bug fixes and security patches
+  ## Triggers: Push to any branch matching hotfix/* pattern
+  ## Publishes: X.Y.(Z+1) versions to Maven Central releases repository
+  ## Creates: Git tags (vX.Y.(Z+1)) and GitHub releases automatically
+  ## Jobs: publish_hotfix (build, test, API check, Maven Central deploy, GitHub release)
+  ## 
+  ## What it does:
+  ## - Builds and tests the project
+  ## - Manages versions (patch increment)
+  ## - Validates API compatibility
+  ## - Deploys to Maven Central releases
+  ## - Creates Git tags for version tracking
+  ## - Creates GitHub releases with automated notes
+  ## - Enables urgent production fixes
+  ###############################################################################
+  hotfix_release:
+    jobs:
+      - qqq-orb/publish_hotfix:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              only: 
+                - /hotfix\/.*/

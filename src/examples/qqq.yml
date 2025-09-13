@@ -1,0 +1,55 @@
+version: 2.1
+
+orbs:
+  qqq-orb: kingsrook/qqq-orb@dev:alpha
+
+workflows:
+
+  test_only:
+    jobs:
+      - qqq-orb/test_only:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              ignore: /(develop|main|release/.*|hotfix/.*|integration.*)/
+            tags:
+              ignore: /(version|snapshot)-.*/
+
+  publish_snapshot:
+    jobs:
+      - qqq-orb/publish_snapshot:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              only: 
+                - develop
+
+  publish_release_candidate:
+    jobs:
+      - qqq-orb/publish_release_candidate:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              only:
+                - /release\/.*/
+
+  production_release:
+    jobs:
+      - qqq-orb/publish_release:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              only: 
+                - main
+            tags:
+              only: 
+                - /v.*/
+
+  publish_hotfix_release:
+    jobs:
+      - qqq-orb/publish_hotfix_release:
+          context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+          filters:
+            branches:
+              only: 
+                - /hotfix\/.*/
