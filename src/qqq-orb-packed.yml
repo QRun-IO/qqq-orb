@@ -1,0 +1,288 @@
+version: 2.1
+description: |
+    QQQ Orb to handle the branching, testing, releasing, and auto updating of all maven and npm based projects within the Kingsrook/QRunIO Repo world.
+display:
+    home_url: https://www.qrun.io
+    source_url: https://github.com/Kingsrook/qqq-orb
+orbs:
+    browser-tools: circleci/browser-tools@1.4.7
+    localstack: localstack/platform@2.1
+    slack: circleci/slack@5.2.1
+commands:
+    check_middleware_api_versions:
+        description: |
+            Validates API version compatibility across middleware components - Builds the project without running tests - Assembles the Javalin middleware application - Runs ValidateApiVersions tool to check API compatibility - Ensures all middleware components have compatible API versions
+        steps:
+            - checkout
+            - run:
+                command: "#!/bin/bash\n\n############################################################################\n## check_middleware_api_versions.sh\n## API Version Compatibility Validation Script\n## \n## This script validates API version compatibility across middleware components\n## by building the project and running the ValidateApiVersions tool.\n##\n## Process:\n## 1. Builds the entire project without running tests\n## 2. Assembles the Javalin middleware application\n## 3. Runs ValidateApiVersions tool to check API compatibility\n##\n## Usage: Called by CircleCI orb command check_middleware_api_versions\n## Output: Validates API versions and exits with error if incompatible\n############################################################################\n\nset -e\n\n#################################\n## Build project without tests ##\n#################################\nmvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress install -DskipTests\n\n#####################################\n## Assemble middleware application ##\n#####################################\nmvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress -pl qqq-middleware-javalin package appassembler:assemble -DskipTests\n\n################################\n## Run API version validation ##\n################################\nqqq-middleware-javalin/target/appassembler/bin/ValidateApiVersions -r \"$(pwd)\"\n"
+                name: Build and Run ValidateApiVersions
+    create_github_release:
+        description: |
+            Creates Git tags and GitHub releases for production releases - Creates version tag from pom.xml revision - Pushes tag to remote repository - Creates GitHub release with automated notes - Used by: publish_release and publish_hotfix jobs  Generates HTML documentation from AsciiDoc source files
+        steps:
+            - run:
+                command: "#!/bin/bash\n\n############################################################################\n## create_github_release.sh\n## GitHub Release Creation Script\n## \n## This script creates Git tags and GitHub releases for production releases.\n## It extracts the version from pom.xml and creates both a Git tag and\n## a corresponding GitHub release with automated notes.\n##\n## Process:\n## 1. Extracts version from pom.xml revision field\n## 2. Creates Git tag if it doesn't already exist\n## 3. Pushes tag to remote repository\n## 4. Authenticates with GitHub CLI\n## 5. Creates GitHub release with automated notes\n##\n## Usage: Called by CircleCI orb commands publish_release and publish_hotfix\n## Output: Creates Git tag and GitHub release for the version\n############################################################################\n\nset -e\n\n##################################\n## Extract version from pom.xml ##\n##################################\nVERSION=$(grep '<revision>' pom.xml | sed 's/.*<revision>//;s/<.*//')\necho \"Creating tag for version: $VERSION\"\n\n##################################################\n## Create and push tag (if not already created) ##\n##################################################\nif ! git tag --list | grep -q \"v$VERSION\"; then\n  git tag \"v$VERSION\"\n  git push origin \"v$VERSION\"\n  echo \"Tag v$VERSION created and pushed\"\nelse\n  echo \"Tag v$VERSION already exists\"\nfi\n\n###########################\n## Create GitHub release ##\n###########################\necho \"Creating GitHub release for v$VERSION\"\necho \"$GITHUB_TOKEN\" | gh auth login --with-token\ngh release create \"v$VERSION\" \\\n  --title \"Release v$VERSION\" \\\n  --notes \"Automated release from CircleCI\" \\\n  --repo Kingsrook/qqq\n"
+                name: Create and push version tag
+    install_asciidoctor:
+        description: |
+            Installs AsciiDoc processor for generating HTML documentation - Updates package list and installs asciidoctor - Used by publish_asciidoc job for documentation generation
+        steps:
+            - checkout
+            - run:
+                command: |
+                    sudo apt-get update
+                    sudo apt install -y asciidoctor
+                name: Install asciidoctor
+    manage_version:
+        description: |
+            Automated version management using calculate-version.sh - Determines appropriate version based on branch type and current version - Uses versions-maven-plugin to update pom.xml - Handles GitFlow versioning strategy automatically - Supports RC increments, hotfix patches, and develop version bumps
+        steps:
+            - add_ssh_keys
+            - run:
+                command: "#!/bin/bash\n\n############################################################################\n## manage_version_git_config.sh\n## Git Configuration Setup Script\n## \n## This script configures Git identity for automated version commits.\n## It sets up the Git user email and name for CircleCI to make\n## automated commits when versions are updated.\n##\n## Process:\n## 1. Sets Git user email to CI address\n## 2. Sets Git user name to CircleCI\n##\n## Usage: Called by CircleCI orb command manage_version\n## Output: Configures Git identity for automated commits\n############################################################################\n\nset -e\n\n##################################################\n## Configure Git identity for automated commits ##\n##################################################\ngit config user.email \"ci@kingsrook.com\"\ngit config user.name \"CircleCI\"\n"
+                name: Set up Git identity for version commits
+            - run:
+                command: "#!/bin/bash\n\n############################################################################\n## manage_version_calculate.sh\n## Version Calculation Execution Script\n## \n## This script executes the version calculation process by running\n## the calculate-version.sh script. It ensures the script is executable\n## and then runs it to determine and set the appropriate version.\n##\n## Process:\n## 1. Makes calculate-version.sh executable\n## 2. Executes the version calculation script\n##\n## Usage: Called by CircleCI orb command manage_version\n## Output: Calculates and sets version in pom.xml\n############################################################################\n\nset -e\n\n###########################################################\n## Make version calculation script executable and run it ##\n###########################################################\nchmod +x .circleci/calculate-version.sh\n.circleci/calculate-version.sh\n"
+                name: Calculate and set version
+            - run:
+                command: "#!/bin/bash\n\n############################################################################\n## manage_version_commit.sh\n## Version Commit Management Script\n## \n## This script handles committing version changes to Git. It checks if\n## the pom.xml file has been modified and commits the changes if needed.\n## It also pushes the changes back to the current branch.\n##\n## Process:\n## 1. Checks if pom.xml has been modified\n## 2. Extracts the new version from pom.xml\n## 3. Commits the changes with skip ci flag\n## 4. Pushes changes to the current branch\n##\n## Usage: Called by CircleCI orb command manage_version\n## Output: Commits and pushes version changes if pom.xml was modified\n############################################################################\n\nset -e\n\n################################################################\n## Check if pom.xml was modified and commit changes if needed ##\n################################################################\nif [[ -n \"$(git status --porcelain pom.xml)\" ]]; then\n  NEW_VERSION=$(grep '<revision>' pom.xml | sed 's/.*<revision>//;s/<.*//')\n  git add pom.xml\n  git commit -m \"Bump version to $NEW_VERSION [skip ci]\"\n  git push origin \"HEAD:${CIRCLE_BRANCH}\"\n  echo \"Version updated to: $NEW_VERSION and pushed\"\nelse\n  echo \"No version change needed\"\nfi\n"
+                name: Commit version change if modified
+    mvn_build:
+        description: |
+            Builds the project and sets up the development environment - Restores Maven dependency cache for faster builds - Installs Chrome/ChromeDriver for browser testing - Creates .env file with database credentials - Compiles the project with Maven - Saves Maven cache for future builds
+        steps:
+            - checkout
+            - restore_cache:
+                keys:
+                    - v1-dependencies-{{ checksum "pom.xml" }}
+            - browser-tools/install-chrome
+            - browser-tools/install-chromedriver
+            - run:
+                command: |
+                    echo "RDBMS_PASSWORD=$RDBMS_PASSWORD" >> qqq-sample-project/.env
+                name: Write .env
+            - run:
+                command: "#!/bin/bash\n\n############################################################################\n## mvn_build_compile.sh\n## Maven Compilation Script\n## \n## This script compiles the Maven project using optimized settings.\n## It uses the CircleCI Maven settings file and enables parallel builds\n## for faster compilation.\n##\n## Process:\n## 1. Uses CircleCI Maven settings configuration\n## 2. Enables parallel builds with 4 threads\n## 3. Disables transfer progress for cleaner output\n## 4. Compiles the project\n##\n## Usage: Called by CircleCI orb command mvn_build\n## Output: Compiles the Maven project\n############################################################################\n\nset -e\n\n###################################################\n## Compile Maven project with optimized settings ##\n###################################################\nmvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress compile\n"
+                name: Run Maven Compile
+            - save_cache:
+                key: v1-dependencies-{{ checksum "pom.xml" }}
+                paths:
+                    - ~/.m2
+    mvn_jar_deploy:
+        description: |
+            Publishes artifacts to Maven Central (Sonatype Central Portal) - Restores Maven dependency cache - Debugs Maven settings to verify configuration - Sets up GPG signing for artifact verification - Deploys signed artifacts to Maven Central using release profile - Saves Maven cache for future builds
+        steps:
+            - run:
+                command: "#!/bin/bash\n\n############################################################################\n## mvn_jar_deploy_gpg_setup.sh\n## GPG Signing Setup Script\n## \n## This script sets up GPG signing for Maven artifact deployment.\n## It configures the GPG environment and imports the private key\n## needed for signing artifacts before deployment to Maven Central.\n##\n## Process:\n## 1. Creates GPG directory structure\n## 2. Configures GPG with loopback pinentry mode\n## 3. Sets proper permissions on GPG configuration\n## 4. Imports the base64-encoded private key\n##\n## Usage: Called by CircleCI orb command mvn_jar_deploy\n## Output: Sets up GPG signing for artifact deployment\n############################################################################\n\nset -e\n\n#################################################\n## Set up GPG environment for artifact signing ##\n#################################################\nmkdir -p ~/.gnupg\necho 'pinentry-mode loopback' > ~/.gnupg/gpg.conf\nchmod 600 ~/.gnupg/gpg.conf\necho \"$GPG_PRIVATE_KEY_B64\"| tr -d ' \\r\\n\\t' | base64 -d | gpg --batch --import\n"
+                name: Setup GPG for signing
+            - run:
+                command: "#!/bin/bash\n\n############################################################################\n## mvn_jar_deploy_deploy.sh\n## Maven Artifact Deployment Script\n## \n## This script deploys signed Maven artifacts to Maven Central (Sonatype).\n## It uses the release profile and GPG signing configuration to publish\n## artifacts to the central repository.\n##\n## Process:\n## 1. Uses CircleCI Maven settings configuration\n## 2. Activates release profile for deployment\n## 3. Runs in batch mode for automation\n## 4. Skips tests (should be run separately)\n## 5. Configures GPG signing with keyname and passphrase\n## 6. Deploys artifacts to Maven Central\n##\n## Usage: Called by CircleCI orb command mvn_jar_deploy\n## Output: Deploys signed artifacts to Maven Central\n############################################################################\n\nset -e\n\n##############################################\n## Deploy signed artifacts to Maven Central ##\n##############################################\nmvn -s .circleci/mvn-settings.xml -P release -B -DskipTests -Dgpg.keyname=\"$GPG_KEYNAME\" -Dgpg.passphrase=\"$GPG_PASSPHRASE\" deploy\n"
+                name: Publish to Sonatype Central (releases and SNAPSHOTs)
+            - save_cache:
+                key: v1-dependencies-{{ checksum "pom.xml" }}
+                paths:
+                    - ~/.m2
+    mvn_verify:
+        description: |
+            Runs the complete Maven lifecycle including tests and generates reports - Restores Maven dependency cache - Runs Maven verify (compile, test, package, verify) - Collects JaCoCo code coverage reports - Stores test output artifacts - Saves JUnit test results for CircleCI test reporting
+        steps:
+            - checkout
+            - run:
+                command: "#!/bin/bash\n\n############################################################################\n## mvn_verify_verify.sh\n## Maven Verification Script\n## \n## This script runs the complete Maven verification lifecycle including\n## compilation, testing, packaging, and verification. It uses optimized\n## settings for faster execution in CI environments.\n##\n## Process:\n## 1. Uses CircleCI Maven settings configuration\n## 2. Enables parallel builds with 4 threads\n## 3. Disables transfer progress for cleaner output\n## 4. Runs Maven verify lifecycle (compile, test, package, verify)\n##\n## Usage: Called by CircleCI orb command mvn_verify\n## Output: Runs complete Maven verification lifecycle\n############################################################################\n\nset -e\n\n########################################################\n## Run Maven verify lifecycle with optimized settings ##\n########################################################\nmvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress verify\n"
+                name: Run Maven Verify
+            - run:
+                command: .circleci/collect-jacoco-reports.sh
+                name: Collect JaCoCo reports
+                when: always
+            - store_artifacts:
+                destination: jacoco-reports
+                path: /home/circleci/jacoco-reports
+                when: always
+            - run:
+                command: .circleci/concatenate-test-output.sh
+                name: Concatenate test output files
+                when: always
+            - store_artifacts:
+                destination: test-output
+                path: /home/circleci/test-output-artifacts
+                when: always
+            - run:
+                command: "#!/bin/bash\n\n############################################################################\n## mvn_verify_save_test_results.sh\n## Test Results Collection Script\n## \n## This script collects JUnit test results from Maven Surefire reports\n## and saves them to the CircleCI test results directory for reporting.\n## It finds all XML test result files and copies them to the standard location.\n##\n## Process:\n## 1. Creates test results directory structure\n## 2. Finds all Surefire XML report files\n## 3. Copies test results to CircleCI test results directory\n##\n## Usage: Called by CircleCI orb command mvn_verify\n## Output: Collects and saves JUnit test results for CircleCI reporting\n############################################################################\n\nset -e\n\n#############################################################\n## Create test results directory and collect JUnit reports ##\n#############################################################\nmkdir -p ~/test-results/junit/\nfind . -type f -regex \".*/target/surefire-reports/.*xml\" -exec cp {} ~/test-results/junit/ \\;\n"
+                name: Save test results
+                when: always
+            - store_test_results:
+                path: ~/test-results
+    publish_asciidoc:
+        description: |
+            Generates and publishes HTML documentation - Processes docs/index.adoc to create HTML documentation - Stores generated HTML as CircleCI artifacts - Used by workflow jobs for documentation publishing
+        steps:
+            - checkout
+            - install_asciidoctor
+            - run_asciidoctor
+    run_asciidoctor:
+        description: |
+            Generates HTML documentation from AsciiDoc source files - Processes docs/index.adoc to create HTML documentation - Stores generated HTML as CircleCI artifacts - Used by publish_asciidoc job for documentation publishing
+        steps:
+            - run:
+                command: |
+                    cd docs
+                    asciidoctor -a docinfo=shared index.adoc
+                name: Run asciidoctor
+            - store_artifacts:
+                path: docs/index.html
+                when: always
+executors:
+    default:
+        description: |
+            This is a sample executor using Docker and Node. If you want to provide a custom environment in your orb, insert your image here. If you do not require an executor, you can simply delete this directory.
+        docker:
+            - image: cimg/node:<<parameters.tag>>
+        parameters:
+            tag:
+                default: lts
+                description: |
+                    Pick a specific cimg/node image variant: https://hub.docker.com/r/cimg/node/tags
+                type: string
+jobs:
+    api_version_check:
+        description: |
+            Validates API version compatibility across middleware components Used by: test_only workflow for feature branches Dependencies: Requires build job to complete first
+        executor: localstack/default
+        steps:
+            - check_middleware_api_versions
+    build:
+        description: |
+            Basic build job that compiles the project Used by: test_only workflow for feature branches
+        executor: localstack/default
+        steps:
+            - mvn_build
+    production_release:
+        description: |
+            Publishes production releases to Maven Central and creates GitHub releases Used by: production_release workflow for main branch Publishes: X.Y.Z versions to releases repository Creates: Git tags and GitHub releases automatically
+        executor: localstack/default
+        steps:
+            - mvn_build
+            - manage_version
+            - mvn_verify
+            - check_middleware_api_versions
+            - mvn_jar_deploy
+            - create_github_release
+    publish_asciidoc:
+        description: |
+            Generates and publishes HTML documentation Used by: deploy_snapshot workflow for develop branch Generates: HTML documentation from AsciiDoc source files
+        executor: localstack/default
+        steps:
+            - checkout
+            - install_asciidoctor
+            - run_asciidoctor
+    publish_hotfix_release:
+        description: |
+            Publishes hotfix releases to Maven Central and creates GitHub releases Used by: hotfix_release workflow for hotfix/* branches Publishes: X.Y.(Z+1) versions to releases repository Creates: Git tags and GitHub releases automatically
+        executor: localstack/default
+        steps:
+            - mvn_build
+            - manage_version
+            - mvn_verify
+            - check_middleware_api_versions
+            - mvn_jar_deploy
+            - create_github_release
+    publish_release_candidate:
+        description: |
+            Publishes release candidate versions to Maven Central Used by: release_candidate workflow for release/* branches Publishes: X.Y.0-RC.n versions to releases repository
+        executor: localstack/default
+        steps:
+            - mvn_build
+            - mvn_verify
+            - check_middleware_api_versions
+            - manage_version
+            - mvn_jar_deploy
+    publish_snapshot:
+        description: |
+            Deploys snapshot versions to Maven Central Used by: deploy_snapshot workflow for develop branch Publishes: X.Y.Z-SNAPSHOT versions to snapshots repository
+        executor: localstack/default
+        steps:
+            - mvn_build
+            - manage_version
+            - mvn_verify
+            - check_middleware_api_versions
+            - mvn_jar_deploy
+            - publish_asciidoc
+    test:
+        description: |
+            Comprehensive testing job that runs all tests and generates reports Used by: test_only workflow for feature branches Dependencies: Requires build job to complete first
+        executor: localstack/default
+        steps:
+            - mvn_verify
+    test_only:
+        description: |
+            Complete test-only workflow for feature branches Runs build, test, API version check, and documentation generation Used by: test_only workflow for feature branches Triggers: Any push to branches NOT matching develop, main, release/*, hotfix/*
+        executor: localstack/default
+        steps:
+            - mvn_build
+            - mvn_verify
+            - check_middleware_api_versions
+            - publish_asciidoc
+examples:
+    build:
+        description: |
+            Complete CI/CD workflow example for Maven-based projects using GitFlow branching strategy. This example demonstrates how to use the qqq-orb for automated building, testing, and releasing.
+        usage:
+            version: "2.1"
+            orbs:
+                qqq-orb: kingsrook/qqq-orb@2.1
+            workflows:
+                deploy_snapshot:
+                    filters:
+                        branches:
+                            only:
+                                - develop
+                    jobs:
+                        - qqq-orb/publish_snapshot:
+                            context:
+                                - qqq-maven-registry-credentials
+                hotfix_release:
+                    filters:
+                        branches:
+                            only:
+                                - /hotfix\/.*/
+                    jobs:
+                        - qqq-orb/publish_hotfix_release:
+                            context:
+                                - qqq-maven-registry-credentials
+                production_release:
+                    filters:
+                        branches:
+                            only:
+                                - main
+                    jobs:
+                        - qqq-orb/production_release:
+                            context:
+                                - qqq-maven-registry-credentials
+                release_candidate:
+                    filters:
+                        branches:
+                            only:
+                                - /release\/.*/
+                    jobs:
+                        - qqq-orb/publish_release_candidate:
+                            context:
+                                - qqq-maven-registry-credentials
+                test_only:
+                    filters:
+                        branches:
+                            ignore:
+                                - develop
+                                - main
+                                - /release\/.*/
+                                - /hotfix\/.*/
+                    jobs:
+                        - qqq-orb/build:
+                            context:
+                                - qqq-maven-registry-credentials
+                        - qqq-orb/test:
+                            context:
+                                - qqq-maven-registry-credentials
+                            requires:
+                                - qqq-orb/build
+

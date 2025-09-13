@@ -24,7 +24,7 @@ usage:
     # Snapshot deployment for develop branch
     deploy_snapshot:
       jobs:
-        - qqq-orb/mvn_deploy:
+        - qqq-orb/publish_snapshot:
             context: [ qqq-maven-registry-credentials ]
       filters:
         branches:
@@ -33,7 +33,7 @@ usage:
     # Release candidate workflow
     release_candidate:
       jobs:
-        - qqq-orb/publish_rc:
+        - qqq-orb/publish_release_candidate:
             context: [ qqq-maven-registry-credentials ]
       filters:
         branches:
@@ -42,7 +42,7 @@ usage:
     # Production release workflow
     production_release:
       jobs:
-        - qqq-orb/publish_release:
+        - qqq-orb/production_release:
             context: [ qqq-maven-registry-credentials ]
       filters:
         branches:
@@ -51,7 +51,7 @@ usage:
     # Hotfix release workflow
     hotfix_release:
       jobs:
-        - qqq-orb/publish_hotfix:
+        - qqq-orb/publish_hotfix_release:
             context: [ qqq-maven-registry-credentials ]
       filters:
         branches:
