@@ -12,6 +12,7 @@ help:
 	@echo "  make test      - Pack and validate the orb"
 	@echo "  make clean     - Remove packed orb files"
 	@echo "  make dev       - Development workflow: pack, validate, and show status"
+	@echo "  make lint      - Run all CircleCI-style linting checks"
 	@echo "  make publish   - Show publishing instructions (requires manual steps)"
 	@echo ""
 	@echo "Key Files:"
@@ -40,6 +41,33 @@ clean:
 	@echo "Cleaning up packed orb files..."
 	@rm -rf target
 	@echo "✅ Cleanup complete"
+
+# Lint source files (same checks as CircleCI)
+lint:
+	@echo "🔍 Running CircleCI-style linting checks..."
+	@echo ""
+	@echo "1. YAML Linting..."
+	@yamllint src/commands/ src/jobs/ src/examples/ src/@orb.yml
+	@echo "✅ YAML linting passed"
+	@echo ""
+	@echo "2. Shell Script Linting (ShellCheck)..."
+	@shellcheck src/scripts/*.sh
+	@echo "✅ ShellCheck passed"
+	@echo ""
+	@echo "3. CircleCI Orb Linting..."
+	@circleci orb validate src/@orb.yml
+	@echo "✅ CircleCI orb validation passed"
+	@echo ""
+	@echo "4. Orb Packing Test..."
+	@circleci orb pack src > /tmp/test-packed.yml
+	@circleci orb validate /tmp/test-packed.yml
+	@rm -f /tmp/test-packed.yml
+	@echo "✅ Orb packing test passed"
+	@echo ""
+	@echo "🎉 All linting checks passed! Ready for commit."
+	@echo ""
+	@echo "Note: For orb best practices review (orb-tools/review),"
+	@echo "      this runs automatically in CircleCI when you push."
 
 # Development workflow: pack, validate, and show status
 dev: validate

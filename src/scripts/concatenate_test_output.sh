@@ -22,22 +22,26 @@ for module_dir in */; do
     ## Concatenate all .txt files in the surefire-reports directory ##
     ##################################################################
     if [ -n "$(find "${module_dir}target/surefire-reports" -name "*.txt" -type f)" ]; then
-      echo "=== Test Output for ${module_name} ===" > "${output_file}"
-      echo "Generated at: $(date)" >> "${output_file}"
-      echo "==========================================" >> "${output_file}"
-      echo "" >> "${output_file}"
+      {
+        echo "=== Test Output for ${module_name} ==="
+        echo "Generated at: $(date)"
+        echo "=========================================="
+        echo ""
+      } > "${output_file}"
       
       ##############################################
       ## Sort files to ensure consistent ordering ##
       ##############################################
       find "${module_dir}target/surefire-reports" -name "*.txt" -type f | sort | while read -r txt_file; do
-        echo "--- File: $(basename "${txt_file}") ---" >> "${output_file}"
-        cat "${txt_file}" >> "${output_file}"
-        echo "" >> "${output_file}"
-        echo "--- End of $(basename "${txt_file}") ---" >> "${output_file}"
-        echo "" >> "${output_file}"
-        echo "" >> "${output_file}"
-        echo "" >> "${output_file}"
+        {
+          echo "--- File: $(basename "${txt_file}") ---"
+          cat "${txt_file}"
+          echo ""
+          echo "--- End of $(basename "${txt_file}") ---"
+          echo ""
+          echo ""
+          echo ""
+        } >> "${output_file}"
       done
       
       echo "Concatenated test output for ${module_name} to ${output_file}"
