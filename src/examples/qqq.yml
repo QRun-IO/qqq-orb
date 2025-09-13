@@ -1,7 +1,12 @@
-version: 2.1
+description: >
+  Complete QQQ project CI/CD configuration using qqq-orb.
+  This example demonstrates the full GitFlow workflow with all orb jobs
+  for a standard Maven-based QQQ project.
 
-orbs:
-  qqq-orb: kingsrook/qqq-orb@dev:alpha
+usage:
+  version: 2.1
+  orbs:
+    qqq-orb: kingsrook/qqq-orb@2.1
 
 workflows:
 
