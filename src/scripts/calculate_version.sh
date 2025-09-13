@@ -47,7 +47,8 @@ if [[ "$CURRENT_BRANCH" == "HEAD" ]]; then
             CURRENT_BRANCH="main"
         elif [[ "$CURRENT_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-RC\.[0-9]+$ ]]; then
             echo "This is a release candidate tag, treating as release branch"
-            CURRENT_BRANCH="release/$(echo $CURRENT_TAG | sed 's/v\([0-9]*\.[0-9]*\).*/\1/')"
+            CURRENT_BRANCH="release/${CURRENT_TAG#v}"
+            CURRENT_BRANCH="release/${CURRENT_BRANCH%-RC.*}"
         else
             echo "Unknown tag format: $CURRENT_TAG"
             CURRENT_BRANCH="unknown"
