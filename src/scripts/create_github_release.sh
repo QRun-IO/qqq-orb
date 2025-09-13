@@ -48,7 +48,7 @@ PREVIOUS_TAG=$(git describe --tags --abbrev=0 --match="v*" HEAD~1 2>/dev/null ||
 
 if [[ -n "$PREVIOUS_TAG" ]]; then
   echo "Comparing with previous release: $PREVIOUS_TAG"
-  RELEASE_NOTES=$(git log --pretty=format:"- %s" $PREVIOUS_TAG..HEAD | head -20)
+  RELEASE_NOTES=$(git log --pretty=format:"- %s" "$PREVIOUS_TAG"..HEAD | head -20)
 else
   echo "No previous tag found, using recent commits"
   RELEASE_NOTES=$(git log --pretty=format:"- %s" -10)
