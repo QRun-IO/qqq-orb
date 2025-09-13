@@ -1,0 +1,97 @@
+description: >
+  Tests the React application
+  - Removes any preinstalled Chrome/ChromeDriver
+  - Installs current Chrome
+  - Installs browser dependencies
+  - Installs dockerize (wait-for utility)
+  - Restores Maven dependency cache
+  - Ensures Node dependencies exist
+  - Builds the React app, starts the server, waits for it to come up, then runs Selenium tests via Maven
+  - Collects JUnit XML test results
+  - Stores test results and screenshots
+  - Saves Maven cache for future builds
+steps:
+  # Ensure no stale Chrome/Driver is shadowing the PATH (your base image had Chrome 109)
+  - run:
+      name: Remove any preinstalled Chrome/ChromeDriver
+      command: |
+        sudo apt-get remove -y google-chrome-stable || true
+        sudo rm -f /usr/bin/google-chrome /opt/google/chrome/chrome || true
+        sudo rm -f /usr/local/bin/chromedriver /usr/bin/chromedriver || true
+
+  # Install current Chrome; DO NOT install chromedriver (let Selenium 4 auto-manage it)
+  - browser-tools/install-chrome
+
+  # System libs Chrome needs in headless CI
+  - run:
+      name: Install browser dependencies
+      command: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libnss3-dev libgdk-pixbuf2.0-dev libgtk-3-dev libxss-dev
+
+  # Utility to wait for the dev server to come up
+  - run:
+      name: Install dockerize (wait-for utility)
+      command: |
+        DOCKERIZE_VERSION=v0.3.0
+        wget -q https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+        sudo tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+        rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+
+  # Restore Maven deps (Node deps are expected from prior build step; optional guard below)
+  - restore_cache:
+      keys:
+        - v1-dependencies-{{ checksum "pom.xml" }}
+
+  # (Optional) Guard: if node_modules is missing, install it quickly so "npm run build" works
+  - run:
+      name: Ensure Node dependencies exist (optional guard)
+      command: |
+        if [ ! -d node_modules ]; then
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> ~/.npmrc || true
+          npm ci --legacy-peer-deps
+        fi
+
+  # Diagnostics: confirm Chrome present; ensure no chromedriver on PATH (Selenium should fetch it)
+  - run:
+      name: Chrome diagnostics
+      command: |
+        which google-chrome || true
+        google-chrome --version || /opt/google/chrome/chrome --version || true
+        which chromedriver || echo "chromedriver not present (expected)"
+        env | grep -i -E 'chrome|driver|selenium' || true
+
+  # Build the React app, start it, wait until it's live, then run Selenium tests via Maven.
+  # Note: Using 'mvn test' to avoid GPG signing during testing phase.
+  # GPG signing will happen later in mvn_jar_deploy when deploying to Maven Central.
+  - run:
+      name: Build app, start server, run tests
+      command: |
+        echo "HTTPS=true" >> ./.env
+        npm run build
+        export REACT_APP_PROXY_LOCALHOST_PORT=8001
+        export PORT=3001
+        npm run start &
+        dockerize -wait tcp://localhost:3001 -timeout 3m
+        export QQQ_SELENIUM_HEADLESS=true
+        mvn -s .circleci/mvn-settings.xml --no-transfer-progress -B test
+
+  # Always collect and publish test results & screenshots
+  - run:
+      name: Collect JUnit XML test results
+      when: always
+      command: |
+        mkdir -p ~/test-results/junit/
+        find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} ~/test-results/junit/ \; || true
+  - store_test_results:
+      path: ~/test-results
+  - store_artifacts:
+      path: /tmp/QSeleniumScreenshots
+      when: always
+
+  # Re-cache Maven deps
+  - save_cache:
+      paths:
+        - ~/.m2
+      key: v1-dependencies-{{ checksum "pom.xml" }}

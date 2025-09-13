@@ -1,0 +1,35 @@
+description: >
+  Builds the React application
+  - Restores Maven dependency cache
+  - Installs Chrome/ChromeDriver for browser testing
+  - Creates .env file with database credentials
+  - Compiles the project with Maven
+  - Saves Maven cache for future builds
+steps:
+  - restore_cache:
+      keys:
+        - v1-dependencies-{{ checksum "pom.xml" }}
+        - v1-npm-dependencies-{{ checksum "package.json" }}
+  - browser-tools/install-chrome
+  - browser-tools/install-chromedriver
+  - run:
+      name: Setup NPM authentication
+      command: |
+        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> ~/.npmrc
+  - run:
+      name: Install Node.js dependencies
+      command: |
+        npm install --legacy-peer-deps
+  - run:
+      name: Run Maven Compile
+      command: |
+        mvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress compile
+  - run:
+      name: Build React application
+      command: |
+        npm run build
+  - save_cache:
+      paths:
+        - ~/.m2
+        - node_modules
+      key: v1-dependencies-{{ checksum "pom.xml" }}

@@ -4,6 +4,12 @@ description: >
   Publishes: X.Y.Z-SNAPSHOT versions to snapshots repository
 executor: localstack/default
 
+parameters:
+  include_integrated_frontend_build:
+    type: boolean
+    default: false
+    description: "Include frontend build, test, and package steps"
+
 steps:
   - checkout
   - mvn_build
@@ -12,6 +18,12 @@ steps:
       at: .
   - mvn_verify
   - check_middleware_api_versions
+  - when:
+      condition: << parameters.include_integrated_frontend_build >>
+      steps:
+        - frontend_build
+        - frontend_test
+        - frontend_package
   - mvn_jar_deploy
   - git_operations
   - publish_asciidoc

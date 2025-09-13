@@ -1,0 +1,12 @@
+description: >
+  Packages the React application into a Maven JAR
+  - Removes any existing material-dashboard directory
+  - Creates material-dashboard directory
+  - Copies build artifacts into material-dashboard directory
+steps:
+  - run:
+      name: Package React app into Maven JAR
+      command: |
+        rm -rf src/main/resources/material-dashboard
+        mkdir -p src/main/resources/material-dashboard
+        cp -r build/* src/main/resources/material-dashboard
