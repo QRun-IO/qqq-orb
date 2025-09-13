@@ -22,9 +22,9 @@ set -e
 #############################################################
 ## Create .circleci directory and Maven settings file ##
 #############################################################
-mkdir -p .circleci
+mkdir -p /tmp/circleci
 
-cat > .circleci/mvn-settings.xml << 'EOF'
+cat > /tmp/circleci/mvn-settings.xml << 'EOF'
 <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
 http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
     <servers>
@@ -46,4 +46,4 @@ http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.
 </settings>
 EOF
 
-echo "✅ Maven settings file created: .circleci/mvn-settings.xml"
+echo "✅ Maven settings file created: /tmp/circleci/mvn-settings.xml"

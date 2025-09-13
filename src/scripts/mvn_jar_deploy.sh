@@ -25,4 +25,5 @@ set -e
 ##############################################
 ## Deploy signed artifacts to Maven Central ##
 ##############################################
-mvn -s .circleci/mvn-settings.xml -P release -B -DskipTests -Dgpg.keyname="$GPG_KEYNAME" -Dgpg.passphrase="$GPG_PASSPHRASE" deploy
+cat /tmp/circleci/mvn-settings.xml
+mvn -s /tmp/circleci/mvn-settings.xml -P release -B -DskipTests -Dgpg.keyname="$GPG_KEYNAME" -Dgpg.passphrase="$GPG_PASSPHRASE" deploy
