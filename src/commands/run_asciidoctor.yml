@@ -5,11 +5,11 @@ description: >
   - Used by publish_asciidoc job for documentation publishing
 
 steps:
-- run:
-    name: Run asciidoctor
-    command: |
-      cd docs
-      asciidoctor -a docinfo=shared index.adoc
-- store_artifacts:
-    path: docs/index.html
-    when: always
+  - run:
+      name: Run asciidoctor
+      command: |
+        cd docs
+        asciidoctor -a docinfo=shared index.adoc
+  - store_artifacts:
+      path: docs/index.html
+      when: always
