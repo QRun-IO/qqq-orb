@@ -8,6 +8,9 @@ description: >
 
 steps:
   - checkout
+  - run:
+      name: Setup Maven Settings
+      command: <<include(scripts/setup_maven_settings.sh)>>  
   - restore_cache:
       keys:
         - v1-dependencies-{{ checksum "pom.xml" }}

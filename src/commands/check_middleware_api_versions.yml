@@ -7,5 +7,8 @@ description: >
 steps:
   - checkout
   - run:
+      name: Setup Maven Settings
+      command: <<include(scripts/setup_maven_settings.sh)>>
+  - run:
       name: Build and Run ValidateApiVersions
       command: <<include(scripts/check_middleware_api_versions.sh)>>

@@ -9,11 +9,14 @@ description: >
 steps:
   - checkout
   - run:
+      name: Setup Maven Settings
+      command: <<include(scripts/setup_maven_settings.sh)>>
+  - run:
       name: Run Maven Verify
       command: <<include(scripts/mvn_verify_verify.sh)>>
   - run:
       name: Collect JaCoCo reports
-      command: .circleci/collect-jacoco-reports.sh
+      command: <<include(scripts/collect_jacoco_reports.sh)>>
       when: always
   - store_artifacts:
       path: /home/circleci/jacoco-reports
@@ -21,7 +24,7 @@ steps:
       when: always
   - run:
       name: Concatenate test output files
-      command: .circleci/concatenate-test-output.sh
+      command: <<include(scripts/concatenate_test_output.sh)>>
       when: always
   - store_artifacts:
       path: /home/circleci/test-output-artifacts

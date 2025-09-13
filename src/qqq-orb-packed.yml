@@ -92,7 +92,7 @@ commands:
                 command: "#!/bin/bash\n\n############################################################################\n## mvn_verify_verify.sh\n## Maven Verification Script\n## \n## This script runs the complete Maven verification lifecycle including\n## compilation, testing, packaging, and verification. It uses optimized\n## settings for faster execution in CI environments.\n##\n## Process:\n## 1. Uses CircleCI Maven settings configuration\n## 2. Enables parallel builds with 4 threads\n## 3. Disables transfer progress for cleaner output\n## 4. Runs Maven verify lifecycle (compile, test, package, verify)\n##\n## Usage: Called by CircleCI orb command mvn_verify\n## Output: Runs complete Maven verification lifecycle\n############################################################################\n\nset -e\n\n########################################################\n## Run Maven verify lifecycle with optimized settings ##\n########################################################\nmvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress verify\n"
                 name: Run Maven Verify
             - run:
-                command: .circleci/collect-jacoco-reports.sh
+                command: "#!/bin/bash\n\n############################################################################\n## Script to collect all JaCoCo reports from different modules into a\n## single directory for easier artifact storage in CI.\n############################################################################\n\nmkdir -p /home/circleci/jacoco-reports/\n\n##############################################################\n## Find all module directories that have target/site/jacoco ##\n##############################################################\nfor module_dir in */; do\n  if [ -d \"${module_dir}target/site/jacoco\" ]; then\n    module_name=$(basename \"${module_dir%/}\")\n    target_dir=\"/home/circleci/jacoco-reports/${module_name}\"\n    \n    echo \"Collecting JaCoCo reports for module: ${module_name}\"\n    \n    cp -r \"${module_dir}target/site/jacoco\" \"${target_dir}\"\n    \n    echo \"Copied JaCoCo reports for ${module_name} to ${target_dir}\"\n  fi\ndone\n\necho \"All JaCoCo reports collected to /home/circleci/jacoco-reports/\" "
                 name: Collect JaCoCo reports
                 when: always
             - store_artifacts:
@@ -100,7 +100,7 @@ commands:
                 path: /home/circleci/jacoco-reports
                 when: always
             - run:
-                command: .circleci/concatenate-test-output.sh
+                command: "#!/bin/bash\n\n############################################################################\n## Script to concatenate all .txt files in the surefire-reports directory\n## into a single artifact that can be stored in CI.\n############################################################################\n\nmkdir -p /home/circleci/test-output-artifacts/\n\n###################################################################\n## Find all module directories that have target/surefire-reports ##\n###################################################################\nfor module_dir in */; do\n  if [ -d \"${module_dir}target/surefire-reports\" ]; then\n    module_name=$(basename \"${module_dir%/}\")\n    output_file=\"/home/circleci/test-output-artifacts/${module_name}-test-output.txt\"\n    \n    echo \"Processing module: ${module_name}\"\n    echo \"Output file: ${output_file}\"\n    \n    ##################################################################\n    ## Concatenate all .txt files in the surefire-reports directory ##\n    ##################################################################\n    if [ -n \"$(find \"${module_dir}target/surefire-reports\" -name \"*.txt\" -type f)\" ]; then\n      echo \"=== Test Output for ${module_name} ===\" > \"${output_file}\"\n      echo \"Generated at: $(date)\" >> \"${output_file}\"\n      echo \"==========================================\" >> \"${output_file}\"\n      echo \"\" >> \"${output_file}\"\n      \n      ##############################################\n      ## Sort files to ensure consistent ordering ##\n      ##############################################\n      find \"${module_dir}target/surefire-reports\" -name \"*.txt\" -type f | sort | while read -r txt_file; do\n        echo \"--- File: $(basename \"${txt_file}\") ---\" >> \"${output_file}\"\n        cat \"${txt_file}\" >> \"${output_file}\"\n        echo \"\" >> \"${output_file}\"\n        echo \"--- End of $(basename \"${txt_file}\") ---\" >> \"${output_file}\"\n        echo \"\" >> \"${output_file}\"\n        echo \"\" >> \"${output_file}\"\n        echo \"\" >> \"${output_file}\"\n      done\n      \n      echo \"Concatenated test output for ${module_name} to ${output_file}\"\n    else\n      echo \"No .txt files found in ${module_dir}target/surefire-reports\"\n    fi\n  fi\ndone "
                 name: Concatenate test output files
                 when: always
             - store_artifacts:
@@ -157,17 +157,6 @@ jobs:
         executor: localstack/default
         steps:
             - mvn_build
-    production_release:
-        description: |
-            Publishes production releases to Maven Central and creates GitHub releases Used by: production_release workflow for main branch Publishes: X.Y.Z versions to releases repository Creates: Git tags and GitHub releases automatically
-        executor: localstack/default
-        steps:
-            - mvn_build
-            - manage_version
-            - mvn_verify
-            - check_middleware_api_versions
-            - mvn_jar_deploy
-            - create_github_release
     publish_asciidoc:
         description: |
             Generates and publishes HTML documentation Used by: deploy_snapshot workflow for develop branch Generates: HTML documentation from AsciiDoc source files
@@ -179,6 +168,17 @@ jobs:
     publish_hotfix_release:
         description: |
             Publishes hotfix releases to Maven Central and creates GitHub releases Used by: hotfix_release workflow for hotfix/* branches Publishes: X.Y.(Z+1) versions to releases repository Creates: Git tags and GitHub releases automatically
+        executor: localstack/default
+        steps:
+            - mvn_build
+            - manage_version
+            - mvn_verify
+            - check_middleware_api_versions
+            - mvn_jar_deploy
+            - create_github_release
+    publish_release:
+        description: |
+            Publishes production releases to Maven Central and creates GitHub releases Used by: production_release workflow for main branch Publishes: X.Y.Z versions to releases repository Creates: Git tags and GitHub releases automatically
         executor: localstack/default
         steps:
             - mvn_build
@@ -232,16 +232,7 @@ examples:
             orbs:
                 qqq-orb: kingsrook/qqq-orb@2.1
             workflows:
-                deploy_snapshot:
-                    filters:
-                        branches:
-                            only:
-                                - develop
-                    jobs:
-                        - qqq-orb/publish_snapshot:
-                            context:
-                                - qqq-maven-registry-credentials
-                hotfix_release:
+                'publish_hotfix_release:':
                     filters:
                         branches:
                             only:
@@ -250,22 +241,31 @@ examples:
                         - qqq-orb/publish_hotfix_release:
                             context:
                                 - qqq-maven-registry-credentials
-                production_release:
+                publish_release:
                     filters:
                         branches:
                             only:
                                 - main
                     jobs:
-                        - qqq-orb/production_release:
+                        - qqq-orb/publish_release:
                             context:
                                 - qqq-maven-registry-credentials
-                release_candidate:
+                publish_release_candidate:
                     filters:
                         branches:
                             only:
                                 - /release\/.*/
                     jobs:
                         - qqq-orb/publish_release_candidate:
+                            context:
+                                - qqq-maven-registry-credentials
+                publish_snapshot:
+                    filters:
+                        branches:
+                            only:
+                                - develop
+                    jobs:
+                        - qqq-orb/publish_snapshot:
                             context:
                                 - qqq-maven-registry-credentials
                 test_only:

@@ -8,6 +8,9 @@ description: >
 
 steps:
   - run:
+      name: Setup Maven Settings
+      command: <<include(scripts/setup_maven_settings.sh)>>
+  - run:
       name: Setup GPG for signing
       command: <<include(scripts/mvn_jar_deploy_gpg_setup.sh)>>
   - run:
