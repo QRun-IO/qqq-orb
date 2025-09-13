@@ -23,4 +23,4 @@ set -e
 ###################################################
 ## Compile Maven project with optimized settings ##
 ###################################################
-mvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress compile
+mvn -s /tmp/circleci/mvn-settings.xml -T4 --no-transfer-progress compile

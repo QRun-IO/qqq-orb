@@ -14,4 +14,4 @@
 set -e
 
 echo "Running Maven Compile with optimized settings"
-mvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress compile
+mvn -s /tmp/circleci/mvn-settings.xml -T4 --no-transfer-progress compile

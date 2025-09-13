@@ -14,7 +14,7 @@
 ## 3. Sets up repository mirrors and authentication
 ##
 ## Usage: Called by orb commands that need Maven settings
-## Output: Creates .circleci/mvn-settings.xml file
+## Output: Creates /tmp/circleci/mvn-settings.xml file
 ############################################################################
 
 set -e

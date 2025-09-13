@@ -21,12 +21,12 @@ set -e
 #################################
 ## Build project without tests ##
 #################################
-mvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress install -DskipTests
+mvn -s /tmp/circleci/mvn-settings.xml -T4 --no-transfer-progress install -DskipTests
 
 #####################################
 ## Assemble middleware application ##
 #####################################
-mvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress -pl qqq-middleware-javalin package appassembler:assemble -DskipTests
+mvn -s /tmp/circleci/mvn-settings.xml -T4 --no-transfer-progress -pl qqq-middleware-javalin package appassembler:assemble -DskipTests
 
 ################################
 ## Run API version validation ##

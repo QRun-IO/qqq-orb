@@ -23,4 +23,4 @@ set -e
 ########################################################
 ## Run Maven verify lifecycle with optimized settings ##
 ########################################################
-mvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress verify
+mvn -s /tmp/circleci/mvn-settings.xml -T4 --no-transfer-progress verify

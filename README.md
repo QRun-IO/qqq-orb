@@ -46,7 +46,7 @@ Set up `qqq-maven-registry-credentials` context in CircleCI:
 ### Project Requirements
 
 - `pom.xml` with `<revision>` property
-- `.circleci/mvn-settings.xml` (auto-generated if missing)
+- `/tmp/circleci/mvn-settings.xml` (auto-generated if missing)
 - `docs/index.adoc` (optional, for documentation)
 
 ## Development
