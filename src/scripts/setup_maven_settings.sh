@@ -47,3 +47,4 @@ http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.
 EOF
 
 echo "✅ Maven settings file created: /tmp/circleci/mvn-settings.xml"
+cat /tmp/circleci/mvn-settings.xml
