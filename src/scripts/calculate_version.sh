@@ -106,8 +106,7 @@ calculate_next_version() {
             ## Main should always have stable versions                                   ##
             ## Check for version tags to detect releases instead of merge commits       ##
             ###############################################################################
-            
-            # Look for the most recent version tag
+            echo "In Main - Looking for the most recent version tag"
             LATEST_TAG=$(git describe --tags --abbrev=0 --match="v*" 2>/dev/null || echo "")
             
             if [[ -n "$LATEST_TAG" ]]; then
