@@ -9,15 +9,10 @@ description: >
 steps:
   - run:
       name: Setup GPG for signing
-      command: |
-        mkdir -p ~/.gnupg
-        echo 'pinentry-mode loopback' > ~/.gnupg/gpg.conf
-        chmod 600 ~/.gnupg/gpg.conf
-        echo $GPG_PRIVATE_KEY_B64| tr -d ' \r\n\t' | base64 -d | gpg --batch --import
+      command: <<include(scripts/mvn_jar_deploy_gpg_setup.sh)>>
   - run:
       name: Publish to Sonatype Central (releases and SNAPSHOTs)
-      command: |
-        mvn -s .circleci/mvn-settings.xml -P release -B -DskipTests -Dgpg.keyname=$GPG_KEYNAME -Dgpg.passphrase=$GPG_PASSPHRASE deploy
+      command: <<include(scripts/mvn_jar_deploy_deploy.sh)>>
   - save_cache:
       paths:
         - ~/.m2

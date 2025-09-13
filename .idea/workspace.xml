@@ -5,27 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="39f8d35a-1bb7-489b-b59c-b0ba3ffefe23" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/codeStyles/Project.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/material_theme_project_new.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/commands/check_middleware_api_versions.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/commands/create_github_release.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/commands/install_asciidoctor.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/commands/manage_version.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/commands/mvn_jar_deploy.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/commands/mvn_verify.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/commands/run_asciidoctor.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/jobs/api_version_check.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/jobs/mvn_deploy.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/jobs/publish_rc.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/jobs/test.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/yamllint.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/yamllint.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/@orb.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/@orb.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/commands/greet.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/commands/mvn_build.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/examples/example.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/build.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/jobs/hello.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/jobs/build.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/examples/build.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/examples/build.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scripts/greet.sh" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -116,6 +99,7 @@
       <workItem from="1757634683262" duration="86000" />
       <workItem from="1757634778652" duration="275000" />
       <workItem from="1757635061044" duration="63000" />
+      <workItem from="1757721395861" duration="2712000" />
     </task>
     <servers />
   </component>

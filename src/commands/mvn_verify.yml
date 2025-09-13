@@ -10,8 +10,7 @@ steps:
   - checkout
   - run:
       name: Run Maven Verify
-      command: |
-        mvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress verify
+      command: <<include(scripts/mvn_verify_verify.sh)>>
   - run:
       name: Collect JaCoCo reports
       command: .circleci/collect-jacoco-reports.sh
@@ -30,9 +29,7 @@ steps:
       when: always
   - run:
       name: Save test results
-      command: |
-        mkdir -p ~/test-results/junit/
-        find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} ~/test-results/junit/ \;
+      command: <<include(scripts/mvn_verify_save_test_results.sh)>>
       when: always
   - store_test_results:
       path: ~/test-results

@@ -19,8 +19,7 @@ steps:
         echo "RDBMS_PASSWORD=$RDBMS_PASSWORD" >> qqq-sample-project/.env
   - run:
       name: Run Maven Compile
-      command: |
-        mvn -s .circleci/mvn-settings.xml -T4 --no-transfer-progress compile
+      command: <<include(scripts/mvn_build_compile.sh)>>
   - save_cache:
       paths:
         - ~/.m2
