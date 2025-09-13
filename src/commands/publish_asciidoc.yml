@@ -1,0 +1,10 @@
+description: >
+  Generates and publishes HTML documentation
+  - Processes docs/index.adoc to create HTML documentation
+  - Stores generated HTML as CircleCI artifacts
+  - Used by workflow jobs for documentation publishing
+
+steps:
+  - checkout
+  - install_asciidoctor
+  - run_asciidoctor
