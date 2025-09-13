@@ -1,156 +1,58 @@
 description: >
-  Sample example description.
-# Provide a use-case based example for using this orb.
-# Everything in the `usage` section will be displayed in the orb registry.
-# Comments are not retained.
+  Complete CI/CD workflow example for Maven-based projects using GitFlow branching strategy.
+  This example demonstrates how to use the qqq-orb for automated building, testing, and releasing.
+
 usage:
   version: 2.1
   orbs:
-    <orb-name>: kingsrook/qqq-orb@2.1
-
-    use-my-orb:
-      jobs:
-        - <orb-name>/<job-name>
+    qqq-orb: kingsrook/qqq-orb@2.1
 
   workflows:
-    ###############################################################################
-    ## 🧪 TEST ONLY WORKFLOW
-    ## =====================
-    ## Runs on feature branches and other non-protected branches
-    ##
-    ## Purpose: Validate code quality and functionality before merging
-    ## Triggers: Any push to branches NOT matching develop, main, release/*, hotfix/*
-    ## Jobs: build → test (sequential execution)
-    ##
-    ## What it does:
-    ## - Builds the frontend project
-    ## - Runs comprehensive tests
-    ## - Generates coverage reports
-    ## - Stores build artifacts and test results
-    ###############################################################################
+    # Test workflow for feature branches
     test_only:
       jobs:
-        - build:
-            context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
-            filters:
-              branches:
-                ignore: /(develop|main|release/.*|hotfix/.*)/
-              tags:
-                ignore: /(version|snapshot)-.*/
-        - test:
-            context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
+        - qqq-orb/build:
+            context: [ qqq-maven-registry-credentials ]
+        - qqq-orb/test:
+            context: [ qqq-maven-registry-credentials ]
             requires:
-              - build
-            filters:
-              branches:
-                ignore: /(develop|main|release/.*|hotfix/.*)/
-              tags:
-                ignore: /(version|snapshot)-.*/
+              - qqq-orb/build
+      filters:
+        branches:
+          ignore: [develop, main, /release\/.*/, /hotfix\/.*/]
 
-    ###############################################################################
-    ## 📦 SNAPSHOT DEPLOYMENT WORKFLOW
-    ## =================================
-    ## Runs on develop branch to publish development snapshots
-    ##
-    ## Purpose: Provide nightly builds for developers and QA testing
-    ## Triggers: Push to develop branch
-    ## Publishes: X.Y.Z-SNAPSHOT versions to Maven Central snapshots repository
-    ## Jobs: mvn_deploy (Maven Central publishing)
-    ##
-    ## What it does:
-    ## - Builds and tests the frontend project
-    ## - Manages versions (Maven + NPM sync)
-    ## - Deploys to Maven Central snapshots
-    ## - Enables continuous integration and nightly builds
-    ###############################################################################
+    # Snapshot deployment for develop branch
     deploy_snapshot:
       jobs:
-        - mvn_deploy:
-            context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
-            filters:
-              branches:
-                only:
-                  - develop
+        - qqq-orb/mvn_deploy:
+            context: [ qqq-maven-registry-credentials ]
+      filters:
+        branches:
+          only: [develop]
 
-    ###############################################################################
-    ## 🧪 RELEASE CANDIDATE WORKFLOW
-    ## =============================
-    ## Runs on release/* branches to publish release candidates
-    ##
-    ## Purpose: Provide RC builds for QA testing and stakeholder review
-    ## Triggers: Push to any branch matching release/* pattern
-    ## Publishes: X.Y.0-RC.n versions to Maven Central releases repository
-    ## Jobs: publish_rc (build, test, RC artifact creation)
-    ##
-    ## What it does:
-    ## - Builds and tests the frontend project
-    ## - Manages versions (RC increments)
-    ## - Deploys to Maven Central releases
-    ## - Prepares stable versions for production
-    ###############################################################################
+    # Release candidate workflow
     release_candidate:
       jobs:
-        - publish_rc:
-            context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
-            filters:
-              branches:
-                only:
-                  - /release\/.*/
+        - qqq-orb/publish_rc:
+            context: [ qqq-maven-registry-credentials ]
+      filters:
+        branches:
+          only: [/release\/.*/]
 
-    ###############################################################################
-    ## 🚀 PRODUCTION RELEASE WORKFLOW
-    ## ===============================
-    ## Runs on main branch to publish production releases
-    ##
-    ## Purpose: Deploy stable versions to production and create GitHub releases
-    ## Triggers: Push to main branch (typically after merging release branches)
-    ## Publishes: X.Y.Z versions to Maven Central releases repository
-    ## Creates: Git tags (vX.Y.Z) and GitHub releases automatically
-    ## Jobs: publish_release (build, test, Maven Central deploy, GitHub release)
-    ##
-    ## What it does:
-    ## - Builds and tests the frontend project
-    ## - Manages versions (stable release)
-    ## - Deploys to Maven Central releases
-    ## - Creates Git tags for version tracking
-    ## - Creates GitHub releases with automated notes
-    ###############################################################################
+    # Production release workflow
     production_release:
       jobs:
-        - publish_release:
-            context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
-            filters:
-              branches:
-                only:
-                  - main
-              tags:
-                only:
-                  - /v.*/
+        - qqq-orb/publish_release:
+            context: [ qqq-maven-registry-credentials ]
+      filters:
+        branches:
+          only: [main]
 
-    ###############################################################################
-    ## 🔥 HOTFIX RELEASE WORKFLOW
-    ## ===========================
-    ## Runs on hotfix/* branches to publish urgent production fixes
-    ##
-    ## Purpose: Deploy critical bug fixes and security patches
-    ## Triggers: Push to any branch matching hotfix/* pattern
-    ## Publishes: X.Y.(Z+1) versions to Maven Central releases repository
-    ## Creates: Git tags (vX.Y.(Z+1)) and GitHub releases automatically
-    ## Jobs: publish_hotfix (build, test, Maven Central deploy, GitHub release)
-    ##
-    ## What it does:
-    ## - Builds and tests the frontend project
-    ## - Manages versions (patch increment)
-    ## - Deploys to Maven Central releases
-    ## - Creates Git tags for version tracking
-    ## - Creates GitHub releases with automated notes
-    ## - Enables urgent production fixes
-    ###############################################################################
+    # Hotfix release workflow
     hotfix_release:
       jobs:
-        - publish_hotfix:
-            context: [ qqq-maven-registry-credentials, build-qqq-sample-app ]
-            filters:
-              branches:
-                only:
-                  - /hotfix\/.*/
+        - qqq-orb/publish_hotfix:
+            context: [ qqq-maven-registry-credentials ]
+      filters:
+        branches:
+          only: [/hotfix\/.*/]
