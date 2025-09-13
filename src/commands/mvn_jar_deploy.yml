@@ -15,7 +15,7 @@ steps:
       command: <<include(scripts/mvn_jar_deploy_gpg_setup.sh)>>
   - run:
       name: Publish to Sonatype Central (releases and SNAPSHOTs)
-      command: <<include(scripts/mvn_jar_deploy_deploy.sh)>>
+      command: <<include(scripts/mvn_jar_deploy.sh)>>
   - save_cache:
       paths:
         - ~/.m2

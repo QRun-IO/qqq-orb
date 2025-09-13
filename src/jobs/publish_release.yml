@@ -13,4 +13,5 @@ steps:
   - check_middleware_api_versions
   - mvn_jar_deploy
   - git_operations
+  - publish_asciidoc
   - create_github_release

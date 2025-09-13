@@ -13,7 +13,7 @@ steps:
       command: <<include(scripts/setup_maven_settings.sh)>>
   - run:
       name: Run Maven Verify
-      command: <<include(scripts/mvn_verify_verify.sh)>>
+      command: <<include(scripts/mvn_verify.sh)>>
   - run:
       name: Collect JaCoCo reports
       command: <<include(scripts/collect_jacoco_reports.sh)>>
