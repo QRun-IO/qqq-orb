@@ -21,4 +21,4 @@ export PORT=3001
 npm run start &
 dockerize -wait tcp://localhost:3001 -timeout 3m
 export QQQ_SELENIUM_HEADLESS=true
-mvn -s .circleci/mvn-settings.xml --no-transfer-progress -B test
+mvn -s /tmp/circleci/mvn-settings.xml --no-transfer-progress -B test
