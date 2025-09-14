@@ -5,6 +5,9 @@ description: >
   - Compiles the project with Maven
   - Saves Maven cache for future builds
 steps:
+  - run:
+      name: Setup Maven Settings
+      command: <<include(scripts/setup_maven_settings.sh)>>
   - restore_cache:
       keys:
         - v1-dependencies-{{ checksum "pom.xml" }}
