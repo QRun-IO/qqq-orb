@@ -11,12 +11,8 @@ usage:
     # Test workflow for feature branches
     test_only:
       jobs:
-        - qqq-orb/build:
+        - qqq-orb/mvn_test_only:
             context: [ qqq-maven-registry-credentials ]
-        - qqq-orb/test:
-            context: [ qqq-maven-registry-credentials ]
-            requires:
-              - qqq-orb/build
       filters:
         branches:
           ignore: [develop, main, /release\/.*/, /hotfix\/.*/]
@@ -24,8 +20,9 @@ usage:
     # Snapshot deployment for develop branch
     publish_snapshot:
       jobs:
-        - qqq-orb/publish_snapshot:
+        - qqq-orb/mvn_publish:
             context: [ qqq-maven-registry-credentials ]
+            branch_type: snapshot
       filters:
         branches:
           only: [develop]
@@ -33,8 +30,9 @@ usage:
     # Release candidate workflow
     publish_release_candidate:
       jobs:
-        - qqq-orb/publish_release_candidate:
+        - qqq-orb/mvn_publish:
             context: [ qqq-maven-registry-credentials ]
+            branch_type: release_candidate
       filters:
         branches:
           only: [/release\/.*/]
@@ -42,17 +40,19 @@ usage:
     # Production release workflow
     publish_release:
       jobs:
-        - qqq-orb/publish_release:
+        - qqq-orb/mvn_publish:
             context: [ qqq-maven-registry-credentials ]
+            branch_type: release
       filters:
         branches:
           only: [main]
 
     # Hotfix release workflow
-    publish_hotfix_release::
+    publish_hotfix_release:
       jobs:
-        - qqq-orb/publish_hotfix_release:
+        - qqq-orb/mvn_publish:
             context: [ qqq-maven-registry-credentials ]
+            branch_type: hotfix
       filters:
         branches:
           only: [/hotfix\/.*/]

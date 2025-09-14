@@ -25,14 +25,30 @@ workflows:
   publish_snapshot:
     filters: { branches: { only: develop } }
     jobs:
-      - qqq-orb/publish_snapshot:
+      - qqq-orb/publish:
           context: qqq-maven-registry-credentials
+          branch_type: snapshot
+
+  publish_release_candidate:
+    filters: { branches: { only: /release\/.*/ } }
+    jobs:
+      - qqq-orb/publish:
+          context: qqq-maven-registry-credentials
+          branch_type: release_candidate
 
   production_release:
     filters: { branches: { only: main } }
     jobs:
-      - qqq-orb/publish_release:
+      - qqq-orb/publish:
           context: qqq-maven-registry-credentials
+          branch_type: release
+
+  hotfix_release:
+    filters: { branches: { only: /hotfix\/.*/ } }
+    jobs:
+      - qqq-orb/publish:
+          context: qqq-maven-registry-credentials
+          branch_type: hotfix
 ```
 
 ### Required Context
@@ -91,10 +107,13 @@ Automated version calculation based on branch:
 |-----|--------|--------|
 | `build` | Any | Compiled artifacts |
 | `test` | Any | Test results + JaCoCo |
-| `publish_snapshot` | develop | X.Y.Z-SNAPSHOT → snapshots |
-| `publish_release_candidate` | release/* | X.Y.0-RC.n → releases |
-| `publish_release` | main | X.Y.Z → releases + GitHub release |
-| `publish_hotfix_release` | hotfix/* | X.Y.(Z+1) → releases + GitHub release |
+| `publish` | Any | Unified publishing based on branch_type parameter |
+
+### Publish Job Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `branch_type` | string | "snapshot" | Branch type: snapshot, release_candidate, release, hotfix |
 
 ## Repository Structure
 
@@ -113,6 +132,24 @@ src/
 - **Issues & Planning**: [QQQ Issues](https://github.com/Kingsrook/qqq/issues)
 - **Documentation**: [QQQ Docs](https://github.com/Kingsrook/qqq/tree/main/docs)
 - **CircleCI Registry**: [kingsrook/qqq-orb](https://circleci.com/developer/orbs/orb/kingsrook/qqq-orb)
+
+## Usage Examples
+
+**Backend only (default)**:
+```yaml
+jobs:
+  - qqq-orb/publish:
+      context: qqq-maven-registry-credentials
+      branch_type: snapshot
+```
+
+**Release with GitHub release**:
+```yaml
+jobs:
+  - qqq-orb/publish:
+      context: qqq-maven-registry-credentials
+      branch_type: release
+```
 
 ## License
 

@@ -1,0 +1,27 @@
+description: >
+  Unified publishing job for all branch types
+  Handles version management, building, testing, and publishing based on branch type
+  Supports: snapshot, release_candidate, release, and hotfix workflows
+
+executor: localstack/default
+
+parameters:
+  branch_type:
+    type: string
+    default: "snapshot"
+    description: "Branch type: snapshot, release_candidate, release, or hotfix"
+
+steps:
+  - checkout
+  - manage_version
+  - frontend_build
+  - frontend_test
+  - frontend_package
+  - mvn_jar_deploy
+  - when:
+      condition:
+        or:
+          - equal: ["snapshot", << parameters.branch_type >>]
+          - equal: ["release_candidate", << parameters.branch_type >>]
+      steps:
+        - git_operations

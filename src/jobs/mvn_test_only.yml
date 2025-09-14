@@ -6,21 +6,8 @@ description: >
 
 executor: localstack/default
 
-parameters:
-  include_integrated_frontend_build:
-    type: boolean
-    default: false
-    description: "Include frontend build, test, and package steps"
-
 steps:
   - checkout
   - mvn_build
   - mvn_verify
   - check_middleware_api_versions
-  - when:
-      condition: << parameters.include_integrated_frontend_build >>
-      steps:
-        - frontend_build
-        - frontend_test
-        - frontend_package
-  - publish_asciidoc

@@ -1,9 +1,0 @@
-description: >
-  Comprehensive testing job that runs all tests and generates reports
-  Used by: test_only workflow for feature branches
-  Dependencies: Requires build job to complete first
-executor: localstack/default
-
-steps:
-  - checkout
-  - mvn_verify
