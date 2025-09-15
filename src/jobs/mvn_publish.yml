@@ -14,6 +14,10 @@ parameters:
     type: boolean
     default: false
     description: "Whether to run middleware API version checks"
+  publish_asciidoc:
+    type: boolean
+    default: false
+    description: "Whether to publish AsciiDoc documentation"
 
 steps:
   - checkout
@@ -34,4 +38,7 @@ steps:
           - equal: ["release_candidate", << parameters.branch_type >>]
       steps:
         - git_operations
-  - publish_asciidoc
+  - when:
+      condition: << parameters.publish_asciidoc >>
+      steps:
+        - publish_asciidoc
