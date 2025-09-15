@@ -1,23 +1,24 @@
 # QQQ Orb Development Makefile
 # Provides convenient commands for orb development, validation, and publishing
 
-.PHONY: help pack validate clean test publish dev
+.PHONY: help pack validate clean test publish-snapshot publish-release dev check-clean check-branch
 
 # Default target
 help:
 	@echo "QQQ Orb Development Commands:"
 	@echo ""
-	@echo "  make pack      - Pack the orb using 'orb pack' (recommended for orb development)"
-	@echo "  make validate  - Validate the packed orb"
-	@echo "  make test      - Pack and validate the orb"
-	@echo "  make clean     - Remove packed orb files"
-	@echo "  make dev       - Development workflow: pack, validate, and show status"
-	@echo "  make lint      - Run all CircleCI-style linting checks"
-	@echo "  make publish   - Show publishing instructions (requires manual steps)"
+	@echo "  make pack           		- Pack the orb using 'orb pack' (recommended for orb development)"
+	@echo "  make validate       		- Validate the packed orb"
+	@echo "  make test           		- Pack and validate the orb"
+	@echo "  make clean          		- Remove packed orb files"
+	@echo "  make dev            		- Development workflow: pack, validate, and show status"
+	@echo "  make lint           		- Run all CircleCI-style linting checks"
+	@echo "  make publish-snapshot 	- Interactive snapshot release (dev:alpha)"
+	@echo "  make publish-release  	- Interactive production release (tagged version)"
 	@echo ""
 	@echo "Key Files:"
-	@echo "  src/@orb.yml           - Main orb definition"
-	@echo "  target/qqq-orb-packed.yml - Packed orb (generated)"
+	@echo "  src/@orb.yml           		- Main orb definition"
+	@echo "  target/qqq-orb-packed.yml 	- Packed orb (generated)"
 
 # Pack the orb using the correct command for orb development
 pack:
@@ -80,25 +81,76 @@ dev: validate
 	@echo "Next steps:"
 	@echo "  1. Review the packed orb: cat target/qqq-orb-packed.yml"
 	@echo "  2. Test with a project configuration"
-	@echo "  3. Publish when ready: make publish"
+	@echo "  3. Publish when ready:"
+	@echo "     - make publish-snapshot  (for dev testing)"
+	@echo "     - make publish-release   (for production)"
 
-# Show publishing instructions
-publish:
-	@echo "🚀 Orb Publishing Instructions:"
+# Check if working directory is clean
+check-clean:
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "❌ Working directory is not clean. Commit changes first."; \
+		exit 1; \
+	fi
+
+# Check if we're on the right branch for releases
+check-branch:
+	@current=$$(git branch --show-current); \
+	if [ "$$current" != "main" ] && [ "$$current" != "master" ]; then \
+		echo "⚠️  Warning: You're on branch '$$current', not main/master"; \
+		echo "   This is recommended for production releases."; \
+		read -p "Continue anyway? [y/N]: " confirm; \
+		if [ "$$confirm" != "y" ] && [ "$$confirm" != "Y" ]; then \
+			exit 1; \
+		fi; \
+	fi
+
+# Interactive snapshot release (dev:alpha)
+publish-snapshot: check-clean lint validate
+	@echo "🚀 Publishing Snapshot Release"
 	@echo ""
-	@echo "1. Ensure you're logged in to CircleCI CLI:"
-	@echo "   circleci auth login"
+	@echo "This will publish to: kingsrook/qqq-orb@dev:alpha"
 	@echo ""
-	@echo "2. Build the orb first (if not already done):"
-	@echo "   make dev"
+	@read -p "Continue with snapshot release? [y/N]: " confirm; \
+	if [ "$$confirm" != "y" ] && [ "$$confirm" != "Y" ]; then \
+		echo "❌ Release cancelled"; \
+		exit 1; \
+	fi; \
+	echo ""; \
+	echo "📦 Publishing snapshot..."; \
+	circleci orb publish target/qqq-orb-packed.yml kingsrook/qqq-orb@dev:alpha; \
+	echo "✅ Snapshot published successfully!"
+
+# Interactive production release (tagged version)
+publish-release: check-clean check-branch lint validate
+	@echo "🚀 Publishing Production Release"
 	@echo ""
-	@echo "3. Publish the orb:"
-	@echo "   circleci orb publish target/qqq-orb-packed.yml kingsrook/qqq-orb@dev:alpha"
+	@echo "This will create a git tag and publish a production version."
 	@echo ""
-	@echo "4. For production release:"
-	@echo "   circleci orb publish target/qqq-orb-packed.yml kingsrook/qqq-orb@2.1.0"
-	@echo ""
-	@echo "5. Promote dev version to production:"
-	@echo "   circleci orb publish promote kingsrook/qqq-orb@dev:alpha patch"
-	@echo ""
-	@echo "📚 More info: https://circleci.com/docs/orb-author/#publishing-an-orb"
+	@latest=$$(git tag -l 'v*' | sort -V | tail -1); \
+	if [ -n "$$latest" ]; then \
+		echo "Latest version: $$latest"; \
+		next=$$(echo "$$latest" | sed 's/^v//' | awk -F. '{$$NF++; print $$1"."$$2"."$$NF}'); \
+		echo "Suggested next version: v$$next"; \
+	else \
+		echo "No previous versions found. Starting with v0.1.0"; \
+		next="0.1.0"; \
+	fi; \
+	echo ""; \
+	read -p "Enter version [v$$next]: " version; \
+	version=$${version:-v$$next}; \
+	if [ "$$version" != "v$$(echo $$version | sed 's/^v//')" ]; then \
+		echo "❌ Version must start with 'v' (e.g., v1.0.0)"; \
+		exit 1; \
+	fi; \
+	if git tag -l | grep -q "^$$version$$"; then \
+		echo "❌ Tag $$version already exists"; \
+		exit 1; \
+	fi; \
+	echo ""; \
+	echo "Creating tag $$version..."; \
+	git tag -a "$$version" -m "Release $$version"; \
+	echo "Publishing kingsrook/qqq-orb@$$(echo $$version | sed 's/^v//')..."; \
+	circleci orb publish target/qqq-orb-packed.yml kingsrook/qqq-orb@$$(echo $$version | sed 's/^v//'); \
+	echo "Pushing tag to remote..."; \
+	git push origin "$$version"; \
+	echo "✅ Production release $$version published successfully!"
