@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: QQQ Framework Support
+    url: https://github.com/Kingsrook/qqq/issues
+    about: For general QQQ framework issues, please use the main QQQ repository
+  - name: QQQ Community Discussions
+    url: https://github.com/Kingsrook/qqq/discussions
+    about: Join community discussions and ask questions
+  - name: QQQ Documentation
+    url: https://github.com/Kingsrook/qqq/wiki
+    about: Check the QQQ Wiki for comprehensive documentation
