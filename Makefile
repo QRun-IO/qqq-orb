@@ -13,7 +13,7 @@ help:
 	@echo "  make clean          		- Remove packed orb files"
 	@echo "  make dev            		- Development workflow: pack, validate, and show status"
 	@echo "  make lint           		- Run all CircleCI-style linting checks"
-	@echo "  make publish-snapshot 	- Interactive snapshot release (dev:alpha)"
+	@echo "  make publish-snapshot 	- Interactive snapshot release (dev:snapshot)"
 	@echo "  make publish-release  	- Interactive production release (tagged version)"
 	@echo ""
 	@echo "Key Files:"
@@ -104,11 +104,11 @@ check-branch:
 		fi; \
 	fi
 
-# Interactive snapshot release (dev:alpha)
+# Interactive snapshot release (dev:snapshot)
 publish-snapshot: check-clean lint validate
 	@echo "🚀 Publishing Snapshot Release"
 	@echo ""
-	@echo "This will publish to: kingsrook/qqq-orb@dev:alpha"
+	@echo "This will publish to: kingsrook/qqq-orb@dev:snapshot"
 	@echo ""
 	@read -p "Continue with snapshot release? [y/N]: " confirm; \
 	if [ "$$confirm" != "y" ] && [ "$$confirm" != "Y" ]; then \
@@ -117,7 +117,7 @@ publish-snapshot: check-clean lint validate
 	fi; \
 	echo ""; \
 	echo "📦 Publishing snapshot..."; \
-	circleci orb publish target/qqq-orb-packed.yml kingsrook/qqq-orb@dev:alpha; \
+	circleci orb publish target/qqq-orb-packed.yml kingsrook/qqq-orb@dev:snapshot; \
 	echo "✅ Snapshot published successfully!"
 
 # Interactive production release (tagged version)
