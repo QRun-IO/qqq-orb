@@ -6,11 +6,7 @@ description: >
 steps:
   - run:
       name: "Setup NPM authentication"
-      command: |
-        # Configure NPM authentication for public registry
-        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-        # Verify authentication by checking current user
-        npm whoami
+      command: <<include(scripts/node_npm_auth.sh)>>
   - run:
       name: "Publish to NPM"
       command: npm publish --access public
