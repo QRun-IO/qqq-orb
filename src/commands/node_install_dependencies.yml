@@ -1,0 +1,14 @@
+description: >
+  Installs Node.js dependencies
+  - Installs Node.js dependencies using NPM
+  - Builds the TypeScript project
+
+steps:
+  # Install packages with NPM, using CircleCI's optimized caching
+  - node/install-packages:
+      pkg-manager: npm
+      cache-path: node_modules
+  # Build TypeScript project after dependencies are installed
+  - run:
+      name: "Build TypeScript project"
+      command: npm run prepublishOnly

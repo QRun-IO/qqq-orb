@@ -1,0 +1,17 @@
+description: >
+  Builds the package
+  - Cleans and builds the package
+  - Persists build artifacts to workspace for use in publishing jobs
+
+steps:
+  - run:
+      name: "Clean and build"
+      command: npm run clean-and-install
+  # Persist build artifacts to workspace for use in publishing jobs
+  - persist_to_workspace:
+      root: .
+      paths:
+        - lib/              # Compiled TypeScript output
+        - package.json      # Updated package manifest
+        - README.md         # Documentation
+        - LICENSE           # License file

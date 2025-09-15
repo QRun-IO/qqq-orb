@@ -1,0 +1,17 @@
+description: >
+  Unified test-only job for all branch types
+  Handles testing based on branch type
+  Supports: snapshot, release_candidate, release, and hotfix workflows
+
+executor: localstack/default
+
+parameters:
+  branch_type:
+    type: string
+    default: "snapshot"
+    description: "Branch type: snapshot, release_candidate, release, or hotfix"
+
+steps:
+  - checkout
+  - node_install_dependencies
+  - node_run_tests

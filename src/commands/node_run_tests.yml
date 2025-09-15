@@ -1,0 +1,12 @@
+description: >
+  Runs the tests and linting
+  - Runs the tests
+  - Runs the linting
+
+steps:
+  - run:
+      name: "Run tests"
+      command: npm test
+  - run:
+      name: "Run linting"
+      command: npm run lint

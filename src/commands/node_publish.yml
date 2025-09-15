@@ -1,0 +1,16 @@
+description: >
+  Publishes the package to NPM
+  - Sets up NPM authentication
+  - Publishes the package to NPM
+
+steps:
+  - run:
+      name: "Setup NPM authentication"
+      command: |
+        # Configure NPM authentication for public registry
+        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+        # Verify authentication by checking current user
+        npm whoami
+  - run:
+      name: "Publish to NPM"
+      command: npm publish --access public

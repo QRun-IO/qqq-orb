@@ -14,3 +14,4 @@ orbs:
   localstack: localstack/platform@2.1
   browser-tools: circleci/browser-tools@1.4.7
   slack: circleci/slack@5.2.1
+  node: circleci/node@4.7

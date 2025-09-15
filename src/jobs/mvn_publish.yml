@@ -14,7 +14,7 @@ parameters:
 steps:
   - checkout
   - mvn_build
-  - manage_version
+  - mvn_manage_version
   - attach_workspace:
       at: .
   - mvn_verify

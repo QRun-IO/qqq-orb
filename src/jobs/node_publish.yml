@@ -13,11 +13,13 @@ parameters:
 
 steps:
   - checkout
-  - mvn_manage_version
-  - frontend_build
-  - frontend_test
-  - frontend_package
-  - mvn_jar_deploy
+  - node_install_dependencies
+  - node_run_tests
+  - node_manage_version
+  - attach_workspace:
+      at: .
+  - node_build_package
+  - node_publish
   - when:
       condition:
         or:
