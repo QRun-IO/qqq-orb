@@ -12,7 +12,7 @@ steps:
       command: <<include(scripts/node_git_config.sh)>>
   - run:
       name: "Synchronize NPM version"
-      command: .circleci/sync-npm-version.sh
+      command: <<include(scripts/sync-npm-version.sh)>>
   - run:
       name: Commit version changes if modified
       command: <<include(scripts/node_version_commit.sh)>>

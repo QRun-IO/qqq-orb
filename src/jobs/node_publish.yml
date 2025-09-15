@@ -20,10 +20,3 @@ steps:
       at: .
   - node_build_package
   - node_publish
-  - when:
-      condition:
-        or:
-          - equal: ["snapshot", << parameters.branch_type >>]
-          - equal: ["release_candidate", << parameters.branch_type >>]
-      steps:
-        - git_operations
