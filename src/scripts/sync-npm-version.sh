@@ -37,10 +37,21 @@ elif [[ "$CURRENT_BRANCH" == "develop" ]]; then
     TARGET_VERSION="$MAJOR_MINOR.$NEW_PATCH-SNAPSHOT"
     echo "Develop branch detected - targeting snapshot version: $TARGET_VERSION"
 elif [[ "$CURRENT_BRANCH" == release/* ]]; then
-    # Release branch - should be a release candidate (e.g., 1.0.0-RC.1)
+    # Release branch - should be a release candidate (e.g., 1.0.0-RC.1, 1.0.0-RC.2, etc.)
     RELEASE_VERSION=$(echo "$CURRENT_BRANCH" | sed 's/release\///')
-    TARGET_VERSION="$RELEASE_VERSION-RC.1"
-    echo "Release branch detected - targeting RC version: $TARGET_VERSION"
+    
+    # Check if current version is already an RC for this release
+    if [[ "$NPM_VERSION" =~ ^$RELEASE_VERSION-RC\.([0-9]+)$ ]]; then
+        # Increment existing RC number
+        CURRENT_RC=${BASH_REMATCH[1]}
+        NEW_RC=$((CURRENT_RC + 1))
+        TARGET_VERSION="$RELEASE_VERSION-RC.$NEW_RC"
+        echo "Release branch detected - incrementing RC from $NPM_VERSION to $TARGET_VERSION"
+    else
+        # First RC for this release
+        TARGET_VERSION="$RELEASE_VERSION-RC.1"
+        echo "Release branch detected - creating first RC: $TARGET_VERSION"
+    fi
 elif [[ "$CURRENT_BRANCH" == hotfix/* ]]; then
     # Hotfix branch - should be a patch version (e.g., 1.0.1)
     HOTFIX_VERSION=$(echo "$CURRENT_BRANCH" | sed 's/hotfix\///')
