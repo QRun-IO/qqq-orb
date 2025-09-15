@@ -31,13 +31,7 @@ steps:
       steps:
         - check_middleware_api_versions
   - mvn_jar_deploy
-  - when:
-      condition:
-        or:
-          - equal: ["snapshot", << parameters.branch_type >>]
-          - equal: ["release_candidate", << parameters.branch_type >>]
-      steps:
-        - git_operations
+  - git_operations
   - when:
       condition: << parameters.publish_asciidoc >>
       steps:

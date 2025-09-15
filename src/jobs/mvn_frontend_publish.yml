@@ -18,10 +18,4 @@ steps:
   - frontend_test
   - frontend_package
   - mvn_jar_deploy
-  - when:
-      condition:
-        or:
-          - equal: ["snapshot", << parameters.branch_type >>]
-          - equal: ["release_candidate", << parameters.branch_type >>]
-      steps:
-        - git_operations
+  - git_operations
