@@ -161,11 +161,7 @@ calculate_next_version() {
                         NEW_VERSION="$TAG_VERSION"
                         echo "Converting RC version to tag version: $NEW_VERSION"
                     else
-                        #####################################################################
-                        ## Keep current version (might be ahead of tag)                    ##
-                        #####################################################################
-                        NEW_VERSION="$CURRENT_VERSION"
-                        echo "Keeping current version (ahead of tag)"
+                        NEW_VERSION="$LATEST_TAG"
                     fi
                 else
                     echo "Warning: Tag format not recognized: $LATEST_TAG"
