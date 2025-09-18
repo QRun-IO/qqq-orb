@@ -123,7 +123,7 @@ check-branch:
 	fi
 
 # Interactive snapshot release (dev:snapshot)
-publish-snapshot: check-clean lint validate
+publish-snapshot: check-clean lint clean dev test-all
 	@echo "🚀 Publishing Snapshot Release"
 	@echo ""
 	@echo "This will publish to: kingsrook/qqq-orb@dev:snapshot"
@@ -139,7 +139,7 @@ publish-snapshot: check-clean lint validate
 	echo "✅ Snapshot published successfully!"
 
 # Interactive production release (tagged version)
-publish-release: check-clean check-branch lint validate
+publish-release: check-clean check-branch lint clean dev test-all
 	@echo "🚀 Publishing Production Release"
 	@echo ""
 	@echo "This will create a git tag and publish a production version."
