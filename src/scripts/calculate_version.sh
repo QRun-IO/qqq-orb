@@ -206,7 +206,8 @@ handle_develop_branch() {
     echo "Develop branch manages SNAPSHOT versions"
     
     # Check if we just merged a release branch back to develop
-    local recent_release_merges=$(git log --oneline -10 --grep="Merge.*release.*into.*develop" --grep="Merge.*release.*back.*develop" --grep="Bump.*version.*after.*release.*v" --since="3 days ago" || true)
+    local recent_release_merges
+    recent_release_merges=$(git log --oneline -10 --grep="Merge.*release.*into.*develop" --grep="Merge.*release.*back.*develop" --grep="Bump.*version.*after.*release.*v" --since="3 days ago" || true)
     
     # Also check if current version suggests we're ready for next cycle
     if [[ -n "$recent_release_merges" ]] || [[ "$CURRENT_VERSION" =~ -RC\.[0-9]+$ ]] || [[ "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -292,7 +293,8 @@ main() {
     ############################
     ## Detect branch type and route ##
     ############################
-    local branch_type=$(detect_branch_type "$CURRENT_BRANCH")
+    local branch_type
+    branch_type=$(detect_branch_type "$CURRENT_BRANCH")
     echo "Detected branch type: $branch_type"
     echo ""
     
