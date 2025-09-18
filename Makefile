@@ -65,13 +65,17 @@ lint:
 	@echo ""
 	@echo "2. Shell Script Linting (ShellCheck)..."
 	@shellcheck src/scripts/*.sh
-	@echo "✅ ShellCheck passed"
+	@echo "✅ Source script ShellCheck passed"
 	@echo ""
-	@echo "3. CircleCI Orb Linting..."
+	@echo "3. Test Script Linting (ShellCheck)..."
+	@shellcheck tests/*.sh
+	@echo "✅ Test script ShellCheck passed"
+	@echo ""
+	@echo "4. CircleCI Orb Linting..."
 	@circleci orb validate src/@orb.yml
 	@echo "✅ CircleCI orb validation passed"
 	@echo ""
-	@echo "4. Orb Packing Test..."
+	@echo "5. Orb Packing Test..."
 	@circleci orb pack src > /tmp/test-packed.yml
 	@circleci orb validate /tmp/test-packed.yml
 	@rm -f /tmp/test-packed.yml

@@ -152,7 +152,10 @@ run_test() {
         echo "  ❌ FAILED: Expected $expected_version, got $calculated_version"
         if [[ "$VERBOSE" == "true" ]]; then
             echo "  Full output:"
-            echo "$output" | sed 's/^/    /'
+            # Add indentation to each line
+            while IFS= read -r line; do
+                echo "    $line"
+            done <<< "$output"
         fi
         TESTS_FAILED=$((TESTS_FAILED + 1))
         return 1
