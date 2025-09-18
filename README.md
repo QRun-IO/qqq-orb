@@ -15,10 +15,11 @@ QQQ Orb is a **CircleCI orb** that provides standardized CI/CD workflows for pro
 ### What This Repository Contains
 
 - **CircleCI Orb**: Reusable CI/CD workflows and commands
-- **GitFlow Integration**: Automated branching and version management
+- **GitFlow Integration**: Automated branching and version management with intelligent version calculation
 - **Multi-Platform Support**: Maven (Java) and npm (Node.js) project support
 - **Publishing Automation**: Automated publishing to Maven Central and npm
-- **Testing Framework**: Comprehensive testing with coverage reporting
+- **Comprehensive Testing**: Full test suite with dynamic test environments
+- **Quality Gates**: Enforced linting, testing, and validation before publishing
 
 ### What This Repository Does NOT Contain
 
@@ -34,15 +35,15 @@ QQQ Orb is a **CircleCI orb** that provides standardized CI/CD workflows for pro
 - **GitFlow**: Branching strategy for release management
 - **Maven**: Java project build and dependency management
 - **npm**: Node.js package management
-- **Shell Scripts**: Automation and utility scripts
+- **Shell Scripts**: Automation and utility scripts with comprehensive testing
 - **YAML**: Configuration and workflow definitions
 
 ### Core Capabilities
 
 - **Automated Building**: Maven and npm project compilation
 - **Testing**: Unit tests, integration tests, and coverage reporting
-- **Version Management**: Automated semantic versioning based on GitFlow
-- **Publishing**: Maven Central and npm registry publishing
+- **Intelligent Version Management**: Automated semantic versioning based on GitFlow with feature branch support
+- **Publishing**: Maven Central and npm registry publishing with quality gates
 - **Documentation**: Automated documentation generation and publishing
 
 ## 🚀 Quick Start
@@ -133,7 +134,7 @@ src/
 │   ├── node_publish.yml        # npm publishing workflow
 │   └── node_test_only.yml     # npm testing workflow
 ├── scripts/                   # Shell scripts
-│   ├── calculate_version.sh   # Version calculation
+│   ├── calculate_version.sh   # Intelligent version calculation
 │   ├── mvn_build_compile.sh   # Maven compilation
 │   ├── node_npm_auth.sh       # npm authentication
 │   └── ...                    # Additional scripts
@@ -141,6 +142,11 @@ src/
 │   └── default.yml            # Default executor configuration
 └── examples/                  # Usage examples
     └── build.yml             # Example configuration
+
+tests/                        # Comprehensive test suite
+├── test_calculate_version.sh # Version calculation tests
+├── run_tests.sh             # Test runner with CI support
+└── README.md                # Test documentation
 ```
 
 ## 🎯 Available Jobs
@@ -175,23 +181,36 @@ sudo apt-get install shellcheck yamllint
 ### Development Commands
 
 ```bash
+# Core development
 make pack            # Pack orb (resolves <<include()>>)
 make validate        # Validate packed orb
-make lint            # Run all linting checks
-make dev             # Pack + validate
-make clean           # Clean build artifacts
-```
+make lint            # Run all linting checks (YAML, ShellCheck, CircleCI orb)
+make dev             # Pack + validate + show status
+make clean           # Clean build artifacts and test data
 
-### Publishing Commands
+# Testing
+make test            # Pack and validate orb
+make test-scripts    # Run comprehensive calculate_version.sh tests
+make test-all        # Run all tests (orb + scripts)
 
-```bash
+# Publishing (with full build cycle)
 make publish-snapshot  # Publish as kingsrook/qqq-orb@dev:snapshot
 make publish-release   # Publish as kingsrook/qqq-orb@X.Y.Z
 ```
 
-## 📋 Version Management
+### Quality Gates
 
-Automated version calculation based on GitFlow branches:
+All publishing commands enforce a complete quality gate:
+
+1. **check-clean**: Ensures working directory is clean
+2. **lint**: Runs all linting checks (YAML, ShellCheck, CircleCI orb validation)
+3. **clean**: Removes all generated files for fresh build
+4. **dev**: Development workflow (pack + validate)
+5. **test-all**: Comprehensive testing (orb + scripts)
+
+## 📋 Intelligent Version Management
+
+Automated version calculation with GitFlow integration and feature branch support:
 
 | Branch Pattern | Version Change | Example |
 |----------------|----------------|---------|
@@ -199,6 +218,22 @@ Automated version calculation based on GitFlow branches:
 | `release/1.5` | RC versions | `1.5.0-RC.1`, `1.5.0-RC.2`, ... |
 | `main` | Stable release | `1.5.0-RC.3` → `1.5.0` **requires v* tag** |
 | `hotfix/1.5.1` | Patch bump | `1.5.0` → `1.5.1` |
+| `feature/new-feature` | Feature-specific | `1.5.0-SNAPSHOT` → `1.5.0-NEW-abc1234-SNAPSHOT` |
+
+### Feature Branch Versioning
+
+Feature branches create unique, traceable versions:
+- **Format**: `{version}-{ABBREV}-{commit_hash}-SNAPSHOT`
+- **Example**: `feature/new-feature` → `1.5.0-NEW-abc1234-SNAPSHOT`
+- **Dynamic Updates**: Automatically updates when commit hash changes
+- **Safe Abbreviations**: 3-character uppercase feature name abbreviation
+
+### Version Parsing Support
+
+The version calculator handles multiple formats:
+- **Standard**: `1.5.0`, `1.5.0-SNAPSHOT`, `1.5.0-RC.1`
+- **V-prefixed**: `v1.5.0` → `1.5.0` (clean conversion)
+- **Feature-specific**: `1.5.0-NEW-abc1234-SNAPSHOT`
 
 **Main branch requires release tags**: 
 ```bash
@@ -206,19 +241,34 @@ git tag -a v1.5.0 -m "Release 1.5.0"
 git push origin v1.5.0
 ```
 
-## 🧪 Testing
+## 🧪 Comprehensive Testing
+
+### Test Suite Features
+
+- **Dynamic Test Environment**: Creates isolated git repositories for each test run
+- **Pattern Matching**: Supports wildcard patterns for commit hash testing
+- **Comprehensive Coverage**: Tests all branch types and edge cases
+- **CI Integration**: Clean exit codes and minimal output for CI systems
+- **Automatic Cleanup**: Test data removed automatically after tests
 
 ### Running Tests
 
 ```bash
 # Run all tests
-make test
+make test-all
+
+# Run specific test suites
+make test            # Orb tests only
+make test-scripts    # Script tests only
+
+# Run with verbose output
+./tests/run_tests.sh --verbose
+
+# Run in CI mode
+./tests/run_tests.sh --ci
 
 # Run linting checks
 make lint
-
-# Validate orb configuration
-make validate
 ```
 
 ### Test Coverage
@@ -227,7 +277,9 @@ The orb includes comprehensive testing:
 - **YAML Validation**: CircleCI orb configuration validation
 - **Shell Script Testing**: ShellCheck for shell script validation
 - **Orb Packing**: Tests orb packing and resolution
+- **Version Calculation**: 20+ test cases covering all branch types
 - **Integration Testing**: End-to-end workflow testing
+- **Edge Case Testing**: Invalid formats, missing tags, error conditions
 
 ## 📦 Usage Examples
 
@@ -267,17 +319,19 @@ jobs:
 1. **Fork the main QQQ repository**: https://github.com/Kingsrook/qqq
 2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
 3. **Make your changes** (including orb changes if applicable)
-4. **Run tests**: `make test`
-5. **Commit your changes**: `git commit -m 'Add amazing feature'`
-6. **Push to the branch**: `git push origin feature/amazing-feature`
-7. **Open a Pull Request** to the main QQQ repository
+4. **Run tests**: `make test-all`
+5. **Run linting**: `make lint`
+6. **Commit your changes**: `git commit -m 'Add amazing feature'`
+7. **Push to the branch**: `git push origin feature/amazing-feature`
+8. **Open a Pull Request** to the main QQQ repository
 
 ### Code Standards
 
 - **YAML**: Follow CircleCI orb best practices
-- **Shell Scripts**: Use ShellCheck for validation
+- **Shell Scripts**: Use ShellCheck for validation, comprehensive testing
 - **Documentation**: Update README and inline documentation
-- **Testing**: Comprehensive test coverage
+- **Testing**: Comprehensive test coverage with dynamic test environments
+- **Quality Gates**: All changes must pass linting and testing
 
 ## 📄 License
 
