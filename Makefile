@@ -1,7 +1,7 @@
 # QQQ Orb Development Makefile
 # Provides convenient commands for orb development, validation, and publishing
 
-.PHONY: help pack validate clean test publish-snapshot publish-release dev check-clean check-branch
+.PHONY: help pack validate clean test test-scripts test-all publish-snapshot publish-release dev check-clean check-branch
 
 # Default target
 help:
@@ -10,6 +10,8 @@ help:
 	@echo "  make pack           		- Pack the orb using 'orb pack' (recommended for orb development)"
 	@echo "  make validate       		- Validate the packed orb"
 	@echo "  make test           		- Pack and validate the orb"
+	@echo "  make test-scripts   		- Run comprehensive tests for calculate_version.sh"
+	@echo "  make test-all       		- Run all tests (orb + scripts)"
 	@echo "  make clean          		- Remove packed orb files"
 	@echo "  make dev            		- Development workflow: pack, validate, and show status"
 	@echo "  make lint           		- Run all CircleCI-style linting checks"
@@ -36,6 +38,16 @@ validate: pack
 # Test workflow: pack and validate
 test: validate
 	@echo "✅ All tests passed!"
+
+# Test scripts: run comprehensive tests for calculate_version.sh
+test-scripts:
+	@echo "🧪 Running calculate_version.sh test suite..."
+	@./tests/run_tests.sh --ci
+	@echo "✅ Script tests passed!"
+
+# Test all: run both orb tests and script tests
+test-all: test test-scripts
+	@echo "🎉 All tests completed successfully!"
 
 # Clean up generated files
 clean:
