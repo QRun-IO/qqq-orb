@@ -53,6 +53,8 @@ test-all: test test-scripts
 clean:
 	@echo "Cleaning up packed orb files..."
 	@rm -rf target
+	@echo "Cleaning up test data..."
+	@rm -rf tests/test_data
 	@echo "✅ Cleanup complete"
 
 # Lint source files (same checks as CircleCI)

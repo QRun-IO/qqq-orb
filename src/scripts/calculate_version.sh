@@ -88,6 +88,13 @@ extract_version_parts() {
         MAJOR=${BASH_REMATCH[1]}
         MINOR=${BASH_REMATCH[2]}
         PATCH=${BASH_REMATCH[3]}
+    #############################################################
+    ## Handle feature-specific versions like 1.5.0-NEW-abc1234-SNAPSHOT ##
+    #############################################################
+    elif [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)-[A-Z]{3}-[a-f0-9]{7}-SNAPSHOT$ ]]; then
+        MAJOR=${BASH_REMATCH[1]}
+        MINOR=${BASH_REMATCH[2]}
+        PATCH=${BASH_REMATCH[3]}
     #######################################
     ## Handle stable versions like 1.5.0 ##
     #######################################
@@ -260,10 +267,57 @@ handle_hotfix_branch() {
 
 handle_feature_branch() {
     echo "=== Handling FEATURE branch ==="
-    echo "Feature branches inherit version from develop, no changes"
+    echo "Feature branches create unique SNAPSHOT versions"
     
-    NEW_VERSION="$CURRENT_VERSION"
-    echo "Keeping current version: $NEW_VERSION"
+    # Extract feature name from branch (e.g., feature/new-feature -> new-feature)
+    local feature_name
+    if [[ "$CURRENT_BRANCH" =~ ^feature/(.+)$ ]]; then
+        feature_name=${BASH_REMATCH[1]}
+    else
+        feature_name="unknown"
+    fi
+    
+    # Create safe abbreviation (first 3 characters, uppercase)
+    local feature_abbrev
+    feature_abbrev=$(echo "$feature_name" | cut -c1-3 | tr '[:lower:]' '[:upper:]')
+    
+    # Generate short commit hash
+    local commit_hash
+    commit_hash=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    
+    # Create unique SNAPSHOT version
+    if [[ "$CURRENT_VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-SNAPSHOT$ ]]; then
+        # Convert SNAPSHOT to feature-specific version
+        local base_version=${BASH_REMATCH[1]}
+        NEW_VERSION="$base_version-$feature_abbrev-$commit_hash-SNAPSHOT"
+        echo "Creating feature-specific version: $NEW_VERSION"
+    elif [[ "$CURRENT_VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+        # Convert stable version to feature-specific SNAPSHOT
+        NEW_VERSION="$CURRENT_VERSION-$feature_abbrev-$commit_hash-SNAPSHOT"
+        echo "Converting stable version to feature-specific SNAPSHOT: $NEW_VERSION"
+    else
+        # Check if it's already a feature-specific format
+        if [[ "$CURRENT_VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-([A-Z]{3})-([a-f0-9]{7})-SNAPSHOT$ ]]; then
+            local base_version=${BASH_REMATCH[1]}
+            local existing_abbrev=${BASH_REMATCH[2]}
+            local existing_hash=${BASH_REMATCH[3]}
+            
+            # Check if the commit hash has changed
+            if [[ "$existing_hash" != "$commit_hash" ]]; then
+                # Update to new commit hash
+                NEW_VERSION="$base_version-$existing_abbrev-$commit_hash-SNAPSHOT"
+                echo "Updating feature-specific version with new commit hash: $NEW_VERSION"
+            else
+                # Keep current version if commit hash hasn't changed
+                NEW_VERSION="$CURRENT_VERSION"
+                echo "Keeping current feature-specific version: $NEW_VERSION"
+            fi
+        else
+            # Unknown format, keep as-is
+            NEW_VERSION="$CURRENT_VERSION"
+            echo "Keeping current version (unknown format): $NEW_VERSION"
+        fi
+    fi
 }
 
 handle_unknown_branch() {

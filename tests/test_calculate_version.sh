@@ -18,7 +18,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 CALCULATE_VERSION_SCRIPT="$PROJECT_ROOT/src/scripts/calculate_version.sh"
-TEST_DIR="$SCRIPT_DIR/test_data"
+TEST_DIR="$PROJECT_ROOT/tests/test_data"
 VERBOSE=false
 
 # Test counters
@@ -40,15 +40,20 @@ fi
 # Create a temporary directory for test data
 setup_test_environment() {
     echo "Setting up test environment..."
+    
+    # Remove existing test directory if it exists
+    if [[ -d "$TEST_DIR" ]]; then
+        rm -rf "$TEST_DIR"
+    fi
+    
+    # Create fresh test directory
     mkdir -p "$TEST_DIR"
     
     # Create a test git repository
     cd "$TEST_DIR"
-    if [[ ! -d ".git" ]]; then
-        git init --quiet
-        git config user.name "Test User"
-        git config user.email "test@example.com"
-    fi
+    git init --quiet
+    git config user.name "Test User"
+    git config user.email "test@example.com"
     
     echo "✅ Test environment ready"
 }
@@ -130,7 +135,7 @@ run_test() {
         echo "  Running: POM_FILE=pom.xml $CALCULATE_VERSION_SCRIPT --dry-run"
     fi
     
-    output=$(POM_FILE=pom.xml "$CALCULATE_VERSION_SCRIPT" --dry-run 2>&1) || exit_code=$?
+    output=$(cd "$TEST_DIR" && POM_FILE=pom.xml "$CALCULATE_VERSION_SCRIPT" --dry-run 2>&1) || exit_code=$?
     
     # Check if script ran successfully
     if [[ $exit_code -ne 0 ]]; then
@@ -144,21 +149,47 @@ run_test() {
     local calculated_version
     calculated_version=$(echo "$output" | grep "Calculated next version:" | sed 's/.*: //')
     
-    if [[ "$calculated_version" == "$expected_version" ]]; then
-        echo "  ✅ PASSED: Expected $expected_version, got $calculated_version"
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-        return 0
-    else
-        echo "  ❌ FAILED: Expected $expected_version, got $calculated_version"
-        if [[ "$VERBOSE" == "true" ]]; then
-            echo "  Full output:"
-            # Add indentation to each line
-            while IFS= read -r line; do
-                echo "    $line"
-            done <<< "$output"
+    # Check if expected version contains wildcard pattern
+    if [[ "$expected_version" == *"*"* ]]; then
+        # Convert wildcard pattern to regex
+        local regex_pattern
+        # shellcheck disable=SC2001
+        regex_pattern=$(echo "$expected_version" | sed 's/\*/[a-f0-9]{7}/g')
+        
+        if [[ "$calculated_version" =~ ^$regex_pattern$ ]]; then
+            echo "  ✅ PASSED: Expected pattern $expected_version, got $calculated_version"
+            TESTS_PASSED=$((TESTS_PASSED + 1))
+            return 0
+        else
+            echo "  ❌ FAILED: Expected pattern $expected_version, got $calculated_version"
+            if [[ "$VERBOSE" == "true" ]]; then
+                echo "  Full output:"
+                # Add indentation to each line
+                while IFS= read -r line; do
+                    echo "    $line"
+                done <<< "$output"
+            fi
+            TESTS_FAILED=$((TESTS_FAILED + 1))
+            return 1
         fi
-        TESTS_FAILED=$((TESTS_FAILED + 1))
-        return 1
+    else
+        # Exact match
+        if [[ "$calculated_version" == "$expected_version" ]]; then
+            echo "  ✅ PASSED: Expected $expected_version, got $calculated_version"
+            TESTS_PASSED=$((TESTS_PASSED + 1))
+            return 0
+        else
+            echo "  ❌ FAILED: Expected $expected_version, got $calculated_version"
+            if [[ "$VERBOSE" == "true" ]]; then
+                echo "  Full output:"
+                # Add indentation to each line
+                while IFS= read -r line; do
+                    echo "    $line"
+                done <<< "$output"
+            fi
+            TESTS_FAILED=$((TESTS_FAILED + 1))
+            return 1
+        fi
     fi
 }
 
@@ -251,11 +282,14 @@ test_feature_branch() {
     echo ""
     echo "=== Testing FEATURE Branch ==="
     
-    # Test 1: Feature branch - inherit version
-    run_test "Feature branch - inherit version" "feature/new-feature" "1.5.0-SNAPSHOT" "1.5.0-SNAPSHOT" ""
+    # Test 1: Feature branch - convert SNAPSHOT to feature-specific version
+    run_test "Feature branch - convert SNAPSHOT to feature-specific version" "feature/new-feature" "1.5.0-SNAPSHOT" "1.5.0-NEW-*-SNAPSHOT" ""
     
-    # Test 2: Feature branch - inherit RC version
-    run_test "Feature branch - inherit RC version" "feature/new-feature" "1.5.0-RC.1" "1.5.0-RC.1" ""
+    # Test 2: Feature branch - convert stable version to feature-specific SNAPSHOT
+    run_test "Feature branch - convert stable version to feature-specific SNAPSHOT" "feature/user-auth" "1.5.0" "1.5.0-USE-*-SNAPSHOT" ""
+    
+    # Test 3: Feature branch - update existing feature-specific version with new commit hash
+    run_test "Feature branch - update existing feature-specific version" "feature/existing-feature" "1.5.0-EXI-abc1234-SNAPSHOT" "1.5.0-EXI-*-SNAPSHOT" ""
 }
 
 # Test edge cases
@@ -274,7 +308,7 @@ test_edge_cases() {
     local output
     local exit_code=0
     
-    output=$(POM_FILE=pom.xml "$CALCULATE_VERSION_SCRIPT" --dry-run 2>&1) || exit_code=$?
+    output=$(cd "$TEST_DIR" && POM_FILE=pom.xml "$CALCULATE_VERSION_SCRIPT" --dry-run 2>&1) || exit_code=$?
     
     if [[ $exit_code -ne 0 ]]; then
         echo "  ✅ PASSED: Script correctly failed with invalid release branch format"
@@ -295,7 +329,7 @@ test_edge_cases() {
     create_test_branch "main" ""  # No tag
     
     cd "$TEST_DIR"
-    output=$(POM_FILE=pom.xml "$CALCULATE_VERSION_SCRIPT" --dry-run 2>&1) || exit_code=$?
+    output=$(cd "$TEST_DIR" && POM_FILE=pom.xml "$CALCULATE_VERSION_SCRIPT" --dry-run 2>&1) || exit_code=$?
     
     if [[ $exit_code -ne 0 ]]; then
         echo "  ✅ PASSED: Script correctly failed with no tags on main branch"
@@ -337,7 +371,7 @@ test_version_parsing() {
         local output
         local exit_code=0
         
-        output=$(POM_FILE=pom.xml "$CALCULATE_VERSION_SCRIPT" --dry-run 2>&1) || exit_code=$?
+        output=$(cd "$TEST_DIR" && POM_FILE=pom.xml "$CALCULATE_VERSION_SCRIPT" --dry-run 2>&1) || exit_code=$?
         
         if [[ $exit_code -eq 0 ]]; then
             echo "  ✅ PASSED: Version $version parsed successfully"
