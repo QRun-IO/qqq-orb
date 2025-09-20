@@ -189,9 +189,7 @@ run_test() {
         #######################################
         local regex_pattern
 
-        ###############################
-        ## shellcheck disable=SC2001 ##
-        ###############################
+        # shellcheck disable=SC2001
         regex_pattern=$(echo "$expected_version" | sed 's/\*/[a-f0-9]{7}/g')
         
         if [[ "$calculated_version" =~ ^$regex_pattern$ ]]; then
