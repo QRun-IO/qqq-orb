@@ -3,56 +3,72 @@ description: >
   This example demonstrates how to use the qqq-orb for automated building, testing, and releasing.
 
 usage:
-  version: 2.1
-  orbs:
-    qqq-orb: kingsrook/qqq-orb@0.3.1
+   version: 2.1
 
-  workflows:
-    # Test workflow for feature branches
-    test_only:
-      jobs:
-        - qqq-orb/mvn_test_only:
-            context: [ qqq-maven-registry-credentials ]
-      filters:
-        branches:
-          ignore: [develop, main, /release\/.*/, /hotfix\/.*/]
+   orbs:
+     qqq-orb: kingsrook/qqq-orb@0.3.7
 
-    # Snapshot deployment for develop branch
-    publish_snapshot:
-      jobs:
-        - qqq-orb/mvn_publish:
-            context: [ qqq-maven-registry-credentials ]
-            branch_type: snapshot
-      filters:
-        branches:
-          only: [develop]
+   workflows:
 
-    # Release candidate workflow
-    publish_release_candidate:
-      jobs:
-        - qqq-orb/mvn_publish:
-            context: [ qqq-maven-registry-credentials ]
-            branch_type: release_candidate
-      filters:
-        branches:
-          only: [/release\/.*/]
+     test_only:
+       jobs:
+         - qqq-orb/mvn_test_only:
+             context: [ qqq-maven-registry-credentials ]
+             filters:
+               branches:
+                 ignore: /(develop|main|release/.*|hotfix/.*|integration.*)/
+               tags:
+                 only: []
 
-    # Production release workflow
-    publish_release:
-      jobs:
-        - qqq-orb/mvn_publish:
-            context: [ qqq-maven-registry-credentials ]
-            branch_type: release
-      filters:
-        branches:
-          only: [main]
+     publish_snapshot:
+       jobs:
+         - qqq-orb/mvn_publish:
+             context: [ qqq-maven-registry-credentials ]
+             branch_type: snapshot
+             filters:
+               branches:
+                 only:
+                   - develop
 
-    # Hotfix release workflow
-    publish_hotfix_release:
-      jobs:
-        - qqq-orb/mvn_publish:
-            context: [ qqq-maven-registry-credentials ]
-            branch_type: hotfix
-      filters:
-        branches:
-          only: [/hotfix\/.*/]
+     publish_feature:
+       jobs:
+         - qqq-orb/mvn_publish:
+             context: [ qqq-maven-registry-credentials ]
+             branch_type: feature
+             filters:
+               branches:
+                 only:
+                   - feature/.*
+               tags:
+                 only: [ /publish.*/ ]
+
+     publish_release_candidate:
+       jobs:
+         - qqq-orb/mvn_publish:
+             context: [ qqq-maven-registry-credentials ]
+             branch_type: release_candidate
+             filters:
+               branches:
+                 only:
+                   - /release\/.*/
+
+     publish_release:
+       jobs:
+         - qqq-orb/mvn_publish:
+             context: [ qqq-maven-registry-credentials ]
+             branch_type: release
+             filters:
+               branches:
+                 only: [ main ]
+               tags:
+                 only: [ /v.*/ ]
+
+     publish_hotfix_release:
+       jobs:
+         - qqq-orb/mvn_publish:
+             context: [ qqq-maven-registry-credentials ]
+             branch_type: hotfix
+             filters:
+               branches:
+                 only:
+                   - /hotfix\/.*/

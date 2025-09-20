@@ -279,7 +279,7 @@ handle_feature_branch() {
     
     # Create safe abbreviation (first 3 characters, uppercase)
     local feature_abbrev
-    feature_abbrev=$(echo "$feature_name" | cut -c1-3 | tr '[:lower:]' '[:upper:]')
+    feature_abbrev=$(echo "$feature_name" | cut -c1-100 | tr '[:upper:]' '[:lower:]')
     
     # Generate short commit hash
     local commit_hash

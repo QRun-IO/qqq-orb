@@ -9,7 +9,7 @@ parameters:
   branch_type:
     type: string
     default: "snapshot"
-    description: "Branch type: snapshot, release_candidate, release, or hotfix"
+    description: "Branch type: snapshot, release_candidate, release, feature, or hotfix"
 
 steps:
   - checkout

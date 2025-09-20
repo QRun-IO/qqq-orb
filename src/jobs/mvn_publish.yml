@@ -1,7 +1,7 @@
 description: >
   Unified publishing job for all branch types
   Handles version management, building, testing, and publishing based on branch type
-  Supports: snapshot, release_candidate, release, and hotfix workflows
+  Supports: snapshot, release_candidate, release (tagged), feasture (tagged) and hotfix workflows
 
 executor: localstack/default
 
@@ -9,7 +9,7 @@ parameters:
   branch_type:
     type: string
     default: "snapshot"
-    description: "Branch type: snapshot, release_candidate, release, or hotfix"
+    description: "Branch type: snapshot, release_candidate, release, features, or hotfix"
   check_middleware_api_versions:
     type: boolean
     default: false
