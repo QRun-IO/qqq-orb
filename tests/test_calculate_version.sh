@@ -396,11 +396,13 @@ test_publish_tag() {
     
     ###########################################################################
     ## Test 1: Publish tag - convert SNAPSHOT to feature-specific version ##
+    ## Note: This will fallback to "publish" since we can't determine original branch in test ##
     ###########################################################################
     run_test "Publish tag - convert SNAPSHOT to feature-specific version" "HEAD" "1.4.0-SNAPSHOT" "1.4.0-publish-*-SNAPSHOT" "publish-825957d"
     
     ##################################################################################
     ## Test 2: Publish tag - convert stable version to feature-specific SNAPSHOT ##
+    ## Note: This will fallback to "publish" since we can't determine original branch in test ##
     ##################################################################################
     run_test "Publish tag - convert stable version to feature-specific SNAPSHOT" "HEAD" "1.4.0" "1.4.0-publish-*-SNAPSHOT" "publish-abc1234"
     
@@ -411,6 +413,7 @@ test_publish_tag() {
     
     ############################################################################################
     ## Test 4: Publish tag with different commit hash format ##
+    ## Note: This will fallback to "publish" since we can't determine original branch in test ##
     ############################################################################################
     run_test "Publish tag - different commit hash format" "HEAD" "1.5.0-SNAPSHOT" "1.5.0-publish-*-SNAPSHOT" "publish-9a8b7c6"
 }

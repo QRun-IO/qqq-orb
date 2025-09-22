@@ -52,7 +52,21 @@ if [[ "$CURRENT_BRANCH" == "HEAD" ]]; then
             CURRENT_BRANCH="release/${CURRENT_BRANCH%-RC.*}"
         elif [[ "$CURRENT_TAG" =~ ^publish- ]]; then
             echo "This is a publish tag for feature branch, treating as feature branch"
-            CURRENT_BRANCH="feature/publish"
+            # Try to find the original feature branch name
+            original_branch=$(git branch -r --contains HEAD | grep 'origin/feature/' | head -1 | sed 's/origin\///' || echo "")
+            
+            if [[ -z "$original_branch" ]]; then
+                # Second try: look at git log for branch references
+                original_branch=$(git log --oneline -10 --pretty=format:"%D" | grep -o 'feature/[^,)]*' | head -1 || echo "")
+            fi
+            
+            if [[ "$original_branch" =~ ^feature/ ]]; then
+                echo "Found original feature branch: $original_branch"
+                CURRENT_BRANCH="$original_branch"
+            else
+                echo "Could not determine original feature branch, using generic name"
+                CURRENT_BRANCH="feature/publish"
+            fi
         else
             echo "Unknown tag format: $CURRENT_TAG"
             CURRENT_BRANCH="unknown"
