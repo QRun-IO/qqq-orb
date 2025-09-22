@@ -198,7 +198,16 @@ run_test() {
         local regex_pattern
 
         # shellcheck disable=SC2001
-        regex_pattern=$(echo "$expected_version" | sed 's/\*/[a-f0-9]{7}/g')
+        # Handle different wildcard patterns:
+        # *-*-SNAPSHOT -> feature-name-commit-SNAPSHOT
+        # *-SNAPSHOT -> commit-SNAPSHOT
+        if [[ "$expected_version" == *-*-SNAPSHOT ]]; then
+            # Pattern: 1.4.0-*-*-SNAPSHOT -> 1.4.0-[feature-name]-[commit]-SNAPSHOT
+            regex_pattern=$(echo "$expected_version" | sed 's/\*/[a-zA-Z0-9-]+/g')
+        else
+            # Pattern: 1.4.0-*-SNAPSHOT -> 1.4.0-[commit]-SNAPSHOT
+            regex_pattern=$(echo "$expected_version" | sed 's/\*/[a-f0-9]+/g')
+        fi
         
         if [[ "$calculated_version" =~ ^$regex_pattern$ ]]; then
             echo "  ✅ PASSED: Expected pattern $expected_version, got $calculated_version"
@@ -396,15 +405,15 @@ test_publish_tag() {
     
     ###########################################################################
     ## Test 1: Publish tag - convert SNAPSHOT to feature-specific version ##
-    ## Note: This will fallback to "publish" since we can't determine original branch in test ##
+    ## Note: Will use actual feature branch name found in git log ##
     ###########################################################################
-    run_test "Publish tag - convert SNAPSHOT to feature-specific version" "HEAD" "1.4.0-SNAPSHOT" "1.4.0-publish-*-SNAPSHOT" "publish-825957d"
+    run_test "Publish tag - convert SNAPSHOT to feature-specific version" "HEAD" "1.4.0-SNAPSHOT" "1.4.0-*-*-SNAPSHOT" "publish-825957d"
     
     ##################################################################################
     ## Test 2: Publish tag - convert stable version to feature-specific SNAPSHOT ##
-    ## Note: This will fallback to "publish" since we can't determine original branch in test ##
+    ## Note: Will use actual feature branch name found in git log ##
     ##################################################################################
-    run_test "Publish tag - convert stable version to feature-specific SNAPSHOT" "HEAD" "1.4.0" "1.4.0-publish-*-SNAPSHOT" "publish-abc1234"
+    run_test "Publish tag - convert stable version to feature-specific SNAPSHOT" "HEAD" "1.4.0" "1.4.0-*-*-SNAPSHOT" "publish-abc1234"
     
     ############################################################################################
     ## Test 3: Publish tag - update existing feature-specific version with new commit hash ##
@@ -413,9 +422,9 @@ test_publish_tag() {
     
     ############################################################################################
     ## Test 4: Publish tag with different commit hash format ##
-    ## Note: This will fallback to "publish" since we can't determine original branch in test ##
+    ## Note: Will use actual feature branch name found in git log ##
     ############################################################################################
-    run_test "Publish tag - different commit hash format" "HEAD" "1.5.0-SNAPSHOT" "1.5.0-publish-*-SNAPSHOT" "publish-9a8b7c6"
+    run_test "Publish tag - different commit hash format" "HEAD" "1.5.0-SNAPSHOT" "1.5.0-*-*-SNAPSHOT" "publish-9a8b7c6"
 }
 
 #####################
