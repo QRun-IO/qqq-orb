@@ -50,6 +50,9 @@ if [[ "$CURRENT_BRANCH" == "HEAD" ]]; then
             echo "This is a release candidate tag, treating as release branch"
             CURRENT_BRANCH="release/${CURRENT_TAG#v}"
             CURRENT_BRANCH="release/${CURRENT_BRANCH%-RC.*}"
+        elif [[ "$CURRENT_TAG" =~ ^publish- ]]; then
+            echo "This is a publish tag for feature branch, treating as feature branch"
+            CURRENT_BRANCH="feature/publish"
         else
             echo "Unknown tag format: $CURRENT_TAG"
             CURRENT_BRANCH="unknown"
@@ -90,8 +93,9 @@ extract_version_parts() {
         PATCH=${BASH_REMATCH[3]}
     #############################################################
     ## Handle feature-specific versions like 1.5.0-NEW-abc1234-SNAPSHOT ##
+    ## or 1.4.0-test-new-orb-825957d-SNAPSHOT ##
     #############################################################
-    elif [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)-[A-Z]{3}-[a-f0-9]{7}-SNAPSHOT$ ]]; then
+    elif [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)-[a-zA-Z0-9-]+-[a-f0-9]+-SNAPSHOT$ ]]; then
         MAJOR=${BASH_REMATCH[1]}
         MINOR=${BASH_REMATCH[2]}
         PATCH=${BASH_REMATCH[3]}

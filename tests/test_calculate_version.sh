@@ -109,11 +109,6 @@ create_test_branch() {
     
     cd "$TEST_DIR"
     
-    ################################
-    ## Create and checkout branch ##
-    ################################
-    git checkout -b "$branch_name" 2>/dev/null || git checkout "$branch_name" 2>/dev/null || true
-    
     ###############################
     ## Create a commit if needed ##
     ###############################
@@ -128,6 +123,19 @@ create_test_branch() {
     #############################
     if [[ -n "$tag_name" ]]; then
         git tag -a "$tag_name" -m "Test tag $tag_name" 2>/dev/null || true
+    fi
+    
+    ################################
+    ## Handle special HEAD case ##
+    ################################
+    if [[ "$branch_name" == "HEAD" ]]; then
+        # For HEAD case, checkout the tag to simulate detached HEAD state
+        if [[ -n "$tag_name" ]]; then
+            git checkout "$tag_name" --quiet
+        fi
+    else
+        # Create and checkout branch
+        git checkout -b "$branch_name" 2>/dev/null || git checkout "$branch_name" 2>/dev/null || true
     fi
 }
 
@@ -372,6 +380,39 @@ test_feature_branch() {
     ## Test 3: Feature branch - update existing feature-specific version with new commit hash ##
     ############################################################################################
     run_test "Feature branch - update existing feature-specific version" "feature/existing-feature" "1.5.0-SNAPSHOT" "1.5.0-existing-feature-*-SNAPSHOT" ""
+    
+    ############################################################################################
+    ## Test 4: Feature branch - parse existing long feature-specific version ##
+    ############################################################################################
+    run_test "Feature branch - parse existing long feature-specific version" "feature/test-new-orb" "1.4.0-test-new-orb-825957d-SNAPSHOT" "1.4.0-test-new-orb-*-SNAPSHOT" ""
+}
+
+####################################
+## Test publish tag scenarios ##
+####################################
+test_publish_tag() {
+    echo ""
+    echo "=== Testing PUBLISH Tag Scenarios ==="
+    
+    ###########################################################################
+    ## Test 1: Publish tag - convert SNAPSHOT to feature-specific version ##
+    ###########################################################################
+    run_test "Publish tag - convert SNAPSHOT to feature-specific version" "HEAD" "1.4.0-SNAPSHOT" "1.4.0-publish-*-SNAPSHOT" "publish-825957d"
+    
+    ##################################################################################
+    ## Test 2: Publish tag - convert stable version to feature-specific SNAPSHOT ##
+    ##################################################################################
+    run_test "Publish tag - convert stable version to feature-specific SNAPSHOT" "HEAD" "1.4.0" "1.4.0-publish-*-SNAPSHOT" "publish-abc1234"
+    
+    ############################################################################################
+    ## Test 3: Publish tag - update existing feature-specific version with new commit hash ##
+    ############################################################################################
+    run_test "Publish tag - update existing feature-specific version" "HEAD" "1.4.0-test-feature-1234567-SNAPSHOT" "1.4.0-test-feature-*-SNAPSHOT" "publish-def5678"
+    
+    ############################################################################################
+    ## Test 4: Publish tag with different commit hash format ##
+    ############################################################################################
+    run_test "Publish tag - different commit hash format" "HEAD" "1.5.0-SNAPSHOT" "1.5.0-publish-*-SNAPSHOT" "publish-9a8b7c6"
 }
 
 #####################
@@ -511,6 +552,7 @@ main() {
     test_release_branch
     test_hotfix_branch
     test_feature_branch
+    test_publish_tag
     test_edge_cases
     test_version_parsing
     
