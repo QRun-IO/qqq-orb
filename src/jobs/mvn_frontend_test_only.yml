@@ -7,6 +7,7 @@ description: >
 executor: localstack/default
 
 steps:
-  - checkout
+  - checkout:
+    fetch-depth: 0
   - frontend_build
   - frontend_test

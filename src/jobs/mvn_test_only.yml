@@ -13,7 +13,8 @@ parameters:
     description: "Whether to run middleware API version checks"
 
 steps:
-  - checkout
+  - checkout:
+    fetch-depth: 0
   - mvn_build
   - mvn_verify
   - when:

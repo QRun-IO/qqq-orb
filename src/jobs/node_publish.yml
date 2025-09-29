@@ -9,10 +9,11 @@ parameters:
   branch_type:
     type: string
     default: "snapshot"
-    description: "Branch type: snapshot, release_candidate, release, feature, or hotfix"
+    description: "Branch type: snapshot, release_candidate, release, or hotfix"
 
 steps:
-  - checkout
+  - checkout:
+    fetch-depth: 0
   - node_install_dependencies
   - node_run_tests
   - node_manage_version
