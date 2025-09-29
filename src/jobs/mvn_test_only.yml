@@ -13,8 +13,7 @@ parameters:
     description: "Whether to run middleware API version checks"
 
 steps:
-  - checkout
-  - run: git fetch --depth=10
+  - git_full_checkout
   - mvn_build
   - mvn_verify
   - when:

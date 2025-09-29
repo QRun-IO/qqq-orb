@@ -12,8 +12,7 @@ parameters:
     description: "Branch type: snapshot, release_candidate, release, or hotfix"
 
 steps:
-  - checkout
-  - run: git fetch --depth=10
+  - git_full_checkout
   - mvn_manage_version
   - frontend_build
   - frontend_test
