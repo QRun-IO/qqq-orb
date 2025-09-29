@@ -13,7 +13,7 @@ parameters:
 
 steps:
   - checkout
-  - run: git fetch --depth=0
+  - run: git fetch --depth=10
   - mvn_manage_version
   - frontend_build
   - frontend_test

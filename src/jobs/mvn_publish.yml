@@ -21,7 +21,7 @@ parameters:
 
 steps:
   - checkout
-  - run: git fetch --depth=0
+  - run: git fetch --depth=10
   - mvn_build
   - mvn_manage_version
   - attach_workspace:

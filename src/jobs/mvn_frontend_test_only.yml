@@ -8,6 +8,6 @@ executor: localstack/default
 
 steps:
   - checkout
-  - run: git fetch --depth=0
+  - run: git fetch --depth=10
   - frontend_build
   - frontend_test

@@ -13,6 +13,6 @@ parameters:
 
 steps:
   - checkout
-  - run: git fetch --depth=0
+  - run: git fetch --depth=10
   - node_install_dependencies
   - node_run_tests
