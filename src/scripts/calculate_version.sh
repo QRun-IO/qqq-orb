@@ -37,69 +37,14 @@ find_original_feature_branch() {
     
     # Method 1: Look for remote branches containing this commit
     echo "Method 1: Checking remote branches..." >&2
-    original_branch=$(git branch -r --contains HEAD 2>/dev/null | grep 'origin/feature/' | head -1 | sed 's/origin\///' || echo "")
+    original_branch=$(git branch -r --contains HEAD 2>/dev/null | grep 'origin/feature/' | head -1 | sed 's/origin\///' | sed 's/^[[:space:]]*//' || echo "")
     if [[ -n "$original_branch" ]]; then
-        echo "Found via remote branches: $original_branch" >&2
+        echo "Found via remote branches: [$original_branch]" >&2
     fi
-    
-    # Method 2: Look at git log for branch references
-    if [[ -z "$original_branch" ]]; then
-        echo "Method 2: Checking git log..." >&2
-        original_branch=$(git log --oneline -10 --pretty=format:"%D" 2>/dev/null | grep -o 'feature/[^,)]*' | head -1 || echo "")
-        if [[ -n "$original_branch" ]]; then
-            echo "Found via git log: $original_branch" >&2
-        fi
-    fi
-    
-    # Method 3: Look at git reflog for recent branch operations
-    if [[ -z "$original_branch" ]]; then
-        echo "Method 3: Checking git reflog..." >&2
-        original_branch=$(git reflog --oneline -20 2>/dev/null | grep -o 'feature/[^ ]*' | head -1 || echo "")
-        if [[ -n "$original_branch" ]]; then
-            echo "Found via reflog: $original_branch" >&2
-        fi
-    fi
-    
-    # Method 4: Try to extract from tag name if it contains branch info
-    if [[ -z "$original_branch" ]]; then
-        echo "Method 4: Checking tag name for branch info..." >&2
-        # Look for patterns like publish-branch-name-commit or publish-commit
-        if [[ "$CURRENT_TAG" =~ ^publish-([^-]+)-([^-]+)$ ]]; then
-            # Format: publish-branch-commit
-            local potential_branch="feature/${BASH_REMATCH[1]}"
-            echo "Potential branch from tag: $potential_branch" >&2
-            # Verify this branch exists
-            if git show-ref --verify --quiet "refs/heads/$potential_branch" 2>/dev/null; then
-                original_branch="$potential_branch"
-                echo "Found via tag pattern: $original_branch" >&2
-            fi
-        elif [[ "$CURRENT_TAG" =~ ^publish-([^-]+)$ ]]; then
-            # Format: publish-commit (fallback to generic)
-            echo "Tag format: publish-commit (no branch info)" >&2
-        fi
-    fi
-    
-    # Method 5: Check CircleCI environment variables
-    if [[ -z "$original_branch" ]]; then
-        echo "Method 5: Checking CircleCI environment variables..." >&2
-        if [[ -n "$CIRCLE_BRANCH" ]] && [[ "$CIRCLE_BRANCH" =~ ^feature/ ]]; then
-            original_branch="$CIRCLE_BRANCH"
-            echo "Found via CIRCLE_BRANCH: $original_branch" >&2
-        fi
-    fi
-    
-    # Method 6: Look at commit messages for branch references
-    if [[ -z "$original_branch" ]]; then
-        echo "Method 6: Checking commit messages..." >&2
-        original_branch=$(git log --oneline -5 --grep="feature/" --grep="branch" 2>/dev/null | grep -o 'feature/[^ ]*' | head -1 || echo "")
-        if [[ -n "$original_branch" ]]; then
-            echo "Found via commit messages: $original_branch" >&2
-        fi
-    fi
-    
+
     # Return the result
     if [[ "$original_branch" =~ ^feature/ ]]; then
-        echo "✅ Found original feature branch: $original_branch" >&2
+        echo "✅ Found original feature branch: [$original_branch]" >&2
         echo "$original_branch"
     else
         echo "⚠️  Could not determine original feature branch, using generic name" >&2
