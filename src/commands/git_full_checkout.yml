@@ -1,0 +1,11 @@
+description: >
+  Full checkout of the repository
+  - Clones the repository
+  - Checks out the commit specified by CIRCLE_SHA1
+
+steps:
+  - run:
+      name: Full checkout
+      command: |
+        git clone "$CIRCLE_REPOSITORY_URL" .
+        git checkout "$CIRCLE_SHA1"

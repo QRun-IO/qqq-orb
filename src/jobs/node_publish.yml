@@ -12,7 +12,7 @@ parameters:
     description: "Branch type: snapshot, release_candidate, release, or hotfix"
 
 steps:
-  - checkout
+  - git_full_checkout
   - node_install_dependencies
   - node_run_tests
   - node_manage_version

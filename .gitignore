@@ -5,3 +5,6 @@ target
 
 # Test data directory (created dynamically during tests)
 tests/test_data
+
+# IDE 
+.idea

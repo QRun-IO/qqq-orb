@@ -29,6 +29,29 @@ if [[ "$1" == "--dry-run" ]]; then
     echo "DRY RUN MODE - No changes will be made"
 fi
 
+################################################
+## Function to find original feature branch ##
+################################################
+find_original_feature_branch() {
+    local original_branch=""
+    
+    # Method 1: Look for remote branches containing this commit
+    echo "Method 1: Checking remote branches..." >&2
+    original_branch=$(git branch -r --contains HEAD 2>/dev/null | grep 'origin/feature/' | head -1 | sed 's/origin\///' | sed 's/^[[:space:]]*//' || echo "")
+    if [[ -n "$original_branch" ]]; then
+        echo "Found via remote branches: [$original_branch]" >&2
+    fi
+
+    # Return the result
+    if [[ "$original_branch" =~ ^feature/ ]]; then
+        echo "✅ Found original feature branch: [$original_branch]" >&2
+        echo "$original_branch"
+    else
+        echo "⚠️  Could not determine original feature branch, using generic name" >&2
+        echo "feature/publish"
+    fi
+}
+
 ####################################
 ## Get current branch and version ##
 ####################################
@@ -50,6 +73,9 @@ if [[ "$CURRENT_BRANCH" == "HEAD" ]]; then
             echo "This is a release candidate tag, treating as release branch"
             CURRENT_BRANCH="release/${CURRENT_TAG#v}"
             CURRENT_BRANCH="release/${CURRENT_BRANCH%-RC.*}"
+        elif [[ "$CURRENT_TAG" =~ ^publish- ]]; then
+            echo "This is a publish tag for feature branch, treating as feature branch"
+            CURRENT_BRANCH=$(find_original_feature_branch)
         else
             echo "Unknown tag format: $CURRENT_TAG"
             CURRENT_BRANCH="unknown"
@@ -90,8 +116,9 @@ extract_version_parts() {
         PATCH=${BASH_REMATCH[3]}
     #############################################################
     ## Handle feature-specific versions like 1.5.0-NEW-abc1234-SNAPSHOT ##
+    ## or 1.4.0-test-new-orb-825957d-SNAPSHOT ##
     #############################################################
-    elif [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)-[A-Z]{3}-[a-f0-9]{7}-SNAPSHOT$ ]]; then
+    elif [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)-[a-zA-Z0-9-]+-[a-f0-9]+-SNAPSHOT$ ]]; then
         MAJOR=${BASH_REMATCH[1]}
         MINOR=${BASH_REMATCH[2]}
         PATCH=${BASH_REMATCH[3]}
@@ -107,6 +134,7 @@ extract_version_parts() {
         exit 1
     fi
 }
+
 
 #########################################
 ## Function to set version using Maven ##
@@ -279,7 +307,7 @@ handle_feature_branch() {
     
     # Create safe abbreviation (first 3 characters, uppercase)
     local feature_abbrev
-    feature_abbrev=$(echo "$feature_name" | cut -c1-3 | tr '[:lower:]' '[:upper:]')
+    feature_abbrev=$(echo "$feature_name" | cut -c1-100 | tr '[:upper:]' '[:lower:]')
     
     # Generate short commit hash
     local commit_hash

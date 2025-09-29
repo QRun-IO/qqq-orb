@@ -7,6 +7,6 @@ description: >
 executor: localstack/default
 
 steps:
-  - checkout
+  - git_full_checkout
   - frontend_build
   - frontend_test

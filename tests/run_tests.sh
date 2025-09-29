@@ -1,15 +1,14 @@
 #!/bin/bash
 
-############################################################################
-## run_tests.sh
-## Test runner for calculate_version.sh script
-## 
-## This script runs the comprehensive test suite and provides
-## different output formats for different use cases.
-##
-## Usage: ./run_tests.sh [--verbose] [--ci]
-############################################################################
-
+################################################################
+## run_tests.sh                                               ##
+## Test runner for calculate_version.sh script                ##
+##                                                            ##
+## This script runs the comprehensive test suite and provides ##
+## different output formats for different use cases.          ##
+##                                                            ##
+## Usage: ./run_tests.sh [--verbose] [--ci]                   ##
+################################################################
 set -e
 
 ###################
@@ -48,20 +47,26 @@ done
 main() {
     echo "🧪 Running calculate_version.sh test suite..."
     
-    # Verify test script exists
+    ###############################
+    ## Verify test script exists ##
+    ###############################
     if [[ ! -f "$TEST_SCRIPT" ]]; then
         echo "❌ Test script not found: $TEST_SCRIPT"
         exit 1
     fi
     
-    # Run tests
+    ###############
+    ## Run tests ##
+    ###############
     local test_args=""
     if [[ "$VERBOSE" == "true" ]]; then
         test_args="--verbose"
     fi
     
     if [[ "$CI_MODE" == "true" ]]; then
-        # CI mode: minimal output, focus on results
+        ###############################################
+        ## CI mode: minimal output, focus on results ##
+        ###############################################
         echo "Running tests in CI mode..."
         if "$TEST_SCRIPT" $test_args > /tmp/test_output.log 2>&1; then
             echo "✅ All tests passed!"
@@ -73,10 +78,14 @@ main() {
             exit 1
         fi
     else
-        # Interactive mode: full output
+        ###################################
+        ## Interactive mode: full output ##
+        ###################################
         "$TEST_SCRIPT" $test_args
     fi
 }
 
-# Run main function
+#######################
+## Run main function ##
+#######################
 main "$@"

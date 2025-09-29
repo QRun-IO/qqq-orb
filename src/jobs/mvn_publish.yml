@@ -1,7 +1,7 @@
 description: >
   Unified publishing job for all branch types
   Handles version management, building, testing, and publishing based on branch type
-  Supports: snapshot, release_candidate, release, and hotfix workflows
+  Supports: snapshot, release_candidate, release (tagged), feasture (tagged) and hotfix workflows
 
 executor: localstack/default
 
@@ -9,7 +9,7 @@ parameters:
   branch_type:
     type: string
     default: "snapshot"
-    description: "Branch type: snapshot, release_candidate, release, or hotfix"
+    description: "Branch type: snapshot, release_candidate, release, features, or hotfix"
   check_middleware_api_versions:
     type: boolean
     default: false
@@ -20,18 +20,31 @@ parameters:
     description: "Whether to publish AsciiDoc documentation"
 
 steps:
-  - checkout
+  - git_full_checkout
+
   - mvn_build
+
   - mvn_manage_version
+
   - attach_workspace:
       at: .
+
   - mvn_verify
+
   - when:
       condition: << parameters.check_middleware_api_versions >>
       steps:
         - check_middleware_api_versions
+
   - mvn_jar_deploy
-  - git_operations
+
+  - when:
+      condition:
+        not:
+          equal: [ "<< parameters.branch_type >>", "feature" ]
+      steps:
+        - git_operations
+
   - when:
       condition: << parameters.publish_asciidoc >>
       steps:
