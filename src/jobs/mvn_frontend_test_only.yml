@@ -7,7 +7,7 @@ description: >
 executor: localstack/default
 
 steps:
-  - checkout:
-    fetch-depth: 0
+  - checkout
+  - run: git fetch --depth=0
   - frontend_build
   - frontend_test

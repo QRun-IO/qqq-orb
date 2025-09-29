@@ -12,7 +12,7 @@ parameters:
     description: "Branch type: snapshot, release_candidate, release, or hotfix"
 
 steps:
-  - checkout:
-    fetch-depth: 0
+  - checkout
+  - run: git fetch --depth=0
   - node_install_dependencies
   - node_run_tests

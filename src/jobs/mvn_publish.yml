@@ -20,8 +20,8 @@ parameters:
     description: "Whether to publish AsciiDoc documentation"
 
 steps:
-  - checkout:
-    fetch-depth: 0
+  - checkout
+  - run: git fetch --depth=0
   - mvn_build
   - mvn_manage_version
   - attach_workspace:
