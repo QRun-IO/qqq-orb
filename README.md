@@ -1,7 +1,7 @@
 # QQQ Orb
 
 [![CircleCI Orb](https://img.shields.io/badge/CircleCI%20Orb-kingsrook%2Fqqq--orb-blue.svg)](https://circleci.com/developer/orbs/orb/kingsrook/qqq-orb)
-[![Version](https://img.shields.io/badge/version-2.1-blue.svg)](https://circleci.com/developer/orbs/orb/kingsrook/qqq-orb)
+[![Version](https://img.shields.io/badge/version-0.3.8-blue.svg)](https://circleci.com/developer/orbs/orb/kingsrook/qqq-orb)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 > **CircleCI Orb for QQQ Framework Projects**
@@ -223,8 +223,8 @@ Automated version calculation with GitFlow integration and feature branch suppor
 ### Feature Branch Versioning
 
 Feature branches create unique, traceable versions:
-- **Format**: `{version}-{ABBREV}-{commit_hash}-SNAPSHOT`
-- **Example**: `feature/new-feature` → `1.5.0-NEW-abc1234-SNAPSHOT`
+- **Format**: `{version}-{feature_branch_name}-{commit_hash}-SNAPSHOT`
+- **Example**: `feature/new-feature` → `1.5.0-new-feature-abc1234-SNAPSHOT`
 - **Dynamic Updates**: Automatically updates when commit hash changes
 - **Safe Abbreviations**: 3-character uppercase feature name abbreviation
 
@@ -233,7 +233,7 @@ Feature branches create unique, traceable versions:
 The version calculator handles multiple formats:
 - **Standard**: `1.5.0`, `1.5.0-SNAPSHOT`, `1.5.0-RC.1`
 - **V-prefixed**: `v1.5.0` → `1.5.0` (clean conversion)
-- **Feature-specific**: `1.5.0-NEW-abc1234-SNAPSHOT`
+- **Feature-specific**: `1.5.0-new-feature-name-abc1234-SNAPSHOT`
 
 **Main branch requires release tags**: 
 ```bash
