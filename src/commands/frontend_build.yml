@@ -32,3 +32,8 @@ steps:
         - ~/.m2
         - node_modules
       key: v1-dependencies-{{ checksum "pom.xml" }}
+  - save_cache:
+      paths:
+        - node_modules
+      key: v1-npm-dependencies-{{ checksum "package.json" }}
+
