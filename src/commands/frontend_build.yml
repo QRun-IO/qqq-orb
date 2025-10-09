@@ -30,7 +30,6 @@ steps:
   - save_cache:
       paths:
         - ~/.m2
-        - node_modules
       key: v1-dependencies-{{ checksum "pom.xml" }}
   - save_cache:
       paths:
