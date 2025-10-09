@@ -33,6 +33,8 @@ steps:
   - restore_cache:
       keys:
         - v1-dependencies-{{ checksum "pom.xml" }}
+  - restore_cache:
+      keys:
         - v1-npm-dependencies-{{ checksum "package.json" }}
 
   # (Optional) Guard: if node_modules is missing, install it quickly so "npm run build" works

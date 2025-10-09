@@ -11,6 +11,8 @@ steps:
   - restore_cache:
       keys:
         - v1-dependencies-{{ checksum "pom.xml" }}
+  - restore_cache:
+      keys:
         - v1-npm-dependencies-{{ checksum "package.json" }}
   - run:
       name: Setup NPM authentication
