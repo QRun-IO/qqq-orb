@@ -55,7 +55,15 @@ find_original_feature_branch() {
 ####################################
 ## Get current branch and version ##
 ####################################
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+# Try to get branch from CircleCI environment variable first (for CI environments)
+# then fall back to git command (for local development)
+if [[ -n "$CIRCLE_BRANCH" ]]; then
+    echo "Using branch from CircleCI environment: $CIRCLE_BRANCH"
+    CURRENT_BRANCH="$CIRCLE_BRANCH"
+else
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+fi
+
 CURRENT_VERSION=$(grep '<revision>' "$POM_FILE" | sed 's/.*<revision>//;s/<.*//')
 
 # Check if we're on a tag (HEAD means we're on a tag)
