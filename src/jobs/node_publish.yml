@@ -20,3 +20,12 @@ steps:
       at: .
   - node_build_package
   - node_publish
+
+  - when:
+      condition:
+        or:
+          - equal: [ "<< parameters.branch_type >>", "release" ]
+          - equal: [ "<< parameters.branch_type >>", "hotfix" ]
+      steps:
+        - publish_github_release:
+            project_type: node

@@ -49,3 +49,12 @@ steps:
       condition: << parameters.publish_asciidoc >>
       steps:
         - publish_asciidoc
+
+  - when:
+      condition:
+        or:
+          - equal: [ "<< parameters.branch_type >>", "release" ]
+          - equal: [ "<< parameters.branch_type >>", "hotfix" ]
+      steps:
+        - publish_github_release:
+            project_type: maven

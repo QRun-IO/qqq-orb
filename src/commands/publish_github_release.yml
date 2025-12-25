@@ -1,0 +1,26 @@
+description: >
+  Creates a GitHub Release for the current version tag.
+  - Extracts version from pom.xml or package.json
+  - Verifies the Git tag exists
+  - Creates GitHub release with auto-generated notes
+  - Adds artifact links to Maven Central and/or npmjs
+  - Handles prerelease versions (RC, SNAPSHOT, alpha, beta)
+
+parameters:
+  project_type:
+    type: enum
+    enum: [maven, node, both, auto]
+    default: auto
+    description: >
+      Project type for artifact link generation.
+      - maven: Link to Maven Central
+      - node: Link to npmjs
+      - both: Link to both registries
+      - auto: Auto-detect from project files
+
+steps:
+  - run:
+      name: Create GitHub Release
+      command: <<include(scripts/create_github_release.sh)>>
+      environment:
+        PROJECT_TYPE: << parameters.project_type >>
