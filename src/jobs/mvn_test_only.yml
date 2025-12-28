@@ -4,9 +4,15 @@ description: >
   Used by: test_only workflow for feature branches
   Triggers: Any push to branches NOT matching develop, main, release/*, hotfix/*
 
-executor: localstack/default
+executor:
+  name: java
+  tag: << parameters.java_version >>
 
 parameters:
+  java_version:
+    type: string
+    default: "21.0"
+    description: "Java/OpenJDK version (e.g., '17.0', '21.0'). See cimg/openjdk tags."
   check_middleware_api_versions:
     type: boolean
     default: false
