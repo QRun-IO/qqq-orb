@@ -4,7 +4,15 @@ description: >
   Used by: test_only workflow for feature branches
   Triggers: Any push to branches NOT matching develop, main, release/*, hotfix/*
 
-executor: localstack/default
+executor:
+  name: java
+  tag: << parameters.java_version >>
+
+parameters:
+  java_version:
+    type: string
+    default: "21.0-node"
+    description: "Java/OpenJDK version with Node.js (e.g., '17.0-node', '21.0-node')."
 
 steps:
   - git_full_checkout

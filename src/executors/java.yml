@@ -1,0 +1,18 @@
+description: >
+  Java/OpenJDK executor using CircleCI's cimg/openjdk image.
+  Provides Java runtime with Maven and Gradle pre-installed.
+  Use the 'tag' parameter to select Java version (17.0, 21.0, etc).
+
+docker:
+  - image: 'cimg/openjdk:<<parameters.tag>>'
+
+parameters:
+  tag:
+    default: "21.0"
+    description: >
+      Java/OpenJDK version tag. Common values: 17.0, 21.0.
+      See https://hub.docker.com/r/cimg/openjdk/tags for all available tags.
+      Use '-node' suffix for Node.js support (e.g., '21.0-node').
+    type: string
+
+resource_class: large

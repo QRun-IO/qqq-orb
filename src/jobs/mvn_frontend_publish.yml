@@ -3,9 +3,15 @@ description: >
   Handles version management, building, testing, and publishing based on branch type
   Supports: snapshot, release_candidate, release, and hotfix workflows
 
-executor: localstack/default
+executor:
+  name: java
+  tag: << parameters.java_version >>
 
 parameters:
+  java_version:
+    type: string
+    default: "21.0-node"
+    description: "Java/OpenJDK version with Node.js (e.g., '17.0-node', '21.0-node')."
   branch_type:
     type: string
     default: "snapshot"
