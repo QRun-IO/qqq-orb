@@ -5,6 +5,26 @@ All notable changes to QQQ Orb will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-12-28
+
+### Added
+- Java 21 support with configurable executor - New `java` executor using `cimg/openjdk` with version parameter (default: 21.0)
+- Automatic GitHub release creation for releases and release candidates
+- RC support for GitHub releases (published as pre-releases)
+
+### Changed
+- License changed to AGPL-3.0 with QRun-IO copyright
+- Maven jobs now use the new `java` executor (resource_class: large)
+- Node jobs use `default` executor with configurable version
+
+### Fixed
+- Version calculation now uses `CIRCLE_BRANCH` environment variable before falling back to git ref parsing
+- Frontend build cache steps separated by key for proper cache isolation
+- npm module cache now properly saved in frontend builds
+
+### Migration
+Projects needing Java 17 can explicitly set `java_version: "17.0"` in their workflow config.
+
 ## [0.3.8] - 2025-09-29
 
 ### Added

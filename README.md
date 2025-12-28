@@ -2,8 +2,8 @@
 
 CircleCI orb for QQQ framework projects.
 
-**For:** Teams using CircleCI to build, test, and publish QQQ applications  
-**Status:** Stable (v0.3.8)
+**For:** Teams using CircleCI to build, test, and publish QQQ applications
+**Status:** Stable (v0.4.0)
 
 ## Why This Exists
 
@@ -13,40 +13,33 @@ This orb provides pre-built jobs for the complete QQQ development lifecycle. Add
 
 ## Features
 
-- **Maven and npm Support** - Builds Java and Node.js projects
-- **GitFlow Integration** - Automated versioning based on branch type
-- **Publishing Automation** - Maven Central and npm registry publishing
-- **Test Coverage** - JaCoCo integration with coverage reporting
-- **Version Calculation** - Semantic versioning with SNAPSHOT, RC, and release support
+- **Maven and npm support** - Builds Java and Node.js projects
+- **GitFlow integration** - Automated versioning based on branch type
+- **Publishing automation** - Maven Central and npm registry publishing
+- **Test coverage** - JaCoCo integration with coverage reporting
+- **Version calculation** - Semantic versioning with SNAPSHOT, RC, and release support
+- **Java 21 default** - Configurable Java version (17.0, 21.0)
 
 ## Quick Start
 
-### Prerequisites
-
-- CircleCI account
-- Repository connected to CircleCI
-- `qqq-maven-registry-credentials` context with publishing credentials
-
-### Basic Configuration
+**Prerequisites:** CircleCI account, repository connected to CircleCI
 
 ```yaml
 # .circleci/config.yml
 version: 2.1
 orbs:
-  qqq-orb: kingsrook/qqq-orb@2.1
+  qqq-orb: qrun-io/qqq-orb@0.4
 
 workflows:
   build_and_test:
     jobs:
-      - qqq-orb/build
-      - qqq-orb/test:
-          requires: [qqq-orb/build]
+      - qqq-orb/mvn_test_only
 
   publish_snapshot:
     when:
       equal: [develop, << pipeline.git.branch >>]
     jobs:
-      - qqq-orb/publish:
+      - qqq-orb/mvn_publish:
           context: qqq-maven-registry-credentials
           branch_type: snapshot
 ```
@@ -57,9 +50,12 @@ workflows:
 
 | Job | Purpose |
 |-----|---------|
-| `build` | Compile project |
-| `test` | Run tests with coverage |
-| `publish` | Build and publish artifacts |
+| `mvn_test_only` | Build and test Maven projects |
+| `mvn_publish` | Build, test, and publish Maven artifacts |
+| `mvn_frontend_test_only` | Build and test Maven projects with npm frontend |
+| `mvn_frontend_publish` | Build, test, and publish Maven projects with npm frontend |
+| `node_test_only` | Build and test Node.js projects |
+| `node_publish` | Build, test, and publish Node.js packages |
 
 ### Branch Types
 
@@ -71,48 +67,15 @@ workflows:
 | `hotfix/1.5.1` | `1.5.1` |
 | `feature/*` | `1.5.0-feature-abc1234-SNAPSHOT` |
 
-### Full GitFlow Configuration
+### Java Version
+
+Default is Java 21. To use Java 17:
 
 ```yaml
-workflows:
-  test_only:
-    when:
-      not:
-        or:
-          - equal: [develop, << pipeline.git.branch >>]
-          - equal: [main, << pipeline.git.branch >>]
-          - matches: { pattern: "^release/.*", value: << pipeline.git.branch >> }
-    jobs:
-      - qqq-orb/build
-      - qqq-orb/test:
-          requires: [qqq-orb/build]
-
-  publish_snapshot:
-    when:
-      equal: [develop, << pipeline.git.branch >>]
-    jobs:
-      - qqq-orb/publish:
-          context: qqq-maven-registry-credentials
-          branch_type: snapshot
-
-  publish_release_candidate:
-    when:
-      matches: { pattern: "^release/.*", value: << pipeline.git.branch >> }
-    jobs:
-      - qqq-orb/publish:
-          context: qqq-maven-registry-credentials
-          branch_type: release_candidate
-
-  publish_release:
-    when:
-      equal: [main, << pipeline.git.branch >>]
-    jobs:
-      - qqq-orb/publish:
-          context: qqq-maven-registry-credentials
-          branch_type: release
+jobs:
+  - qqq-orb/mvn_test_only:
+      java_version: "17.0"
 ```
-
-## Configuration
 
 ### Required Context Variables
 
@@ -125,40 +88,26 @@ workflows:
 | `GPG_PASSPHRASE` | GPG passphrase |
 | `GITHUB_TOKEN` | GitHub API token |
 
-### Project Requirements
-
-Maven projects need a `pom.xml` with a `<revision>` property. The orb updates this property during builds.
-
-## Development
-
-```bash
-# Validate orb
-make validate
-
-# Run tests
-make test-all
-
-# Publish dev version
-make publish-snapshot
-```
-
 ## Project Status
 
-Stable and used across all QQQ repositories.
+**Maturity:** Stable, used across all QQQ repositories
+**Breaking changes:** See [CHANGELOG.md](CHANGELOG.md)
 
-### Roadmap
-
+**Roadmap:**
 - GitHub Actions support
 - Parallel test execution
 - Container image publishing
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Run `make test-all`
-4. Submit a pull request
+```bash
+git clone git@github.com:QRun-IO/qqq-orb.git
+cd qqq-orb
+make test-all
+```
+
+See [QQQ Contribution Guidelines](https://github.com/Kingsrook/qqq/blob/develop/CONTRIBUTING.md).
 
 ## License
 
-MIT - Kingsrook, LLC
+AGPL-3.0 - QRun-IO
