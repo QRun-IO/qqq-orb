@@ -5,6 +5,20 @@ All notable changes to QQQ Orb will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-12-28
+
+### Added
+- Machine executor with native Docker support for Testcontainers and LocalStack
+- `install_java` command to install Temurin JDK and Maven on machine executors
+- Optional Node.js installation for frontend builds on machine executor
+
+### Changed
+- Switched from Docker executor (cimg/openjdk) to Ubuntu machine executor
+- All Maven jobs now use machine executor with Docker pre-installed
+
+### Fixed
+- GitHub SSH host key added before clone operations
+
 ## [0.4.0] - 2025-12-28
 
 ### Added

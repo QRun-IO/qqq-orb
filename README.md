@@ -3,7 +3,7 @@
 CircleCI orb for QQQ framework projects.
 
 **For:** Teams using CircleCI to build, test, and publish QQQ applications
-**Status:** Stable (v0.4.0)
+**Status:** Stable (v0.5.0)
 
 ## Why This Exists
 
@@ -29,7 +29,7 @@ This orb provides pre-built jobs for the complete QQQ development lifecycle. Add
 # .circleci/config.yml
 version: 2.1
 orbs:
-  qqq-orb: qrun-io/qqq-orb@0.4
+  qqq-orb: kingsrook/qqq-orb@0.5
 
 workflows:
   build_and_test:
