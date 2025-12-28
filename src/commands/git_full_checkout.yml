@@ -1,13 +1,12 @@
 description: >
-  Full checkout of the repository
-  - Clones the repository
-  - Checks out the commit specified by CIRCLE_SHA1
+  Full checkout of the repository with complete git history.
+  Uses CircleCI's checkout (handles SSH keys and known_hosts)
+  then fetches full history for version calculation.
 
 steps:
+  - checkout
   - run:
-      name: Full checkout
+      name: Fetch full git history
       command: |
-        mkdir -p ~/.ssh
-        ssh-keyscan github.com >> ~/.ssh/known_hosts
-        git clone "$CIRCLE_REPOSITORY_URL" .
-        git checkout "$CIRCLE_SHA1"
+        git fetch --unshallow || true
+        git fetch --tags || true
