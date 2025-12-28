@@ -14,11 +14,12 @@ This orb provides pre-built jobs for the complete QQQ development lifecycle. Add
 ## Features
 
 - **Maven and npm support** - Builds Java and Node.js projects
+- **Docker-native execution** - Machine executor with Docker pre-installed for Testcontainers/LocalStack
 - **GitFlow integration** - Automated versioning based on branch type
 - **Publishing automation** - Maven Central and npm registry publishing
 - **Test coverage** - JaCoCo integration with coverage reporting
 - **Version calculation** - Semantic versioning with SNAPSHOT, RC, and release support
-- **Java 21 default** - Configurable Java version (17.0, 21.0)
+- **Java 21 default** - Temurin JDK with configurable version (17, 21)
 
 ## Quick Start
 
@@ -69,13 +70,17 @@ workflows:
 
 ### Java Version
 
-Default is Java 21. To use Java 17:
+Maven jobs run on Ubuntu machine executors with Temurin JDK. Default is Java 21. To use Java 17:
 
 ```yaml
 jobs:
   - qqq-orb/mvn_test_only:
-      java_version: "17.0"
+      java_version: "17"
 ```
+
+### Docker Support
+
+Maven jobs use machine executors with Docker pre-installed. Tests using Testcontainers, LocalStack, or other Docker-dependent frameworks work without additional configuration.
 
 ### Required Context Variables
 
