@@ -4,21 +4,21 @@ description: >
   Used by: test_only workflow for feature branches
   Triggers: Any push to branches NOT matching develop, main, release/*, hotfix/*
 
-executor:
-  name: java
-  tag: << parameters.java_version >>
+executor: java
 
 parameters:
   java_version:
     type: string
-    default: "21.0"
-    description: "Java/OpenJDK version (e.g., '17.0', '21.0'). See cimg/openjdk tags."
+    default: "21"
+    description: "Java major version to install (e.g., '17', '21')"
   check_middleware_api_versions:
     type: boolean
     default: false
     description: "Whether to run middleware API version checks"
 
 steps:
+  - install_java:
+      java_version: << parameters.java_version >>
   - git_full_checkout
   - mvn_build
   - mvn_verify

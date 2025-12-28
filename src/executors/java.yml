@@ -1,18 +1,18 @@
 description: >
-  Java/OpenJDK executor using CircleCI's cimg/openjdk image.
-  Provides Java runtime with Maven and Gradle pre-installed.
-  Use the 'tag' parameter to select Java version (17.0, 21.0, etc).
-
-docker:
-  - image: 'cimg/openjdk:<<parameters.tag>>'
+  Java/OpenJDK machine executor with Docker support.
+  Uses Ubuntu 22.04 VM with Docker pre-installed.
+  Java is installed via the install_java command.
+  Required for tests that use Testcontainers or LocalStack Docker extensions.
 
 parameters:
-  tag:
-    default: "21.0"
+  image:
+    default: ubuntu-2204:current
     description: >
-      Java/OpenJDK version tag. Common values: 17.0, 21.0.
-      See https://hub.docker.com/r/cimg/openjdk/tags for all available tags.
-      Use '-node' suffix for Node.js support (e.g., '21.0-node').
+      Ubuntu machine image tag. Use 'current' for latest or pin to specific
+      version like 'ubuntu-2204:2023.02.1' for reproducibility.
     type: string
+
+machine:
+  image: '<<parameters.image>>'
 
 resource_class: large

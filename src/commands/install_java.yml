@@ -1,0 +1,30 @@
+description: >
+  Installs Eclipse Temurin JDK and Maven on Ubuntu machine executor.
+  Sets JAVA_HOME and updates PATH for subsequent steps.
+  Optionally installs Node.js for frontend builds.
+  Also verifies Docker is available (required for Testcontainers/LocalStack tests).
+
+parameters:
+  java_version:
+    type: string
+    default: "21"
+    description: >
+      Java major version to install (e.g., "17", "21").
+      Uses Eclipse Temurin (AdoptOpenJDK successor) distribution.
+  install_node:
+    type: boolean
+    default: false
+    description: "Whether to also install Node.js (for frontend builds)"
+  node_version:
+    type: string
+    default: "20"
+    description: "Node.js major version to install (e.g., '18', '20')"
+
+steps:
+  - run:
+      name: Install Java << parameters.java_version >> and build tools
+      environment:
+        PARAM_JAVA_VERSION: << parameters.java_version >>
+        PARAM_INSTALL_NODE: << parameters.install_node >>
+        PARAM_NODE_VERSION: << parameters.node_version >>
+      command: <<include(scripts/install_java.sh)>>

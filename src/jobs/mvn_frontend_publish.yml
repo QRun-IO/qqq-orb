@@ -1,23 +1,29 @@
 description: >
-  Unified publishing job for all branch types
+  Unified publishing job for all branch types with frontend
   Handles version management, building, testing, and publishing based on branch type
   Supports: snapshot, release_candidate, release, and hotfix workflows
 
-executor:
-  name: java
-  tag: << parameters.java_version >>
+executor: java
 
 parameters:
   java_version:
     type: string
-    default: "21.0-node"
-    description: "Java/OpenJDK version with Node.js (e.g., '17.0-node', '21.0-node')."
+    default: "21"
+    description: "Java major version to install (e.g., '17', '21')"
+  node_version:
+    type: string
+    default: "20"
+    description: "Node.js major version to install (e.g., '18', '20')"
   branch_type:
     type: string
     default: "snapshot"
     description: "Branch type: snapshot, release_candidate, release, or hotfix"
 
 steps:
+  - install_java:
+      java_version: << parameters.java_version >>
+      install_node: true
+      node_version: << parameters.node_version >>
   - git_full_checkout
   - mvn_manage_version
   - frontend_build
