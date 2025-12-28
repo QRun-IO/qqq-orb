@@ -20,8 +20,6 @@ parameters:
 
 steps:
   - git_full_checkout
-  - setup_remote_docker:
-      docker_layer_caching: true
   - mvn_build
   - mvn_verify
   - when:
