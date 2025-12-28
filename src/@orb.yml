@@ -4,11 +4,11 @@ version: 2.1
 
 description: >
     QQQ Orb to handle the branching, testing, releasing, and auto updating of
-    all maven and npm based projects within the Kingsrook/QRunIO Repo world.
+    all Maven and npm based projects within the QRun-IO ecosystem.
 
 display:
-  home_url: "https://www.qrun.io"
-  source_url: "https://github.com/Kingsrook/qqq-orb"
+  home_url: "https://github.com/QRun-IO/qqq-orb"
+  source_url: "https://github.com/QRun-IO/qqq-orb"
 
 orbs:
   browser-tools: circleci/browser-tools@1.4.7
