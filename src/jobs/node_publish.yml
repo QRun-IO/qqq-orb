@@ -3,9 +3,15 @@ description: >
   Handles version management, building, testing, and publishing based on branch type
   Supports: snapshot, release_candidate, release, and hotfix workflows
 
-executor: localstack/default
+executor:
+  name: default
+  tag: << parameters.node_version >>
 
 parameters:
+  node_version:
+    type: string
+    default: "lts"
+    description: "Node.js version tag (e.g., 'lts', '18.0', '20.0')."
   branch_type:
     type: string
     default: "snapshot"
@@ -20,3 +26,13 @@ steps:
       at: .
   - node_build_package
   - node_publish
+
+  - when:
+      condition:
+        or:
+          - equal: [ "<< parameters.branch_type >>", "release" ]
+          - equal: [ "<< parameters.branch_type >>", "release_candidate" ]
+          - equal: [ "<< parameters.branch_type >>", "hotfix" ]
+      steps:
+        - publish_github_release:
+            project_type: node

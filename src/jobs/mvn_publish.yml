@@ -3,9 +3,15 @@ description: >
   Handles version management, building, testing, and publishing based on branch type
   Supports: snapshot, release_candidate, release (tagged), feasture (tagged) and hotfix workflows
 
-executor: localstack/default
+executor:
+  name: java
+  tag: << parameters.java_version >>
 
 parameters:
+  java_version:
+    type: string
+    default: "21.0"
+    description: "Java/OpenJDK version (e.g., '17.0', '21.0'). See cimg/openjdk tags."
   branch_type:
     type: string
     default: "snapshot"
@@ -49,3 +55,13 @@ steps:
       condition: << parameters.publish_asciidoc >>
       steps:
         - publish_asciidoc
+
+  - when:
+      condition:
+        or:
+          - equal: [ "<< parameters.branch_type >>", "release" ]
+          - equal: [ "<< parameters.branch_type >>", "release_candidate" ]
+          - equal: [ "<< parameters.branch_type >>", "hotfix" ]
+      steps:
+        - publish_github_release:
+            project_type: maven

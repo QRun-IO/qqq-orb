@@ -19,7 +19,7 @@ help:
 	@echo "  make publish-release  	- Interactive production release (tagged version)"
 	@echo ""
 	@echo "Key Files:"
-	@echo "  src/@orb.yml           		- Main orb definition"
+	@echo "  src/@orb.yml           	- Main orb definition"
 	@echo "  target/qqq-orb-packed.yml 	- Packed orb (generated)"
 
 # Pack the orb using the correct command for orb development
