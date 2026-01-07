@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Added `DEBIAN_FRONTEND=noninteractive` to browser dependency installation to prevent interactive prompts from blocking CI
+- Strip `<rerunFailure>` elements from JUnit XML before upload to fix CircleCI test result parsing errors
 
 ## [0.5.0] - 2025-12-28
 
