@@ -14,6 +14,7 @@
 set -e
 
 echo "Installing browser dependencies"
+export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update
-sudo apt-get install -y \
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
   libnss3-dev libgdk-pixbuf2.0-dev libgtk-3-dev libxss-dev

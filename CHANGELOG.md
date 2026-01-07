@@ -5,6 +5,11 @@ All notable changes to QQQ Orb will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-01-07
+
+### Fixed
+- Added `DEBIAN_FRONTEND=noninteractive` to browser dependency installation to prevent interactive prompts from blocking CI
+
 ## [0.5.0] - 2025-12-28
 
 ### Added
@@ -31,13 +36,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Maven jobs now use the new `java` executor (resource_class: large)
 - Node jobs use `default` executor with configurable version
 
-### Fixed
-- Version calculation now uses `CIRCLE_BRANCH` environment variable before falling back to git ref parsing
-- Frontend build cache steps separated by key for proper cache isolation
-- npm module cache now properly saved in frontend builds
-
 ### Migration
 Projects needing Java 17 can explicitly set `java_version: "17.0"` in their workflow config.
+
+## [0.3.13] - 2025-12-28
+
+### Added
+- GitHub release configuration for CI pipeline
+- Standardized README documentation
+
+### Changed
+- Merged develop branch updates in preparation for 0.4.0
+
+## [0.3.12] - 2025-10-22
+
+### Fixed
+- Version calculation now uses `CIRCLE_BRANCH` environment variable before falling back to git ref parsing
+
+### Changed
+- Linting cleanup for spacing consistency
+
+## [0.3.11] - 2025-10-09
+
+### Fixed
+- Separated cache saves and restores by key for proper cache isolation
+
+## [0.3.10] - 2025-10-09
+
+### Fixed
+- Frontend build cache steps in test workflow corrected
+
+## [0.3.9] - 2025-10-09
+
+### Fixed
+- Frontend build now properly saves npm module cache
 
 ## [0.3.8] - 2025-09-29
 
@@ -119,7 +151,7 @@ Projects needing Java 17 can explicitly set `java_version: "17.0"` in their work
 - Multiple linting fixes from CircleCI integration
 - Improved error handling and validation
 
-## [0.2.0] - 2025-09-15
+## [0.2.0] - 2025-09-13
 
 ### Added
 - Initial CircleCI orb implementation
