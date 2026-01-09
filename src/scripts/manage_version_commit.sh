@@ -28,14 +28,22 @@ if [[ -n "$(git status --porcelain pom.xml)" ]]; then
   git add pom.xml
   git commit -m "Bump version to $NEW_VERSION [skip ci]"
 
+  # Determine target branch
   if [ -n "$CIRCLE_BRANCH" ]; then
-    git push origin "HEAD:${CIRCLE_BRANCH}"
+    TARGET_BRANCH="$CIRCLE_BRANCH"
   else
-    # Tag build: push to main (or your default branch)
-    git push origin HEAD:main
+    TARGET_BRANCH="main"
   fi
 
-  echo "Version updated to: $NEW_VERSION and pushed"
+  # Try to push, but don't fail the build if push fails
+  # This can happen if another build pushed first (race condition)
+  if git push origin "HEAD:${TARGET_BRANCH}"; then
+    echo "Version updated to: $NEW_VERSION and pushed to ${TARGET_BRANCH}"
+  else
+    echo "WARNING: Failed to push version commit to ${TARGET_BRANCH}"
+    echo "This is not fatal - version will be updated on next build"
+    echo "Common causes: concurrent builds, branch protection rules"
+  fi
 else
   echo "No version change needed"
 fi
