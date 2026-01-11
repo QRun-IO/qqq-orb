@@ -9,4 +9,4 @@ steps:
       command: <<include(scripts/node_npm_auth.sh)>>
   - run:
       name: "Publish to NPM"
-      command: npm publish --access public
+      command: <<include(scripts/node_npm_publish.sh)>>

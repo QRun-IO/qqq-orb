@@ -27,11 +27,12 @@ steps:
   - node_build_package
   - node_publish
 
+  # GitHub releases only for final releases and hotfixes (not RCs)
+  # RCs just publish artifacts - GitHub release happens when merged to main
   - when:
       condition:
         or:
           - equal: [ "<< parameters.branch_type >>", "release" ]
-          - equal: [ "<< parameters.branch_type >>", "release_candidate" ]
           - equal: [ "<< parameters.branch_type >>", "hotfix" ]
       steps:
         - publish_github_release:
