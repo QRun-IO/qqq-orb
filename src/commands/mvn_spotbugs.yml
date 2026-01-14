@@ -1,0 +1,18 @@
+description: >
+  Runs SpotBugs static analysis on Maven project.
+  Reports potential bugs including null pointer issues, resource leaks,
+  and security vulnerabilities (via FindSecBugs plugin).
+  Requires spotbugs-maven-plugin configured in project pom.xml.
+
+parameters:
+  fail_on_error:
+    type: boolean
+    default: false
+    description: "Fail the build if SpotBugs finds bugs"
+
+steps:
+  - run:
+      name: Run SpotBugs Analysis
+      environment:
+        SPOTBUGS_FAIL_ON_ERROR: << parameters.fail_on_error >>
+      command: <<include(scripts/mvn_spotbugs.sh)>>

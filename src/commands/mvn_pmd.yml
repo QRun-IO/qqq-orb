@@ -1,0 +1,17 @@
+description: >
+  Runs PMD static analysis on Maven project.
+  Detects code quality issues, potential bugs, and style violations.
+  Requires maven-pmd-plugin configured in project pom.xml.
+
+parameters:
+  fail_on_violation:
+    type: boolean
+    default: false
+    description: "Fail the build if PMD finds violations"
+
+steps:
+  - run:
+      name: Run PMD Analysis
+      environment:
+        PMD_FAIL_ON_VIOLATION: << parameters.fail_on_violation >>
+      command: <<include(scripts/mvn_pmd.sh)>>
