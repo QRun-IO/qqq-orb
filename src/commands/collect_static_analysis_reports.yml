@@ -1,0 +1,9 @@
+description: >
+  Collects SpotBugs and PMD reports from all modules into a central
+  location for artifact storage. Generates a summary report.
+
+steps:
+  - run:
+      name: Collect Static Analysis Reports
+      command: <<include(scripts/collect_static_analysis_reports.sh)>>
+      when: always

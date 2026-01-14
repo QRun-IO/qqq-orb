@@ -1,0 +1,60 @@
+description: >
+  Runs SpotBugs and PMD static analysis on a Maven project.
+  This job is designed to be used in an optional workflow triggered
+  by tag (static-analysis/*) or pipeline parameter.
+
+  Usage in consuming repo:
+    workflows:
+      static_analysis:
+        when:
+          or:
+            - matches:
+                pattern: "^static-analysis/.*"
+                value: << pipeline.git.tag >>
+            - equal: [true, << pipeline.parameters.run_static_analysis >>]
+        jobs:
+          - qqq-orb/static_analysis
+
+executor: java
+
+parameters:
+  java_version:
+    type: string
+    default: "21"
+    description: "Java major version to install"
+  fail_on_spotbugs:
+    type: boolean
+    default: false
+    description: "Fail the build if SpotBugs finds bugs"
+  fail_on_pmd:
+    type: boolean
+    default: false
+    description: "Fail the build if PMD finds violations"
+  run_spotbugs:
+    type: boolean
+    default: true
+    description: "Run SpotBugs analysis"
+  run_pmd:
+    type: boolean
+    default: true
+    description: "Run PMD analysis"
+
+steps:
+  - install_java:
+      java_version: << parameters.java_version >>
+  - git_full_checkout
+  - mvn_build
+  - when:
+      condition: << parameters.run_spotbugs >>
+      steps:
+        - mvn_spotbugs:
+            fail_on_error: << parameters.fail_on_spotbugs >>
+  - when:
+      condition: << parameters.run_pmd >>
+      steps:
+        - mvn_pmd:
+            fail_on_violation: << parameters.fail_on_pmd >>
+  - collect_static_analysis_reports
+  - store_artifacts:
+      path: /home/circleci/static-analysis-reports
+      destination: static-analysis
