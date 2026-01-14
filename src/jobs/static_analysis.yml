@@ -43,7 +43,19 @@ steps:
   - install_java:
       java_version: << parameters.java_version >>
   - git_full_checkout
-  - mvn_build
+  - run:
+      name: Setup Maven Settings
+      command: <<include(scripts/setup_maven_settings.sh)>>
+  - restore_cache:
+      keys:
+        - v1-dependencies-{{ checksum "pom.xml" }}
+  - run:
+      name: Build and Install for Analysis
+      command: <<include(scripts/mvn_install_for_analysis.sh)>>
+  - save_cache:
+      paths:
+        - ~/.m2
+      key: v1-dependencies-{{ checksum "pom.xml" }}
   - when:
       condition: << parameters.run_spotbugs >>
       steps:
