@@ -2,7 +2,14 @@ description: >
   Git operations for version management
   - Adds SSH keys for Git operations
   - Sets up Git identity for version commits
-  - Commits version changes if modified
+  - Commits version changes if modified (skipped for feature branches)
+
+parameters:
+  branch_type:
+    type: string
+    default: "snapshot"
+    description: "Branch type: snapshot, release_candidate, release, hotfix, or feature"
+
 steps:
   - add_ssh_keys   # injects the CircleCI User Key (write-capable)
   - run:
@@ -10,4 +17,6 @@ steps:
       command: <<include(scripts/manage_version_git_config.sh)>>
   - run:
       name: Commit version change if modified
+      environment:
+        BRANCH_TYPE: << parameters.branch_type >>
       command: <<include(scripts/manage_version_commit.sh)>>
