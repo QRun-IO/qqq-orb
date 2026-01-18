@@ -1,7 +1,7 @@
 description: >
   Unified publishing job for all branch types with frontend
   Handles version management, building, testing, and publishing based on branch type
-  Supports: snapshot, release_candidate, release, and hotfix workflows
+  Supports: snapshot, release_candidate, release, hotfix, and feature workflows
 
 executor: java
 
@@ -17,7 +17,7 @@ parameters:
   branch_type:
     type: string
     default: "snapshot"
-    description: "Branch type: snapshot, release_candidate, release, or hotfix"
+    description: "Branch type: snapshot, release_candidate, release, hotfix, or feature"
 
 steps:
   - install_java:
@@ -30,4 +30,5 @@ steps:
   - frontend_test
   - frontend_package
   - mvn_jar_deploy
-  - git_operations
+  - git_operations:
+      branch_type: << parameters.branch_type >>

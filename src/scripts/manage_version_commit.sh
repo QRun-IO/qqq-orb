@@ -21,6 +21,16 @@
 set -e
 
 ################################################################
+## Skip version commit for feature branches                   ##
+## Feature versions are ephemeral (include commit hash) and   ##
+## don't need to be persisted back to the repository          ##
+################################################################
+if [[ "$BRANCH_TYPE" == "feature" ]]; then
+  echo "Skipping version commit for feature branch (ephemeral versions)"
+  exit 0
+fi
+
+################################################################
 ## Check if pom.xml was modified and commit changes if needed ##
 ################################################################
 if [[ -n "$(git status --porcelain pom.xml)" ]]; then

@@ -50,7 +50,8 @@ steps:
         not:
           equal: [ "<< parameters.branch_type >>", "feature" ]
       steps:
-        - git_operations
+        - git_operations:
+            branch_type: << parameters.branch_type >>
 
   - when:
       condition: << parameters.publish_asciidoc >>
