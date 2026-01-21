@@ -3,7 +3,7 @@
 CircleCI orb for QQQ framework projects.
 
 **For:** Teams using CircleCI to build, test, and publish QQQ applications
-**Status:** Stable (v0.5.0)
+**Status:** Stable (v0.6.1)
 
 ## Why This Exists
 
@@ -29,7 +29,7 @@ This orb provides pre-built jobs for the complete QQQ development lifecycle. Add
 # .circleci/config.yml
 version: 2.1
 orbs:
-  qqq-orb: kingsrook/qqq-orb@0.5
+  qqq-orb: kingsrook/qqq-orb@0.6
 
 workflows:
   build_and_test:
@@ -57,6 +57,7 @@ workflows:
 | `mvn_frontend_publish` | Build, test, and publish Maven projects with npm frontend |
 | `node_test_only` | Build and test Node.js projects |
 | `node_publish` | Build, test, and publish Node.js packages |
+| `static_analysis` | Run SpotBugs and PMD static analysis |
 
 ### Branch Types
 
@@ -115,4 +116,4 @@ See [QQQ Contribution Guidelines](https://github.com/Kingsrook/qqq/blob/develop/
 
 ## License
 
-AGPL-3.0 - QRun-IO
+Apache-2.0
