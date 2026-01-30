@@ -3,7 +3,13 @@ description: >
   - Adds SSH keys for Git operations
   - Sets up Git identity for version commits
   - Synchronizes NPM version
-  - Commits version changes if modified
+  - Commits version changes if modified (skipped for feature branches)
+
+parameters:
+  branch_type:
+    type: string
+    default: "snapshot"
+    description: "Branch type: snapshot, release_candidate, release, hotfix, or feature"
 
 steps:
   - add_ssh_keys   # injects the CircleCI User Key (write-capable)
@@ -15,4 +21,6 @@ steps:
       command: <<include(scripts/sync-npm-version.sh)>>
   - run:
       name: Commit version changes if modified
+      environment:
+        BRANCH_TYPE: << parameters.branch_type >>
       command: <<include(scripts/node_version_commit.sh)>>
