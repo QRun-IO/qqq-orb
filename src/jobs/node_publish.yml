@@ -21,7 +21,8 @@ steps:
   - git_full_checkout
   - node_install_dependencies
   - node_run_tests
-  - node_manage_version
+  - node_manage_version:
+      branch_type: << parameters.branch_type >>
   - attach_workspace:
       at: .
   - node_build_package
