@@ -3,7 +3,7 @@
 CircleCI orb for QQQ framework projects.
 
 **For:** Teams using CircleCI to build, test, and publish QQQ applications
-**Status:** Stable (v0.6.1)
+**Status:** Stable (v0.6.2)
 
 ## Why This Exists
 

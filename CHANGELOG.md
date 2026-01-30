@@ -5,6 +5,12 @@ All notable changes to QQQ Orb will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-01-30
+
+### Fixed
+- Node.js version commit fails with `invalid refspec 'HEAD:'` when `CIRCLE_BRANCH` is empty (detached HEAD builds)
+- Aligned `node_version_commit.sh` with Maven equivalent: added feature branch skip, empty branch fallback, and non-fatal push handling
+
 ## [0.6.1] - 2026-01-18
 
 ### Fixed
