@@ -19,6 +19,15 @@ release-filters: &release-filters
   tags:
     only: /^v[0-9]+\.[0-9]+\.[0-9]+$/
 
+# Auto-publish filters.
+develop-filters: &develop-filters
+  branches:
+    only: [develop]
+
+main-filters: &main-filters
+  branches:
+    only: [main]
+
 jobs:
   # Create jobs to test the commands of your orbs.
   # You may want to add additional validation steps to ensure the commands are working as expected.
@@ -29,6 +38,64 @@ jobs:
       - checkout
       # Run your orb's commands to validate them.
       - qqq-orb/install_asciidoctor
+
+  publish-dev-snapshot:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - run:
+          name: Pack and Publish Dev Snapshot
+          command: |
+            circleci orb pack src > /tmp/orb.yml
+            circleci orb validate /tmp/orb.yml
+            circleci orb publish /tmp/orb.yml kingsrook/qqq-orb@dev:snapshot
+            echo "Published kingsrook/qqq-orb@dev:snapshot"
+
+  publish-production:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - add_ssh_keys
+      - run:
+          name: Calculate Next Version and Publish
+          command: |
+            git fetch --tags
+            LATEST=$(git tag -l 'v*' | sort -V | tail -1)
+            LATEST=${LATEST:-v0.0.0}
+            LATEST_CLEAN=${LATEST#v}
+
+            # Check recent commit messages for bump keywords
+            BUMP="patch"
+            COMMITS=$(git log "${LATEST}..HEAD" --pretty=%s 2>/dev/null || git log --pretty=%s -10)
+            if echo "${COMMITS}" | grep -qi '\[major\]'; then
+              BUMP="major"
+            elif echo "${COMMITS}" | grep -qi '\[minor\]'; then
+              BUMP="minor"
+            fi
+
+            IFS='.' read -r MAJOR MINOR PATCH \<<< "${LATEST_CLEAN}"
+            case "${BUMP}" in
+              major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+              minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+              patch) PATCH=$((PATCH + 1)) ;;
+            esac
+            VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+            echo "Latest: ${LATEST} | Bump: ${BUMP} | Next: ${VERSION}"
+
+            circleci orb pack src > /tmp/orb.yml
+            circleci orb validate /tmp/orb.yml
+            circleci orb publish /tmp/orb.yml "kingsrook/qqq-orb@${VERSION}"
+
+            git config user.email "ci@qrun.io"
+            git config user.name "CircleCI"
+            git tag -a "v${VERSION}" -m "Release v${VERSION}"
+            git push origin "v${VERSION}"
+
+            echo "Published kingsrook/qqq-orb@${VERSION}"
+
 workflows:
   test-deploy:
     jobs:
@@ -49,3 +116,13 @@ workflows:
             - command-test
           context: orb-publishing
           filters: *release-filters
+      # Auto-publish dev snapshot on develop
+      - publish-dev-snapshot:
+          context: orb-publishing
+          filters: *develop-filters
+          requires: [command-test]
+      # Auto-publish production release on main
+      - publish-production:
+          context: orb-publishing
+          filters: *main-filters
+          requires: [command-test]
