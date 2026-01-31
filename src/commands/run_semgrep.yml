@@ -1,0 +1,22 @@
+description: >
+  Runs Semgrep SAST (Static Application Security Testing) analysis.
+  Scans source code for security vulnerabilities, code quality issues,
+  and OWASP Top 10 patterns. Produces JSON and SARIF reports.
+
+parameters:
+  fail_on_findings:
+    type: boolean
+    default: false
+    description: "Fail the build if Semgrep finds security issues"
+  rulesets:
+    type: string
+    default: "p/java p/owasp-top-ten p/security-audit"
+    description: "Space-separated list of Semgrep rulesets to run"
+
+steps:
+  - run:
+      name: Run Semgrep SAST Analysis
+      environment:
+        SEMGREP_FAIL_ON_FINDINGS: << parameters.fail_on_findings >>
+        SEMGREP_RULESETS: << parameters.rulesets >>
+      command: <<include(scripts/run_semgrep.sh)>>
