@@ -1,0 +1,32 @@
+description: >
+  Runs OWASP Dependency-Check to scan project dependencies for known CVEs.
+  Uses the dependency-check-maven plugin as a CLI goal (no pom.xml changes needed).
+  Includes retry logic (3 attempts) for NVD database download reliability.
+  Supports NVD API key for faster database updates via NVD_API_KEY env var.
+
+parameters:
+  fail_on_cvss:
+    type: boolean
+    default: false
+    description: "Fail the build if vulnerabilities exceed the CVSS threshold"
+  cvss_threshold:
+    type: string
+    default: "7"
+    description: "CVSS score threshold (0-10). Vulnerabilities at or above this score are flagged."
+
+steps:
+  - restore_cache:
+      keys:
+        - v1-owasp-nvd-cache-{{ .Branch }}
+        - v1-owasp-nvd-cache-
+  - run:
+      name: Run OWASP Dependency-Check
+      environment:
+        OWASP_FAIL_ON_CVSS: << parameters.fail_on_cvss >>
+        OWASP_CVSS_THRESHOLD: << parameters.cvss_threshold >>
+      command: <<include(scripts/run_owasp_dependency_check.sh)>>
+      no_output_timeout: 30m
+  - save_cache:
+      paths:
+        - ~/.m2/repository/org/owasp
+      key: v1-owasp-nvd-cache-{{ .Branch }}-{{ epoch }}

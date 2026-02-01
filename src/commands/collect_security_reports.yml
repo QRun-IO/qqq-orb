@@ -1,0 +1,9 @@
+description: >
+  Collects all security scan reports into a central location for artifact
+  storage. Generates a summary.txt with finding counts from each tool.
+
+steps:
+  - run:
+      name: Collect Security Reports
+      command: <<include(scripts/collect_security_reports.sh)>>
+      when: always

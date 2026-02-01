@@ -1,0 +1,101 @@
+description: >
+  Runs security scanning tools on a Maven project: Gitleaks (secret detection),
+  Semgrep (SAST), OWASP Dependency-Check (CVE scanning), and CycloneDX (SBOM).
+  All tools default to report-only mode. Use fail_on_* parameters to enforce gates.
+
+  Usage in consuming repo:
+    workflows:
+      security_scan:
+        jobs:
+          - qqq-orb/security_scan:
+              context: [qqq-maven-registry-credentials, qqq-security-credentials]
+              filters:
+                branches:
+                  only: [develop]
+
+executor: java
+
+parameters:
+  java_version:
+    type: string
+    default: "21"
+    description: "Java major version to install"
+  run_gitleaks:
+    type: boolean
+    default: true
+    description: "Run Gitleaks secret detection"
+  run_semgrep:
+    type: boolean
+    default: true
+    description: "Run Semgrep SAST analysis"
+  run_owasp:
+    type: boolean
+    default: true
+    description: "Run OWASP Dependency-Check CVE scanning"
+  run_sbom:
+    type: boolean
+    default: true
+    description: "Run CycloneDX SBOM generation"
+  fail_on_gitleaks:
+    type: boolean
+    default: false
+    description: "Fail the build if Gitleaks finds secrets"
+  fail_on_semgrep:
+    type: boolean
+    default: false
+    description: "Fail the build if Semgrep finds security issues"
+  fail_on_owasp:
+    type: boolean
+    default: false
+    description: "Fail the build if OWASP finds CVEs above threshold"
+  semgrep_rulesets:
+    type: string
+    default: "p/java p/owasp-top-ten p/security-audit"
+    description: "Space-separated list of Semgrep rulesets"
+  owasp_cvss_threshold:
+    type: string
+    default: "7"
+    description: "CVSS score threshold for OWASP (0-10)"
+
+steps:
+  - install_java:
+      java_version: << parameters.java_version >>
+  - git_full_checkout
+  - run:
+      name: Setup Maven Settings
+      command: <<include(scripts/setup_maven_settings.sh)>>
+  - restore_cache:
+      keys:
+        - v1-dependencies-{{ checksum "pom.xml" }}
+  - run:
+      name: Build and Install for Security Analysis
+      command: <<include(scripts/mvn_install_for_analysis.sh)>>
+  - save_cache:
+      paths:
+        - ~/.m2
+      key: v1-dependencies-{{ checksum "pom.xml" }}
+  - when:
+      condition: << parameters.run_gitleaks >>
+      steps:
+        - run_gitleaks:
+            fail_on_findings: << parameters.fail_on_gitleaks >>
+  - when:
+      condition: << parameters.run_semgrep >>
+      steps:
+        - run_semgrep:
+            fail_on_findings: << parameters.fail_on_semgrep >>
+            rulesets: << parameters.semgrep_rulesets >>
+  - when:
+      condition: << parameters.run_owasp >>
+      steps:
+        - run_owasp_dependency_check:
+            fail_on_cvss: << parameters.fail_on_owasp >>
+            cvss_threshold: << parameters.owasp_cvss_threshold >>
+  - when:
+      condition: << parameters.run_sbom >>
+      steps:
+        - run_cyclonedx_sbom
+  - collect_security_reports
+  - store_artifacts:
+      path: /home/circleci/security-reports
+      destination: security-reports

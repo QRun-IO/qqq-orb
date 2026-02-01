@@ -3,7 +3,7 @@
 CircleCI orb for QQQ framework projects.
 
 **For:** Teams using CircleCI to build, test, and publish QQQ applications
-**Status:** Stable (v0.6.2)
+**Status:** Stable (v0.6.x)
 
 ## Why This Exists
 
@@ -58,6 +58,7 @@ workflows:
 | `node_test_only` | Build and test Node.js projects |
 | `node_publish` | Build, test, and publish Node.js packages |
 | `static_analysis` | Run SpotBugs and PMD static analysis |
+| `security_scan` | Run Gitleaks, Semgrep, OWASP Dependency Check, and CycloneDX SBOM |
 
 ### Branch Types
 
@@ -94,15 +95,22 @@ Maven jobs use machine executors with Docker pre-installed. Tests using Testcont
 | `GPG_PASSPHRASE` | GPG passphrase |
 | `GITHUB_TOKEN` | GitHub API token |
 
+## Orb Publishing
+
+The orb auto-publishes via CircleCI:
+
+| Branch | Action |
+|--------|--------|
+| `develop` | Publishes `kingsrook/qqq-orb@dev:snapshot` |
+| `main` | Auto-increments version and publishes production release |
+| `vX.Y.Z` tag | Manual production release (legacy) |
+
+Version bumps on main default to patch. Include `[minor]` or `[major]` in a commit message to bump accordingly.
+
 ## Project Status
 
 **Maturity:** Stable, used across all QQQ repositories
 **Breaking changes:** See [CHANGELOG.md](CHANGELOG.md)
-
-**Roadmap:**
-- GitHub Actions support
-- Parallel test execution
-- Container image publishing
 
 ## Contributing
 

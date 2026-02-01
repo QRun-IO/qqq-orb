@@ -1,0 +1,17 @@
+description: >
+  Runs Gitleaks secret detection scan on the repository.
+  Detects hardcoded secrets, API keys, passwords, and tokens in source code
+  and git history. Reports findings in JSON format.
+
+parameters:
+  fail_on_findings:
+    type: boolean
+    default: false
+    description: "Fail the build if Gitleaks detects secrets"
+
+steps:
+  - run:
+      name: Run Gitleaks Secret Detection
+      environment:
+        GITLEAKS_FAIL_ON_FINDINGS: << parameters.fail_on_findings >>
+      command: <<include(scripts/run_gitleaks.sh)>>
