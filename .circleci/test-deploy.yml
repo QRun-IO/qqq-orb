@@ -49,7 +49,7 @@ jobs:
           command: |
             circleci orb pack src > /tmp/orb.yml
             circleci orb validate /tmp/orb.yml
-            circleci orb publish /tmp/orb.yml kingsrook/qqq-orb@dev:snapshot
+            circleci orb publish --token "${CIRCLE_TOKEN}" /tmp/orb.yml kingsrook/qqq-orb@dev:snapshot
             echo "Published kingsrook/qqq-orb@dev:snapshot"
 
   publish-production:
@@ -87,7 +87,7 @@ jobs:
 
             circleci orb pack src > /tmp/orb.yml
             circleci orb validate /tmp/orb.yml
-            circleci orb publish /tmp/orb.yml "kingsrook/qqq-orb@${VERSION}"
+            circleci orb publish --token "${CIRCLE_TOKEN}" /tmp/orb.yml "kingsrook/qqq-orb@${VERSION}"
 
             git config user.email "ci@qrun.io"
             git config user.name "CircleCI"
