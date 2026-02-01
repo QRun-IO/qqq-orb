@@ -41,7 +41,7 @@ jobs:
 
   publish-dev-snapshot:
     docker:
-      - image: cimg/base:current
+      - image: circleci/circleci-cli:latest
     steps:
       - checkout
       - run:
@@ -54,7 +54,7 @@ jobs:
 
   publish-production:
     docker:
-      - image: cimg/base:current
+      - image: circleci/circleci-cli:latest
     steps:
       - checkout
       - add_ssh_keys
