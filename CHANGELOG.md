@@ -5,12 +5,49 @@ All notable changes to QQQ Orb will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Auto-publish `dev:snapshot` on develop branch pushes
+- Auto-publish production releases on main branch pushes with semantic version bumping
+- Support for `[major]` and `[minor]` commit keywords to control version bumps (default: patch)
+- Security scanning job with Gitleaks, Semgrep, OWASP Dependency Check, and CycloneDX SBOM
+
+## [0.6.2] - 2026-01-30
+
+### Fixed
+- Node.js version commit fails with `invalid refspec 'HEAD:'` when `CIRCLE_BRANCH` is empty (detached HEAD builds)
+- Aligned `node_version_commit.sh` with Maven equivalent: added feature branch skip, empty branch fallback, and non-fatal push handling
+
+## [0.6.1] - 2026-01-18
+
+### Fixed
+- Skip version commit for feature branches (prevents unnecessary commits)
+
+## [0.6.0] - 2026-01-14
+
+### Added
+- SpotBugs and PMD static analysis workflows
+
+### Fixed
+- Use `mvn install` for multi-module dependency resolution in static analysis
+
+## [0.5.3] - 2026-01-10
+
+### Fixed
+- NPM prerelease tags now correctly formatted
+- Skip GitHub release creation for release candidates
+
+## [0.5.2] - 2026-01-09
+
+### Fixed
+- Version commit push failures no longer fail the build (moved from 0.5.1 notes)
+- Strip `<rerunFailure>` elements from JUnit XML (moved from 0.5.1 notes)
+
 ## [0.5.1] - 2026-01-07
 
 ### Fixed
 - Added `DEBIAN_FRONTEND=noninteractive` to browser dependency installation to prevent interactive prompts from blocking CI
-- Strip `<rerunFailure>` elements from JUnit XML before upload to fix CircleCI test result parsing errors
-- Version commit push failures no longer fail the build (handles race conditions between concurrent builds)
 
 ## [0.5.0] - 2025-12-28
 

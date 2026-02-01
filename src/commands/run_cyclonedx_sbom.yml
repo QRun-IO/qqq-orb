@@ -1,0 +1,9 @@
+description: >
+  Generates a CycloneDX Software Bill of Materials (SBOM) in JSON format.
+  Uses the CycloneDX Maven plugin to produce an aggregate BOM across all
+  modules. No pom.xml changes required -- runs as a CLI Maven goal.
+
+steps:
+  - run:
+      name: Generate CycloneDX SBOM
+      command: <<include(scripts/run_cyclonedx_sbom.sh)>>

@@ -1,6 +1,7 @@
 description: >
   Complete CI/CD workflow example for Maven-based projects using GitFlow branching strategy.
-  This example demonstrates how to use the qqq-orb for automated building, testing, and releasing.
+  This example demonstrates how to use the qqq-orb for automated building, testing, releasing,
+  and security scanning.
 
 usage:
   version: 2.1
@@ -72,3 +73,11 @@ usage:
               branches:
                 only:
                   - /hotfix\/.*/
+
+    security_scan:
+      jobs:
+        - qqq-orb/security_scan:
+            context: [ qqq-maven-registry-credentials, qqq-security-credentials ]
+            filters:
+              branches:
+                only: [ develop ]
