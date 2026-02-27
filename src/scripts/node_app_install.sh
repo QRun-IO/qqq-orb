@@ -36,8 +36,19 @@ banner "Install Dependencies (${NODE_PKG_MANAGER})"
 ## Enable Corepack       ##
 ###########################
 if [[ "${NODE_PKG_MANAGER}" == "pnpm" || "${NODE_PKG_MANAGER}" == "yarn" ]]; then
-    echo "Enabling corepack for ${NODE_PKG_MANAGER}..."
-    corepack enable
+    if command -v "${NODE_PKG_MANAGER}" &>/dev/null; then
+        echo "${NODE_PKG_MANAGER} already available: $(${NODE_PKG_MANAGER} --version)"
+    else
+        echo "Installing ${NODE_PKG_MANAGER} via corepack..."
+        # corepack enable requires write access to /usr/local/bin; use sudo if available
+        if sudo -n corepack enable 2>/dev/null; then
+            echo "corepack enable succeeded (sudo)"
+        else
+            corepack enable --install-directory "${HOME}/.local/bin"
+            export PATH="${HOME}/.local/bin:${PATH}"
+        fi
+        corepack prepare "${NODE_PKG_MANAGER}@latest" --activate
+    fi
 fi
 
 require_tool "${NODE_PKG_MANAGER}"
