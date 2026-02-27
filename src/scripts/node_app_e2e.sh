@@ -16,10 +16,16 @@
 
 set -e
 
-# Source shared helpers
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Source shared helpers (no-op in packed orb — file won't exist at runtime)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/qqq_helpers.sh" 2>/dev/null || true
+
+# Fallback stubs when helpers couldn't be sourced (packed orb environment)
+if ! type banner &>/dev/null; then
+    banner() { echo ""; echo "========================================"; echo "  ${1:-}"; echo "========================================"; echo ""; }
+    require_tool() { command -v "$1" &>/dev/null || { echo "ERROR: Required tool '$1' is not installed."; exit 1; }; }
+fi
 
 NODE_PKG_MANAGER="${NODE_PKG_MANAGER:-pnpm}"
 E2E_SCRIPT="${E2E_SCRIPT:-test:e2e}"
