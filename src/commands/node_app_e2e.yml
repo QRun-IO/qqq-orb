@@ -1,0 +1,31 @@
+description: >
+  Runs Playwright end-to-end tests for a Node.js application
+  - Installs Playwright browsers
+  - Runs e2e test suite producing JUnit output
+  - Stores test results and Playwright traces as artifacts
+
+parameters:
+  pkg_manager:
+    type: string
+    default: "pnpm"
+    description: "Package manager to use (e.g., 'pnpm', 'npm', 'yarn')."
+  e2e_script:
+    type: string
+    default: "test:e2e"
+    description: "Name of the e2e test script in package.json."
+
+steps:
+  - run:
+      name: "Run Playwright e2e tests"
+      environment:
+        NODE_PKG_MANAGER: << parameters.pkg_manager >>
+        E2E_SCRIPT: << parameters.e2e_script >>
+      command: <<include(scripts/node_app_e2e.sh)>>
+  - store_test_results:
+      path: test-results/e2e
+  - store_artifacts:
+      path: test-results/e2e
+      destination: e2e-results
+  - store_artifacts:
+      path: playwright-report
+      destination: playwright-report

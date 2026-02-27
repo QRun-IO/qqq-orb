@@ -1,0 +1,37 @@
+description: >
+  Runs type-check, lint, and unit tests for a Node.js application
+  - Runs type checking, linting, and tests via package.json scripts
+  - Stores test results as artifacts
+
+parameters:
+  pkg_manager:
+    type: string
+    default: "pnpm"
+    description: "Package manager to use (e.g., 'pnpm', 'npm', 'yarn')."
+  typecheck_script:
+    type: string
+    default: "typecheck"
+    description: "Name of the typecheck script in package.json."
+  lint_script:
+    type: string
+    default: "lint"
+    description: "Name of the lint script in package.json."
+  test_script:
+    type: string
+    default: "test"
+    description: "Name of the test script in package.json."
+
+steps:
+  - run:
+      name: "Run type-check, lint, and tests"
+      environment:
+        NODE_PKG_MANAGER: << parameters.pkg_manager >>
+        TYPECHECK_SCRIPT: << parameters.typecheck_script >>
+        LINT_SCRIPT: << parameters.lint_script >>
+        TEST_SCRIPT: << parameters.test_script >>
+      command: <<include(scripts/node_app_test.sh)>>
+  - store_test_results:
+      path: test-results
+  - store_artifacts:
+      path: test-results
+      destination: test-results

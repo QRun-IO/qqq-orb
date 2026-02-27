@@ -1,0 +1,72 @@
+description: >
+  Installs dependencies for a Node.js application
+  - Restores dependency cache
+  - Runs install via configured package manager (pnpm, npm, yarn)
+  - Saves dependency cache
+
+parameters:
+  pkg_manager:
+    type: string
+    default: "pnpm"
+    description: "Package manager to use (e.g., 'pnpm', 'npm', 'yarn')."
+
+steps:
+  # Restore cache using only the lockfile for the configured pkg manager.
+  # All three lockfiles cannot be checksummed simultaneously — CircleCI
+  # fails hard if any referenced file doesn't exist.
+  - when:
+      condition:
+        equal: [ pnpm, << parameters.pkg_manager >> ]
+      steps:
+        - restore_cache:
+            keys:
+              - node-app-v1-pnpm-{{ checksum "pnpm-lock.yaml" }}
+              - node-app-v1-pnpm-
+  - when:
+      condition:
+        equal: [ npm, << parameters.pkg_manager >> ]
+      steps:
+        - restore_cache:
+            keys:
+              - node-app-v1-npm-{{ checksum "package-lock.json" }}
+              - node-app-v1-npm-
+  - when:
+      condition:
+        equal: [ yarn, << parameters.pkg_manager >> ]
+      steps:
+        - restore_cache:
+            keys:
+              - node-app-v1-yarn-{{ checksum "yarn.lock" }}
+              - node-app-v1-yarn-
+  - run:
+      name: "Install dependencies"
+      environment:
+        NODE_PKG_MANAGER: << parameters.pkg_manager >>
+      command: <<include(scripts/node_app_install.sh)>>
+  - when:
+      condition:
+        equal: [ pnpm, << parameters.pkg_manager >> ]
+      steps:
+        - save_cache:
+            key: node-app-v1-pnpm-{{ checksum "pnpm-lock.yaml" }}
+            paths:
+              - node_modules
+              - ~/.cache/pnpm
+  - when:
+      condition:
+        equal: [ npm, << parameters.pkg_manager >> ]
+      steps:
+        - save_cache:
+            key: node-app-v1-npm-{{ checksum "package-lock.json" }}
+            paths:
+              - node_modules
+              - ~/.npm
+  - when:
+      condition:
+        equal: [ yarn, << parameters.pkg_manager >> ]
+      steps:
+        - save_cache:
+            key: node-app-v1-yarn-{{ checksum "yarn.lock" }}
+            paths:
+              - node_modules
+              - ~/.cache/yarn

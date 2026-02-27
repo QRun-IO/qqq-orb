@@ -1,0 +1,29 @@
+description: >
+  End-to-end test job for Node.js applications using Playwright
+  Attaches workspace from a prior build job and runs e2e tests
+  Stores JUnit results and Playwright traces as artifacts
+
+executor:
+  name: default
+  tag: << parameters.node_version >>
+
+parameters:
+  node_version:
+    type: string
+    default: "lts"
+    description: "Node.js version tag (e.g., 'lts', '18.0', '20.0')."
+  pkg_manager:
+    type: string
+    default: "pnpm"
+    description: "Package manager to use (e.g., 'pnpm', 'npm', 'yarn')."
+  e2e_script:
+    type: string
+    default: "test:e2e"
+    description: "Name of the e2e test script in package.json."
+
+steps:
+  - attach_workspace:
+      at: .
+  - node_app_e2e:
+      pkg_manager: << parameters.pkg_manager >>
+      e2e_script: << parameters.e2e_script >>

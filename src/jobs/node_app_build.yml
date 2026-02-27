@@ -1,0 +1,53 @@
+description: >
+  Build job for Node.js applications on protected branches
+  Runs checkout, install, test, and production build
+  Persists build output to workspace for downstream jobs (e.g., e2e)
+
+executor:
+  name: default
+  tag: << parameters.node_version >>
+
+parameters:
+  node_version:
+    type: string
+    default: "lts"
+    description: "Node.js version tag (e.g., 'lts', '18.0', '20.0')."
+  pkg_manager:
+    type: string
+    default: "pnpm"
+    description: "Package manager to use (e.g., 'pnpm', 'npm', 'yarn')."
+  typecheck_script:
+    type: string
+    default: "typecheck"
+    description: "Name of the typecheck script in package.json."
+  lint_script:
+    type: string
+    default: "lint"
+    description: "Name of the lint script in package.json."
+  test_script:
+    type: string
+    default: "test"
+    description: "Name of the test script in package.json."
+  build_script:
+    type: string
+    default: "build"
+    description: "Name of the build script in package.json."
+
+steps:
+  - checkout
+  - node_app_install:
+      pkg_manager: << parameters.pkg_manager >>
+  - node_app_test:
+      pkg_manager: << parameters.pkg_manager >>
+      typecheck_script: << parameters.typecheck_script >>
+      lint_script: << parameters.lint_script >>
+      test_script: << parameters.test_script >>
+  - node_app_build_step:
+      pkg_manager: << parameters.pkg_manager >>
+      build_script: << parameters.build_script >>
+  - persist_to_workspace:
+      root: .
+      paths:
+        - .next/
+        - node_modules/
+        - package.json
