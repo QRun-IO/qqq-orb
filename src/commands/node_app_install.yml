@@ -1,0 +1,29 @@
+description: >
+  Installs dependencies for a Node.js application
+  - Restores dependency cache
+  - Runs install via configured package manager (pnpm, npm, yarn)
+  - Saves dependency cache
+
+parameters:
+  pkg_manager:
+    type: string
+    default: "pnpm"
+    description: "Package manager to use (e.g., 'pnpm', 'npm', 'yarn')."
+
+steps:
+  - restore_cache:
+      keys:
+        - node-app-v1-{{ checksum "pnpm-lock.yaml" }}-{{ checksum "package-lock.json" }}-{{ checksum "yarn.lock" }}
+        - node-app-v1-
+  - run:
+      name: "Install dependencies"
+      environment:
+        NODE_PKG_MANAGER: << parameters.pkg_manager >>
+      command: <<include(scripts/node_app_install.sh)>>
+  - save_cache:
+      key: node-app-v1-{{ checksum "pnpm-lock.yaml" }}-{{ checksum "package-lock.json" }}-{{ checksum "yarn.lock" }}
+      paths:
+        - node_modules
+        - ~/.cache/pnpm
+        - ~/.npm
+        - ~/.cache/yarn

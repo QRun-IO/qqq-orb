@@ -1,0 +1,40 @@
+description: >
+  Test-only job for Node.js application feature branches
+  Runs checkout, dependency install, and test suite
+  Supports: pnpm, npm, and yarn package managers
+
+executor:
+  name: default
+  tag: << parameters.node_version >>
+
+parameters:
+  node_version:
+    type: string
+    default: "lts"
+    description: "Node.js version tag (e.g., 'lts', '18.0', '20.0')."
+  pkg_manager:
+    type: string
+    default: "pnpm"
+    description: "Package manager to use (e.g., 'pnpm', 'npm', 'yarn')."
+  typecheck_script:
+    type: string
+    default: "typecheck"
+    description: "Name of the typecheck script in package.json."
+  lint_script:
+    type: string
+    default: "lint"
+    description: "Name of the lint script in package.json."
+  test_script:
+    type: string
+    default: "test"
+    description: "Name of the test script in package.json."
+
+steps:
+  - checkout
+  - node_app_install:
+      pkg_manager: << parameters.pkg_manager >>
+  - node_app_test:
+      pkg_manager: << parameters.pkg_manager >>
+      typecheck_script: << parameters.typecheck_script >>
+      lint_script: << parameters.lint_script >>
+      test_script: << parameters.test_script >>
