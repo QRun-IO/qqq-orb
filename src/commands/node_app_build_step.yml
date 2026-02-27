@@ -1,0 +1,21 @@
+description: >
+  Runs the production build for a Node.js application
+  - Executes the build script with timing output
+
+parameters:
+  pkg_manager:
+    type: string
+    default: "pnpm"
+    description: "Package manager to use (e.g., 'pnpm', 'npm', 'yarn')."
+  build_script:
+    type: string
+    default: "build"
+    description: "Name of the build script in package.json."
+
+steps:
+  - run:
+      name: "Production build"
+      environment:
+        NODE_PKG_MANAGER: << parameters.pkg_manager >>
+        BUILD_SCRIPT: << parameters.build_script >>
+      command: <<include(scripts/node_app_build.sh)>>
