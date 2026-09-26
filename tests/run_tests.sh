@@ -16,6 +16,7 @@ set -e
 ###################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEST_SCRIPT="$SCRIPT_DIR/test_calculate_version.sh"
+SETTINGS_TEST_SCRIPT="$SCRIPT_DIR/test_maven_settings_output.sh"
 VERBOSE=false
 CI_MODE=false
 
@@ -54,6 +55,10 @@ main() {
         echo "❌ Test script not found: $TEST_SCRIPT"
         exit 1
     fi
+    if [[ ! -f "$SETTINGS_TEST_SCRIPT" ]]; then
+        echo "❌ Test script not found: $SETTINGS_TEST_SCRIPT"
+        exit 1
+    fi
     
     ###############
     ## Run tests ##
@@ -68,7 +73,7 @@ main() {
         ## CI mode: minimal output, focus on results ##
         ###############################################
         echo "Running tests in CI mode..."
-        if "$TEST_SCRIPT" $test_args > /tmp/test_output.log 2>&1; then
+        if { "$TEST_SCRIPT" $test_args && bash "$SETTINGS_TEST_SCRIPT"; } > /tmp/test_output.log 2>&1; then
             echo "✅ All tests passed!"
             exit 0
         else
@@ -82,6 +87,7 @@ main() {
         ## Interactive mode: full output ##
         ###################################
         "$TEST_SCRIPT" $test_args
+        bash "$SETTINGS_TEST_SCRIPT"
     fi
 }
 
