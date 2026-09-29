@@ -14,7 +14,7 @@ sed "s|/tmp/circleci|$test_dir/circleci|g" \
 sed "s|/tmp/circleci|$test_dir/circleci|g" \
     "$source_dir/mvn_jar_deploy.sh" > "$test_dir/deploy.sh"
 
-bash "$test_dir/setup.sh" > "$test_dir/setup-output"
+bash "$test_dir/setup.sh" > "$test_dir/setup-output" 2>&1
 settings="$test_dir/circleci/mvn-settings.xml"
 test -f "$settings"
 grep -Fq "\${env.CENTRAL_USERNAME}" "$settings"
@@ -34,7 +34,7 @@ EOF
 chmod +x "$test_dir/bin/mvn"
 PATH="$test_dir/bin:$PATH" TEST_MVN_ARGS="$test_dir/mvn-args" \
     GPG_KEYNAME=test-key GPG_PASSPHRASE=test-passphrase \
-    bash "$test_dir/deploy.sh" > "$test_dir/deploy-output"
+    bash "$test_dir/deploy.sh" > "$test_dir/deploy-output" 2>&1
 if grep -Fq 'settings-output-sentinel' "$test_dir/deploy-output"; then
     echo 'Deploy printed Maven settings content' >&2
     exit 1
