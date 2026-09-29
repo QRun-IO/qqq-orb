@@ -29,6 +29,9 @@ jobs:
       - image: cimg/base:current
     steps:
       - checkout
+      - run:
+          name: Verify Maven settings stay out of build logs
+          command: bash tests/test_maven_settings_output.sh
       # Run your orb's commands to validate them.
       - qqq-orb/install_asciidoctor
 
