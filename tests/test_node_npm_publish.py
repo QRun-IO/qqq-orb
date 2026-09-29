@@ -49,6 +49,8 @@ sys.exit(int(os.environ.get('TEST_OIDC_STATUS', '0')))
 ''',
                 'node': '''#!/usr/bin/env python3
 import os, subprocess, sys
+if sys.argv[1] != '-':
+    os.execv(os.environ['TEST_REAL_NODE'], [os.environ['TEST_REAL_NODE'], *sys.argv[1:]])
 source = sys.stdin.read()
 if 'TEST_NODE_VERSION' in os.environ:
     source = source.replace('process.versions.node', repr(os.environ['TEST_NODE_VERSION']))
