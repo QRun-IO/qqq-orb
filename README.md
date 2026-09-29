@@ -60,6 +60,20 @@ workflows:
 | `static_analysis` | Run SpotBugs and PMD static analysis |
 | `security_scan` | Run Gitleaks, Semgrep, OWASP Dependency Check, and CycloneDX SBOM |
 
+### npm Trusted Publishing
+
+For npm Trusted Publishing, set `npm_trusted_publishing: true` and use a supported
+executor such as `node_version: "24.21"` on `node_publish`. Configure the package's
+[npm Trusted Publisher](https://docs.npmjs.com/trusted-publishers/) for the exact
+CircleCI organization, project, pipeline definition and VCS origin, and allow
+direct `npm publish`. The job requires Node >=22.14.0 and npm >=11.5.1, obtains an
+OIDC identity at publish time, and does not run `npm whoami` or need `NPM_TOKEN`.
+Existing token authentication remains the default. Trusted mode requires no
+project `.npmrc` or npm credential/config-path environment settings; it ignores user/global
+npm config and clears conventional token variables to prevent token fallback.
+CircleCI does not currently provide npm provenance attestations. A successful
+real publication, not a dry run, verifies the trust relationship.
+
 ### Branch Types
 
 | Branch | Version Format |

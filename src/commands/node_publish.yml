@@ -3,10 +3,21 @@ description: >
   - Sets up NPM authentication
   - Publishes the package to NPM
 
+parameters:
+  trusted_publishing:
+    type: boolean
+    default: false
+    description: "Authenticate npm publish using the CircleCI job's OIDC identity."
+
 steps:
-  - run:
-      name: "Setup NPM authentication"
-      command: <<include(scripts/node_npm_auth.sh)>>
+  - unless:
+      condition: << parameters.trusted_publishing >>
+      steps:
+        - run:
+            name: "Setup NPM authentication"
+            command: <<include(scripts/node_npm_auth.sh)>>
   - run:
       name: "Publish to NPM"
+      environment:
+        QQQ_NPM_TRUSTED_PUBLISHING: << parameters.trusted_publishing >>
       command: <<include(scripts/node_npm_publish.sh)>>
