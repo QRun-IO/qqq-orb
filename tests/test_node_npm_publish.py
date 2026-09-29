@@ -14,7 +14,7 @@ NPM = shutil.which('npm')
 
 
 class PublishTests(unittest.TestCase):
-    def run_publish(self, version='1.0.0-RC.1', trusted=True, project_config=False, **overrides):
+    def run_publish(self, version='1.0.0-RC.1', trusted=True, project_config=False, trusted_mode=None, **overrides):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             bin_dir = root / 'bin'
@@ -29,7 +29,7 @@ if sys.argv[1:] == ['--version']:
     print(os.environ.get('TEST_NPM_VERSION', '11.19.0'))
 else:
     assert sys.argv[1] == 'publish', 'Unexpected npm command'
-    if os.environ['QQQ_NPM_TRUSTED_PUBLISHING'] == 'true':
+    if os.environ['QQQ_NPM_TRUSTED_PUBLISHING'] in ['true', '1']:
         assert os.environ.get('NPM_ID_TOKEN') == 'synthetic-oidc-token'
         assert all(not os.environ.get(name) for name in ['NPM_TOKEN', 'NODE_AUTH_TOKEN', 'NPM_AUTH_TOKEN'])
         assert os.environ['NPM_CONFIG_USERCONFIG'] != os.environ['NPM_CONFIG_GLOBALCONFIG']
@@ -62,7 +62,8 @@ sys.exit(subprocess.run([os.environ['TEST_REAL_NODE'], *sys.argv[1:]], input=sou
                 executable.write_text(contents)
                 executable.chmod(0o755)
             env = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ['PATH'],
-                       QQQ_NPM_TRUSTED_PUBLISHING=str(trusted).lower(), TEST_REAL_NODE=NODE, TEST_REAL_NPM=NPM,
+                       QQQ_NPM_TRUSTED_PUBLISHING=str(trusted).lower() if trusted_mode is None else trusted_mode,
+                       TEST_REAL_NODE=NODE, TEST_REAL_NPM=NPM,
                        NPM_TOKEN='synthetic-old-token', NODE_AUTH_TOKEN='synthetic-old-token',
                        NPM_AUTH_TOKEN='synthetic-old-token', **overrides)
             result = subprocess.run(['bash', '-x', str(SCRIPT)], cwd=root, env=env,
@@ -81,6 +82,14 @@ sys.exit(subprocess.run([os.environ['TEST_REAL_NODE'], *sys.argv[1:]], input=sou
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertEqual(args, ['publish', '--access', 'public', '--tag', tag])
                     self.assertEqual(oidc, trusted)
+
+    def test_circleci_boolean_environment_values(self):
+        for mode, expected_oidc in [('1', True), ('0', False)]:
+            with self.subTest(mode=mode):
+                result, args, oidc = self.run_publish(trusted_mode=mode)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(args, ['publish', '--access', 'public', '--tag', 'rc'])
+                self.assertEqual(oidc, expected_oidc)
 
     def test_oidc_failure_or_empty_token_stops_publication(self):
         for overrides in [{'TEST_OIDC_STATUS': '7'}, {'TEST_OIDC_VALUE': ''}]:
