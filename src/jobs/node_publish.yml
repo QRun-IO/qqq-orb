@@ -16,6 +16,10 @@ parameters:
     type: string
     default: "snapshot"
     description: "Branch type: snapshot, release_candidate, release, or hotfix"
+  npm_trusted_publishing:
+    type: boolean
+    default: false
+    description: "Use CircleCI OIDC instead of NPM_TOKEN (Node >=22.14, npm >=11.5.1)."
 
 steps:
   - git_full_checkout
@@ -26,7 +30,8 @@ steps:
   - attach_workspace:
       at: .
   - node_build_package
-  - node_publish
+  - node_publish:
+      trusted_publishing: << parameters.npm_trusted_publishing >>
 
   # GitHub releases only for final releases and hotfixes (not RCs)
   # RCs just publish artifacts - GitHub release happens when merged to main
