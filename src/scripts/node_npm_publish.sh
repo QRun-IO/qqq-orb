@@ -19,7 +19,7 @@
 set +x
 set -euo pipefail
 
-if [[ "${QQQ_NPM_TRUSTED_PUBLISHING:-false}" == "true" ]]; then
+if [[ "${QQQ_NPM_TRUSTED_PUBLISHING:-false}" == "true" || "${QQQ_NPM_TRUSTED_PUBLISHING:-false}" == "1" ]]; then
     NPM_CLI_VERSION=$(npm --version)
     node - "$NPM_CLI_VERSION" <<'NODE'
 const atLeast = (actual, minimum) => {
