@@ -80,3 +80,15 @@ The orb uses CircleCI's "unpacked" format. YAML files in `src/` are packed into 
 - `MAVEN_USERNAME`, `MAVEN_PASSWORD` - Sonatype credentials
 - `GPG_PRIVATE_KEY_B64`, `GPG_KEYNAME`, `GPG_PASSPHRASE` - GPG signing
 - `GITHUB_TOKEN` - GitHub API access
+
+## Knowledge base
+
+Deep-review dossiers for this repo and the wider QQQ platform live in the second-brain
+vault (Obsidian, `R:/Git.Local/KofTwentyTwo/second-brain`):
+
+- Platform hub: `knowledge/qqq/qqq-hub.md`
+- This repo's dossier: `knowledge/qqq/repos/qqq-orb.md` (reviewed at develop
+  commit `bdff16ff9582`, 2026-07-04) — covers 0.5.0→0.6.0→HEAD behavior changes,
+  the npm dist-tag defect verdict, org-wide pin survey, licensing history, and
+  open bug #5 (release-branch patch loss).
+- Release/versioning architecture: `knowledge/qqq/architecture/build-release-versioning.md`
