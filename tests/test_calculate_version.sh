@@ -457,6 +457,30 @@ test_edge_cases() {
         TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
     
+    #################################################################
+    ## Test 1b: RC tag build must refuse, never increment (GH-20) ##
+    #################################################################
+    echo "🧪 Test: RC tag build refuses instead of incrementing (should fail)"
+    TESTS_RUN=$((TESTS_RUN + 1))
+
+    create_test_pom "1.5.0-RC.2"
+    create_test_branch "HEAD" "v1.5.0-RC.2"
+
+    cd "$TEST_DIR"
+    exit_code=0
+    output=$(cd "$TEST_DIR" && POM_FILE=pom.xml "$CALCULATE_VERSION_SCRIPT" --dry-run 2>&1) || exit_code=$?
+
+    if [[ $exit_code -ne 0 ]] \
+        && [[ "$output" == *"Refusing to calculate a version for release candidate tag: v1.5.0-RC.2"* ]] \
+        && [[ "$output" != *"1.5.0-RC.3"* ]]; then
+        echo "  ✅ PASSED: Script refused the RC tag build"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        echo "  ❌ FAILED: Script should refuse RC tag builds (exit $exit_code)"
+        echo "  Output: $output"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+
     #################################
     ## Test 2: Unknown branch type ##
     #################################

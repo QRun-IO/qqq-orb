@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for `[major]` and `[minor]` commit keywords to control version bumps (default: patch)
 - Security scanning job with Gitleaks, Semgrep, OWASP Dependency Check, and CycloneDX SBOM
 
+### Fixed
+- `calculate_version.sh` now refuses (exits non-zero) on a release candidate tag build (`vX.Y.Z-RC.N`) instead of treating it as a release branch, which incremented the RC and republished the tagged code under the next RC number (#20)
+
 ## [0.6.2] - 2026-01-30
 
 ### Fixed

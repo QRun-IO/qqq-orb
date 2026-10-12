@@ -78,9 +78,16 @@ if [[ "$CURRENT_BRANCH" == "HEAD" ]]; then
             echo "This is a production release tag, treating as main branch"
             CURRENT_BRANCH="main"
         elif [[ "$CURRENT_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-RC\.[0-9]+$ ]]; then
-            echo "This is a release candidate tag, treating as release branch"
-            CURRENT_BRANCH="release/${CURRENT_TAG#v}"
-            CURRENT_BRANCH="release/${CURRENT_BRANCH%-RC.*}"
+            ########################################################################
+            ## RC tags are bookkeeping only: release/* branch builds publish RCs. ##
+            ## Treating the tag as a release branch would increment the pom's RC  ##
+            ## and republish the tagged code under the next RC number (GH-20).   ##
+            ########################################################################
+            echo "ERROR: Refusing to calculate a version for release candidate tag: $CURRENT_TAG"
+            echo "RC tags are bookkeeping only; release candidates are published by release/* branch builds."
+            echo "A tag build would increment the RC and republish this code under the next RC number."
+            echo 'Restrict the publish workflow tag filter to GA tags, for example: /^v\d+\.\d+\.\d+$/'
+            exit 1
         elif [[ "$CURRENT_TAG" =~ ^publish- ]]; then
             echo "This is a publish tag for feature branch, treating as feature branch"
             CURRENT_BRANCH=$(find_original_feature_branch)
