@@ -21,4 +21,7 @@ export PORT=3001
 npm run start &
 dockerize -wait tcp://localhost:3001 -timeout 3m
 export QQQ_SELENIUM_HEADLESS=true
-mvn -s /tmp/circleci/mvn-settings.xml --no-transfer-progress -B test
+## --update-snapshots: the ~/.m2 cache is keyed only on the pom checksum, so
+## without it a SNAPSHOT dependency restored from cache is never re-checked
+## (Maven's daily update policy) and builds run against stale snapshots.
+mvn -s /tmp/circleci/mvn-settings.xml --update-snapshots --no-transfer-progress -B test

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Maven compile, verify and frontend test steps pass `--update-snapshots`, so SNAPSHOT dependencies restored from the pom-checksum-keyed `~/.m2` cache are re-checked against the remote on every build instead of going stale
+
 ### Added
 - Auto-publish `dev:snapshot` on develop branch pushes
 - Auto-publish production releases on main branch pushes with semantic version bumping
