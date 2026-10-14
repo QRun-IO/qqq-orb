@@ -23,4 +23,7 @@ set -e
 ########################################################
 ## Run Maven verify lifecycle with optimized settings ##
 ########################################################
-mvn -s /tmp/circleci/mvn-settings.xml -T4 --no-transfer-progress verify
+## --update-snapshots: the ~/.m2 cache is keyed only on the pom checksum, so
+## without it a SNAPSHOT dependency restored from cache is never re-checked
+## (Maven's daily update policy) and builds run against stale snapshots.
+mvn -s /tmp/circleci/mvn-settings.xml --update-snapshots -T4 --no-transfer-progress verify
