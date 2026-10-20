@@ -79,6 +79,7 @@ test-pipelines: pack
 	bash tests/test_all_artifact.sh
 	python3 tests/test_maven_ci_rc_completion.py
 	bash tests/test_maven_ci_push.sh
+	bash tests/test_create_github_release.sh
 	bash tests/test_maven_ci_cache.sh
 	bash tests/test_maven_ci_install.sh
 	bash tests/test_snapshot_refresh.sh
