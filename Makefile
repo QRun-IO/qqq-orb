@@ -208,3 +208,9 @@ publish-release: check-clean check-branch lint clean dev test-all
 	echo "Pushing tag to remote..."; \
 	git push origin "$$version"; \
 	echo "✅ Production release $$version published successfully!"
+
+.PHONY: test-publication-poms
+# Explicit integration gate: requires Java/Maven and public plugin downloads into
+# an isolated temporary repository. Never publishes or uses signing credentials.
+test-publication-poms:
+	python3 tests/test_maven_publication_poms.py

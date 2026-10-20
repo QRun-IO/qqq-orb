@@ -49,6 +49,9 @@ release
 -DskipTests
 -Dgpg.keyname=test-key
 -Dgpg.passphrase=test-passphrase
+-Dflatten.mode=resolveCiFriendliesOnly
+-DupdatePomFile=true
+org.codehaus.mojo:flatten-maven-plugin:1.7.3:flatten
 deploy
 EOF
 diff -u "$test_dir/expected-args" "$test_dir/mvn-args"

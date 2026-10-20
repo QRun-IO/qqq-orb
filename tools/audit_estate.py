@@ -138,7 +138,7 @@ def owner_gate_errors(snapshot):
         if not gates.issubset(set(lint.get('orb-tools/continue', {}).get('requires', []))):
             errors.append('continuation must depend on every lint/pack/review/shellcheck gate')
         tests = invocations(deploy, 'test-deploy')
-        required = {'command-test', 'pipeline-contract-test'}
+        required = {'command-test', 'pipeline-contract-test', 'maven-publication-contract'}
         for test in required:
             definition = deploy.get('jobs', {}).get(test, {})
             if test not in tests or not definition.get('steps') or not any(isinstance(step, dict) and 'run' in step for step in definition['steps']):
@@ -146,7 +146,7 @@ def owner_gate_errors(snapshot):
         for name, branch in [('publish-dev-snapshot', 'develop'), ('publish-production', 'main')]:
             invocation = tests.get(name, {})
             if not required.issubset(set(invocation.get('requires', []))):
-                errors.append(name + ' must require both test gates')
+                errors.append(name + ' must require all test gates')
             if invocation.get('filters', {}).get('branches', {}).get('only') != [branch]:
                 errors.append(name + ' branch filter')
             commands = []

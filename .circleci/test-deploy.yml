@@ -22,6 +22,15 @@ main-filters: &main-filters
     only: [main]
 
 jobs:
+  maven-publication-contract:
+    resource_class: small
+    docker:
+      - image: cimg/openjdk:21.0
+    steps:
+      - checkout
+      - run:
+          name: Verify resolved multi-module publication POMs
+          command: python3 tests/test_maven_publication_poms.py
   pipeline-contract-test:
     resource_class: small
     docker:
@@ -148,13 +157,15 @@ workflows:
           filters: *filters
       - pipeline-contract-test:
           filters: *filters
+      - maven-publication-contract:
+          filters: *filters
       # Auto-publish dev snapshot on develop
       - publish-dev-snapshot:
           context: orb-publishing
           filters: *develop-filters
-          requires: [command-test, pipeline-contract-test]
+          requires: [command-test, pipeline-contract-test, maven-publication-contract]
       # Auto-publish production release on main
       - publish-production:
           context: orb-publishing
           filters: *main-filters
-          requires: [command-test, pipeline-contract-test]
+          requires: [command-test, pipeline-contract-test, maven-publication-contract]

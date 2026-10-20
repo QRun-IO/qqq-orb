@@ -177,7 +177,7 @@ class AuditTests(unittest.TestCase):
         self.assertEqual('unknown', report['status'])
         self.assertNotIn('missing_manifest', [f['code'] for f in report['findings']])
         for path, old, new in [('.circleci/config.yml', 'orb-tools/pack', 'disabled-pack'),
-                               ('.circleci/test-deploy.yml', 'requires: [command-test, pipeline-contract-test]', 'requires: []'),
+                               ('.circleci/test-deploy.yml', 'requires: [command-test, pipeline-contract-test, maven-publication-contract]', 'requires: [command-test, pipeline-contract-test]'),
                                ('.circleci/test-deploy.yml', 'circleci orb validate ', 'echo skipped ')]:
             self.assertIn(old, files[path])
             changed = dict(files, **{path: files[path].replace(old, new)})
