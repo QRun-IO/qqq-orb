@@ -27,6 +27,19 @@ def error_categories(errors):
     return categories or ["validation"]
 
 
+def validation_details(errors, environment):
+    # Only validation errors, never the full response or request/headers.
+    secrets = [str(v) for k, v in environment.items()
+               if v and any(part in k.upper() for part in ("TOKEN", "PASSWORD", "PASSPHRASE", "SECRET", "PRIVATE_KEY"))]
+    pair = environment.get("CENTRAL_USERNAME", "") + ":" + environment.get("CENTRAL_PASSWORD", "")
+    secrets.extend([pair, base64.b64encode(pair.encode()).decode()])
+    details = json.dumps(errors, ensure_ascii=True)
+    for secret in sorted(secrets, key=len, reverse=True):
+        details = details.replace(secret, "<REDACTED>")
+    details = re.sub(r"(?i)(?:bearer|basic)\s+[A-Za-z0-9+/=._-]+", "<REDACTED>", details)
+    return details[:12000]
+
+
 def read_status(environment, open_request=None):
     deployment = environment.get("QQQ_CENTRAL_DEPLOYMENT_ID", "")
     result = {"error_categories": []}
@@ -77,6 +90,7 @@ def read_status(environment, open_request=None):
     result["deploymentState"] = state
     if state == "FAILED":
         result["error_categories"] = error_categories(data.get("errors"))
+        result["validation_details"] = validation_details(data.get("errors"), environment)
         return 1, result
     return (0 if state == "PUBLISHED" else 2), result
 
