@@ -1,0 +1,326 @@
+{
+  "core-codeql": {
+    "repository": "QRun-IO/qqq",
+    "sha": "bc0b0f11ef9d436c80b2e3c5268726a6bc0881c1",
+    "path": ".github/workflows/codeql.yml",
+    "events": {
+      "push": {
+        "branches": [
+          "develop",
+          "dependabot",
+          "feature",
+          "hotfix/*",
+          "main",
+          "release/*"
+        ]
+      },
+      "pull_request": {
+        "branches": [
+          "develop",
+          "dependabot",
+          "feature",
+          "hotfix/*",
+          "main",
+          "release/*"
+        ]
+      },
+      "schedule": [
+        {
+          "cron": "41 16 * * 0"
+        }
+      ]
+    },
+    "jobs": {
+      "analyze": {
+        "name": "Analyze (${{ matrix.language }})",
+        "runs-on": "${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}",
+        "permissions": {
+          "security-events": "write",
+          "packages": "read",
+          "actions": "read",
+          "contents": "read"
+        },
+        "strategy": {
+          "fail-fast": false,
+          "matrix": {
+            "include": [
+              {
+                "language": "java-kotlin",
+                "build-mode": "none"
+              },
+              {
+                "language": "javascript-typescript",
+                "build-mode": "none"
+              }
+            ]
+          }
+        },
+        "steps": [
+          {
+            "name": "Checkout repository",
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "name": "Initialize CodeQL",
+            "uses": "github/codeql-action/init@v4",
+            "with": {
+              "languages": "${{ matrix.language }}",
+              "build-mode": "${{ matrix.build-mode }}"
+            }
+          },
+          {
+            "name": "Run manual build steps",
+            "if": "matrix.build-mode == 'manual'",
+            "shell": "bash",
+            "run": "echo 'If you are using a \"manual\" build mode for one or more of the' \\\n  'languages you are analyzing, replace this with the commands to build' \\\n  'your code, for example:'\necho '  make bootstrap'\necho '  make release'\nexit 1\n"
+          },
+          {
+            "name": "Perform CodeQL Analysis",
+            "uses": "github/codeql-action/analyze@v4",
+            "with": {
+              "category": "/language:${{matrix.language}}"
+            }
+          }
+        ]
+      }
+    },
+    "permissions": null
+  },
+  "core-published-bom-consumer": {
+    "repository": "QRun-IO/qqq",
+    "sha": "bc0b0f11ef9d436c80b2e3c5268726a6bc0881c1",
+    "path": ".github/workflows/published-bom-consumer.yml",
+    "events": {
+      "workflow_dispatch": {
+        "inputs": {
+          "version": {
+            "description": "Published QQQ release or candidate version",
+            "required": true,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "jobs": {
+      "verify": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4",
+            "with": {
+              "persist-credentials": false
+            }
+          },
+          {
+            "uses": "actions/setup-java@v4",
+            "with": {
+              "distribution": "temurin",
+              "java-version": "17"
+            }
+          },
+          {
+            "name": "Check source and release version",
+            "env": {
+              "CANDIDATE_VERSION": "${{ inputs.version }}",
+              "SOURCE_REF": "${{ github.ref }}"
+            },
+            "run": "python3 - <<'PY'\nimport os\nimport re\nimport xml.etree.ElementTree as ET\n\nversion = os.environ[\"CANDIDATE_VERSION\"]\nsource_ref = os.environ[\"SOURCE_REF\"]\nif not re.fullmatch(r\"4\\.1\\.0(?:-RC\\.[1-9][0-9]*)?\", version):\n    raise SystemExit(\"Version must be 4.1.0 or a 4.1.0-RC.N candidate\")\nexpected_ref = \"refs/heads/release/4.1\" if \"-RC.\" in version else \"refs/tags/v4.1.0\"\nif source_ref != expected_ref:\n    raise SystemExit(f\"Select {expected_ref} for {version}; received {source_ref}\")\nroot = ET.parse(\"pom.xml\").getroot()\nns = {\"m\": \"http://maven.apache.org/POM/4.0.0\"}\nrevision = root.findtext(\"m:properties/m:revision\", namespaces=ns)\nif revision != version:\n    raise SystemExit(f\"Source revision {revision} differs from {version}\")\nPY\n"
+          },
+          {
+            "name": "Resolve the public BOM from a fresh consumer",
+            "env": {
+              "CANDIDATE_VERSION": "${{ inputs.version }}"
+            },
+            "run": "python3 qqq-sample-project/verify-published-bom.py \"$CANDIDATE_VERSION\""
+          },
+          {
+            "name": "Retain resolution evidence",
+            "if": "always()",
+            "uses": "actions/upload-artifact@v4",
+            "with": {
+              "name": "published-bom-evidence",
+              "if-no-files-found": "warn",
+              "path": "qqq-sample-project/target/published-bom-*/evidence.json\nqqq-sample-project/target/published-bom-*/pom.xml\nqqq-sample-project/target/published-bom-*/maven.log\nqqq-sample-project/target/published-bom-*/dependency-tree.json\n"
+            }
+          }
+        ]
+      }
+    },
+    "permissions": {
+      "contents": "read"
+    }
+  },
+  "core-quickstart-lifecycle": {
+    "repository": "QRun-IO/qqq",
+    "sha": "bc0b0f11ef9d436c80b2e3c5268726a6bc0881c1",
+    "path": ".github/workflows/quickstart-lifecycle.yml",
+    "events": {
+      "push": {
+        "tags": [
+          "quickstart-4.1.0-RC.1"
+        ]
+      },
+      "workflow_dispatch": {
+        "inputs": {
+          "version": {
+            "description": "Exact public candidate to verify",
+            "required": true,
+            "type": "choice",
+            "options": [
+              "4.1.0-RC.1"
+            ]
+          },
+          "source_sha": {
+            "description": "Full reviewed commit of the immutable quickstart tag",
+            "required": true,
+            "type": "string"
+          },
+          "boundary_capture": {
+            "description": "Diagnose one macOS15 WebKit lifecycle with private boundary evidence",
+            "required": false,
+            "type": "boolean",
+            "default": false
+          }
+        }
+      }
+    },
+    "jobs": {
+      "lifecycle": {
+        "strategy": {
+          "fail-fast": false,
+          "matrix": "${{ fromJSON(inputs.boundary_capture && '{\"os\":[\"macos-15\"],\"browser\":[\"webkit\"]}' || '{\"os\":[\"ubuntu-24.04\",\"macos-14\"],\"browser\":[\"chromium\",\"firefox\",\"webkit\"],\"exclude\":[{\"os\":\"macos-14\",\"browser\":\"webkit\"}],\"include\":[{\"os\":\"macos-15\",\"browser\":\"webkit\"}]}') }}"
+        },
+        "runs-on": "${{ matrix.os }}",
+        "timeout-minutes": 20,
+        "steps": [
+          {
+            "uses": "actions/checkout@v4",
+            "with": {
+              "persist-credentials": false
+            }
+          },
+          {
+            "uses": "actions/checkout@v4",
+            "with": {
+              "repository": "QRun-IO/qqq-frontend-next",
+              "ref": "2853b9b148282ae0e6d454adab6d0f534ba48280",
+              "path": "acceptance-tools",
+              "persist-credentials": false
+            }
+          },
+          {
+            "uses": "actions/setup-java@v4",
+            "with": {
+              "distribution": "temurin",
+              "java-version": "21"
+            }
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": "22"
+            }
+          },
+          {
+            "name": "Install acceptance tools only",
+            "working-directory": "acceptance-tools",
+            "run": "corepack enable\ncorepack prepare pnpm@9.15.9 --activate\npnpm install --frozen-lockfile\npnpm exec playwright install --with-deps \"$BROWSER\"\n",
+            "env": {
+              "BROWSER": "${{ matrix.browser }}"
+            }
+          },
+          {
+            "name": "Diagnostic boundary preflight",
+            "if": "${{ inputs.boundary_capture }}",
+            "env": {
+              "EXPECTED_SHA": "${{ inputs.source_sha }}",
+              "QQQ_QUICKSTART_PREFLIGHT_OUTPUT": "${{ runner.temp }}/qqq-quickstart-diagnostic"
+            },
+            "run": "umask 077\nmkdir -p \"$QQQ_QUICKSTART_PREFLIGHT_OUTPUT\"\nnode --test qqq-sample-project/acceptance/quickstart/*.test.mjs > \"$QQQ_QUICKSTART_PREFLIGHT_OUTPUT/pure-tests.log\" 2>&1\nnode qqq-sample-project/acceptance/quickstart/boundary-preflight.mjs\n"
+          },
+          {
+            "name": "Run the public launcher lifecycle",
+            "env": {
+              "QQQ_QUICKSTART_BOUNDARY_CAPTURE": "${{ inputs.boundary_capture && '1' || '0' }}",
+              "CANDIDATE_VERSION": "${{ inputs.version }}",
+              "EXPECTED_SHA": "${{ inputs.source_sha }}",
+              "BROWSER": "${{ matrix.browser }}"
+            },
+            "run": "umask 077\nif [[ \"$GITHUB_EVENT_NAME\" == \"push\" ]]; then\n  CANDIDATE_VERSION=\"${GITHUB_REF_NAME#quickstart-}\"\n  EXPECTED_SHA=\"$(git rev-parse HEAD)\"\nfi\nrun_lifecycle() {\n  node qqq-sample-project/acceptance/quickstart/run-public.mjs \\\n    --playwright-project acceptance-tools \\\n    --output \"$RUNNER_TEMP/qqq-public-lifecycle\" \\\n    --version \"$CANDIDATE_VERSION\" --expected-sha \"$EXPECTED_SHA\" \\\n    --browser \"$BROWSER\"\n}\nif [[ \"$QQQ_QUICKSTART_BOUNDARY_CAPTURE\" == \"1\" ]]; then\n  set -o pipefail\n  mkdir -m 700 -p \"$RUNNER_TEMP/qqq-quickstart-private-protocol\"\n  DEBUG=pw:browser,pw:protocol DEBUG_FILE=\"$RUNNER_TEMP/qqq-quickstart-private-protocol/protocol.raw\" run_lifecycle 2>&1 | tee \"$RUNNER_TEMP/qqq-quickstart-diagnostic/native.log\"\nelse\n  run_lifecycle\nfi\n"
+          },
+          {
+            "name": "Summarize private first-page protocol",
+            "if": "${{ always() && inputs.boundary_capture }}",
+            "run": "umask 077\nnode qqq-sample-project/acceptance/quickstart/protocol-files.mjs \\\n  \"$RUNNER_TEMP/qqq-quickstart-private-protocol/protocol.raw\" \\\n  \"$RUNNER_TEMP/qqq-public-lifecycle/phase-journal.json\" \\\n  \"$RUNNER_TEMP/qqq-quickstart-diagnostic/first-page-protocol.json\"\n"
+          },
+          {
+            "name": "Retain lifecycle results",
+            "if": "always()",
+            "uses": "actions/upload-artifact@v4",
+            "with": {
+              "name": "quickstart-${{ matrix.os }}-${{ matrix.browser }}",
+              "if-no-files-found": "error",
+              "path": "${{ runner.temp }}/qqq-public-lifecycle/*.json\n${{ runner.temp }}/qqq-public-lifecycle/*.log\n${{ runner.temp }}/qqq-public-lifecycle/*.png\n${{ runner.temp }}/qqq-quickstart-diagnostic/*.json\n${{ runner.temp }}/qqq-quickstart-diagnostic/*.log\n"
+            }
+          }
+        ]
+      }
+    },
+    "permissions": {
+      "contents": "read"
+    }
+  },
+  "qbit-schema-drift": {
+    "repository": "QRun-IO/qbit-authentik",
+    "sha": "dbae77da5b6236268900f1238ce083f9d078d66d",
+    "path": ".github/workflows/schema-drift.yml",
+    "events": {
+      "schedule": [
+        {
+          "cron": "17 6 * * 1"
+        }
+      ],
+      "workflow_dispatch": {
+        "inputs": {
+          "version": {
+            "description": "Authentik version (e.g. 2026.10.0); empty = latest release",
+            "required": false
+          }
+        }
+      }
+    },
+    "jobs": {
+      "drift": {
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-java@v4",
+            "with": {
+              "distribution": "temurin",
+              "java-version": "21",
+              "cache": "maven"
+            }
+          },
+          {
+            "name": "Resolve version and fetch its schema",
+            "env": {
+              "GH_TOKEN": "${{ github.token }}",
+              "INPUT_VERSION": "${{ inputs.version }}"
+            },
+            "run": "version=\"${INPUT_VERSION}\"\nif [ -z \"$version\" ]; then\n  version=$(gh release view --repo goauthentik/authentik --json tagName -q .tagName | sed 's#^version/##')\nfi\necho \"Authentik $version\"\ncurl -fsSL \"https://raw.githubusercontent.com/goauthentik/authentik/version/${version}/schema.yml\" -o \"$RUNNER_TEMP/schema.yml\"\necho \"SCHEMA=$RUNNER_TEMP/schema.yml\" >> \"$GITHUB_ENV\"\n"
+          },
+          {
+            "name": "Drift test",
+            "run": "./mvnw -B -q test -Dtest=SchemaDriftTest -Dsurefire.failIfNoSpecifiedTests=false -Dauthentik.schema.file=\"$SCHEMA\""
+          }
+        ]
+      }
+    },
+    "permissions": {
+      "contents": "read"
+    }
+  }
+}

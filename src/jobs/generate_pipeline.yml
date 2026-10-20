@@ -1,0 +1,42 @@
+description: Setup entry point for the standardized manifest-driven QQQ pipelines.
+resource_class: small
+docker:
+  - image: cimg/python:3.12
+parameters:
+  orb_version:
+    type: string
+    description: Explicit version matching the imported setup orb and manifest.
+  manifest:
+    type: string
+    default: .qqq-ci.yml
+    description: Repository manifest path.
+  mongo_bind_diagnostics:
+    type: boolean
+    default: false
+    description: Core owned Mongo fixture diagnostics.
+  run_playwright:
+    type: boolean
+    default: false
+    description: Material frontend Playwright validation before test or snapshot publication.
+  next_acceptance_bundle_url:
+    type: string
+    default: ""
+    description: Core Next acceptance bundle URL.
+  next_acceptance_bundle_sha256:
+    type: string
+    default: ""
+    description: Core Next acceptance bundle SHA256.
+  next_acceptance_receipt_sha256:
+    type: string
+    default: ""
+    description: Core Next acceptance receipt SHA256.
+steps:
+  - checkout
+  - generate_pipeline:
+      orb_version: << parameters.orb_version >>
+      manifest: << parameters.manifest >>
+      mongo_bind_diagnostics: << parameters.mongo_bind_diagnostics >>
+      run_playwright: << parameters.run_playwright >>
+      next_acceptance_bundle_url: << parameters.next_acceptance_bundle_url >>
+      next_acceptance_bundle_sha256: << parameters.next_acceptance_bundle_sha256 >>
+      next_acceptance_receipt_sha256: << parameters.next_acceptance_receipt_sha256 >>

@@ -1,0 +1,12 @@
+description: >
+  Restores Maven repository downloads using all tracked Maven inputs.
+  A compatible repository fallback reuses downloads after dependency changes.
+  Maven lifecycle invocations must refresh SNAPSHOT dependencies.
+steps:
+  - run:
+      name: Fingerprint Maven inputs
+      command: <<include(scripts/maven_cache_fingerprint.sh)>>
+  - restore_cache:
+      keys:
+        - v2-maven-repository-{{ arch }}-{{ checksum "/tmp/circleci/maven-cache-fingerprint" }}
+        - v2-maven-repository-{{ arch }}-

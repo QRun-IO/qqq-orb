@@ -1,0 +1,168 @@
+version: 2.1
+
+orbs:
+  android: circleci/android@2.5.0
+  gcp-cli: circleci/gcp-cli@3.2.2
+
+jobs:
+  unit-test:
+    executor:
+      name: android/android-machine
+      tag: default
+    steps:
+      - checkout
+      - android/restore-gradle-cache
+      - android/run-tests:
+          test-command: ./gradlew testDebug
+      - android/save-gradle-cache
+      - run:
+          name: Save test results
+          command: |
+              mkdir -p ~/test-results/junit/
+              find . -type f -regex ".*/build/test-results/.*xml" -exec cp {} ~/test-results/junit/ \;
+          when: always
+      - store_test_results:
+          path: ~/test-results
+      - store_artifacts:
+          path: ~/test-results/junit
+
+  android-test:
+    parameters:
+      system-image:
+        type: string
+        default: system-images;android-30;google_apis;x86
+    executor:
+      name: android/android-machine
+      tag: default
+    steps:
+      - checkout
+      - android/start-emulator-and-run-tests:
+          test-command: ./gradlew connectedDebugAndroidTest
+          system-image: << parameters.system-image >>
+      - run:
+          name: Save test results
+          command: |
+            mkdir -p ~/test-results/junit/
+            find . -type f -regex ".*/build/outputs/androidTest-results/.*xml" -exec cp {} ~/test-results/junit/ \;
+          when: always
+      - store_test_results:
+          path: ~/test-results
+      - store_artifacts:
+          path: ~/test-results/junit
+
+  benchmarks-ftl:
+    executor:
+      name: android/android-docker
+      tag: default
+    steps:
+      - checkout
+      - android/restore-gradle-cache
+      - run:
+          name: Build app and test app
+          command: ./gradlew app:assembleRelease macrobenchmark:assemble
+      - gcp-cli/initialize:
+          gcloud-service-key: GCP_SA_KEY
+          google-project-id: GCP_PROJECT_ID
+      - run:
+          name: run on FTL
+          command: |
+            gcloud firebase test android run \
+              --type instrumentation \
+              --app app/build/outputs/apk/release/app-release.apk \
+              --test macrobenchmark/build/outputs/apk/release/macrobenchmark-release.apk \
+              --device model=redfin:,version=30,locale=en,orientation=portrait \
+              --directories-to-pull /sdcard/Download \
+              --results-bucket gs://android-sample-benchmarks \
+              --results-dir macrobenchmark \
+              --environment-variables clearPackageData=true,additionalTestOutputDir=/sdcard/Download,no-isolated-storage=true
+      - run:
+          name: Download benchmark data
+          command: |
+            mkdir ~/benchmarks
+            gsutil cp -r 'gs://android-sample-benchmarks/macrobenchmark/**/artifacts/sdcard/Download/*'  ~/benchmarks
+            gsutil rm -r gs://android-sample-benchmarks/macrobenchmark
+      - store_artifacts:
+            path: ~/benchmarks
+      - run:
+          name: Evaluate benchmark results
+          command: node scripts/eval_startup_benchmark_output.js
+
+  maven-deploy:
+    executor:
+      name: android/android-machine
+      tag: default
+    steps:
+      - checkout
+      - android/restore-gradle-cache
+      - run:
+          name: Write credentials to gradle.properties
+          command: |
+            echo "" >> gradle.properties
+            echo "githubQqqMavenRegistryUsername=${QQQ_ANDROID_MAVEN_REGISTRY_USERNAME}" >> gradle.properties
+            echo "githubQqqMavenRegistryPassword=${QQQ_ANDROID_MAVEN_REGISTRY_PASSWORD}" >> gradle.properties
+      - run:
+          name: Publish (Deploy) to Maven
+          command: |
+            ./gradlew publishMavenPublicationToGithubQqqMavenRegistryRepository
+
+  release-build:
+    executor:
+      name: android/android-docker
+      tag: default
+    steps:
+      - checkout
+      - android/restore-gradle-cache
+      - run:
+          name: Assemble release build
+          command: |
+            ./gradlew assembleRelease
+      - store_artifacts:
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
+
+workflows:
+  test-and-build:
+    jobs:
+      - unit-test
+
+      - android-test:
+          filters:
+            branches:
+              ## main will run all the versions below.
+              ignore: main
+
+      ## todo? - android-test:
+      ## todo?     matrix:
+      ## todo?       alias: android-test-all
+      ## todo?       parameters:
+      ## todo?         system-image:
+      ## todo?           - system-images;android-35;google_apis;x86
+      ## todo?           - system-images;android-34;google_apis;x86
+      ## todo?           - system-images;android-33;google_apis;x86
+      ## todo?           - system-images;android-32;google_apis;x86
+      ## todo?           - system-images;android-31;google_apis;x86
+      ## todo?           - system-images;android-30;google_apis;x86
+      ## todo?           - system-images;android-29;google_apis;x86
+      ## todo?           - system-images;android-28;google_apis;x86
+      ## todo?           - system-images;android-27;google_apis;x86
+      ## todo?           - system-images;android-26;google_apis;x86
+      ## todo?     name: android-test-<<matrix.system-image>>
+      ## todo?     filters:
+      ## todo?       branches:
+      ## todo?         only: main
+
+      ## todo? - release-build:
+      ## todo?     requires:
+      ## todo?       - unit-test
+      ## todo?       - android-test
+      ## todo?       - android-test-all
+      ## todo?     filters:
+      ## todo?       branches:
+      ## todo?         only: main
+
+      - maven-deploy:
+          requires:
+            - unit-test
+            - android-test
+          filters:
+            branches:
+              only: main

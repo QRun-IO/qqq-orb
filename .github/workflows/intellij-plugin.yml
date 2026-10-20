@@ -1,0 +1,109 @@
+name: IntelliJ plugin
+on:
+  workflow_call:
+    inputs:
+      publish:
+        type: boolean
+        default: false
+      version:
+        type: string
+        default: ''
+    secrets:
+      CERTIFICATE_CHAIN:
+        required: false
+      PRIVATE_KEY:
+        required: false
+      PRIVATE_KEY_PASSWORD:
+        required: false
+      PUBLISH_TOKEN:
+        required: false
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: intellij-${{ runner.os }}-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties', 'build.gradle.kts', 'settings.gradle.kts', 'gradle.properties') }}
+      - name: Check and package resource plugin
+        run: ./gradlew --no-daemon check buildPlugin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: intellij-plugin-${{ github.sha }}
+          path: build/distributions/*.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: intellij-gradle-reports
+          path: build/reports/
+          if-no-files-found: warn
+  publish:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.publish
+    runs-on: ubuntu-latest
+    environment: intellij-marketplace
+    concurrency:
+      group: intellij-marketplace-${{ github.repository }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Verify exact reviewed version and tag
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          version = os.environ['RELEASE_VERSION']
+          if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version):
+              raise SystemExit('Explicit immutable plugin version required')
+          versions = re.findall(r'^version\s*=\s*"([^"\n]+)"\s*$', Path('build.gradle.kts').read_text(), re.M)
+          if versions != [version] or os.environ['GITHUB_REF'] != 'refs/tags/v' + version:
+              raise SystemExit('Source version and selected vVERSION tag must match')
+          PY
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse "refs/tags/v$RELEASE_VERSION^{commit}")" = "$GITHUB_SHA"
+          remote="$(git ls-remote origin "refs/tags/v$RELEASE_VERSION" "refs/tags/v$RELEASE_VERSION^{}")"
+          resolved="$(printf '%s\n' "$remote" | awk '$2 ~ /\^\{\}$/ {print $1}')"
+          if [[ -z "$resolved" ]]; then resolved="$(printf '%s\n' "$remote" | awk 'NR==1 {print $1}')"; fi
+          test "$resolved" = "$GITHUB_SHA"
+      - name: Sign and publish verified plugin
+        env:
+          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+          PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CERTIFICATE_CHAIN"
+          test -n "$PRIVATE_KEY"
+          test -n "$PRIVATE_KEY_PASSWORD"
+          test -n "$PUBLISH_TOKEN"
+          ./gradlew --no-daemon signPlugin publishPlugin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-intellij-plugin-${{ inputs.version }}
+          path: build/distributions/*.zip
+          if-no-files-found: error

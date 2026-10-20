@@ -24,6 +24,7 @@ help:
 
 # Pack the orb using the correct command for orb development
 pack:
+	@python3 scripts/pack_pipeline.py
 	@echo "Packing orb using 'circleci orb pack'..."
 	@mkdir -p ./target/
 	@circleci orb pack src > target/qqq-orb-packed.yml
@@ -46,8 +47,42 @@ test-scripts:
 	@echo "✅ Script tests passed!"
 
 # Test all: run both orb tests and script tests
-test-all: test test-scripts
+test-all: test test-scripts test-pipelines
 	@echo "🎉 All tests completed successfully!"
+
+.PHONY: test-pipelines
+# PyYAML 6.0.3 is the same strict parser used by the setup job.
+test-pipelines: pack
+	python3 tests/test_generate_pipeline.py --packed target/qqq-orb-packed.yml
+	python3 tests/test_maven_ci_contract.py
+	bash tests/test_cli_ci_behavior.sh
+	python3 tests/test_cli_ci_contract.py
+	python3 tests/test_standardize_qbit.py
+	python3 tests/test_validate_standard.py
+	python3 tests/test_voyage_profile.py
+	python3 tests/test_next_native.py
+	python3 tests/test_auxiliary_workflows.py
+	python3 tests/test_intellij_plugin.py
+	python3 tests/test_workflow_lint.py
+	python3 tests/test_business_e2e.py
+	python3 tests/test_qctl_native.py
+	python3 -m unittest discover -s tests -p test_generate_qctl_workflow.py
+	python3 tests/test_rc_finalize_sweep.py
+	python3 tests/test_rc_guard.py
+	python3 -m unittest discover -s tests -p test_generate_rc_workflow.py
+	python3 -m unittest discover -s tests -p test_audit_estate.py
+	python3 tests/test_all_profiles.py
+	python3 tests/test_generate_all_release.py
+	python3 -m unittest discover -s tests -p 'test_qqq_all_release*.py'
+	python3 tests/test_verify_all_circle_smoke.py
+	python3 tests/test_mobile_policy_profiles.py
+	bash tests/test_all_artifact.sh
+	python3 tests/test_maven_ci_rc_completion.py
+	bash tests/test_maven_ci_push.sh
+	bash tests/test_maven_ci_cache.sh
+	bash tests/test_maven_ci_install.sh
+	bash tests/test_snapshot_refresh.sh
+	bash tests/test_maven_settings_output.sh
 
 # Clean up generated files
 clean:

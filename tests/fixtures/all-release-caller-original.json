@@ -1,0 +1,42 @@
+{
+  "repository": "QRun-IO/qqq-all",
+  "sha": "e35f1f6b99639eb998340f082fab89c7ac12426c",
+  "path": ".github/workflows/release.yml",
+  "name": "Release 4.1.0",
+  "events": {
+    "workflow_dispatch": {
+      "inputs": {
+        "version": {
+          "description": "Reviewed source version (GA or exact coordinated RC)",
+          "required": true,
+          "type": "choice",
+          "default": "4.1.0",
+          "options": [
+            "4.1.0",
+            "4.1.0-RC.1"
+          ]
+        },
+        "release_sha": {
+          "description": "Full develop commit SHA already signed and tagged with the selected version",
+          "required": true,
+          "type": "string"
+        },
+        "smoke_run_id": {
+          "description": "Successful Smoke workflow run ID for that exact develop SHA",
+          "required": true,
+          "type": "string"
+        }
+      }
+    }
+  },
+  "permissions": {
+    "actions": "read",
+    "contents": "write",
+    "packages": "write"
+  },
+  "concurrency": {
+    "group": "qqq-all-release-4.1.0",
+    "cancel-in-progress": false
+  },
+  "environment": "qqq-all-release"
+}

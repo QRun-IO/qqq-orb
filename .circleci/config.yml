@@ -1,5 +1,9 @@
 version: 2.1
 setup: true
+parameters:
+  run_rc_finalize_sweep:
+    type: boolean
+    default: false
 orbs:
   orb-tools: circleci/orb-tools@12.3
   shellcheck: circleci/shellcheck@3.2
@@ -8,8 +12,23 @@ filters: &filters
   tags:
     only: /.*/
 
+jobs:
+  rc-finalize-sweep:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Reconcile pending QBit releases
+          command: |
+            RC_REPOSITORIES_JSON="$(cat tools/rc-repositories.json)" \
+              python3 src/scripts/rc_finalize_sweep.py
+
 workflows:
   lint-pack:
+    when:
+      not: << pipeline.parameters.run_rc_finalize_sweep >>
     jobs:
       - orb-tools/lint:
           filters: *filters
@@ -27,3 +46,13 @@ workflows:
           orb_name: qqq-orb
           requires: [orb-tools/lint, orb-tools/pack, orb-tools/review, shellcheck/check]
           filters: *filters
+  reconcile-releases:
+    when: << pipeline.parameters.run_rc_finalize_sweep >>
+    jobs:
+      - rc-finalize-sweep:
+          context: qqq-maven-registry-credentials
+          filters:
+            branches:
+              only: main
+            tags:
+              ignore: /.*/

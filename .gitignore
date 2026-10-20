@@ -10,3 +10,7 @@ tests/test_data
 .idea
 
 .claude
+
+# Local Python regression-test caches.
+__pycache__/
+*.pyc

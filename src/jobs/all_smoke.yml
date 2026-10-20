@@ -1,0 +1,33 @@
+description: Run actual core HTTP or private full Compose acceptance against the exact verified jar.
+executor: java
+parameters:
+  profile:
+    type: enum
+    enum: [core, full]
+steps:
+  - checkout
+  - install_java:
+      java_version: "21"
+  - mvn_cache_restore
+  - attach_workspace:
+      at: .
+  - run:
+      name: Verify source and artifact identity
+      command: <<include(scripts/qqq_all_artifact.sh)>>
+  - when:
+      condition:
+        equal: ["<< parameters.profile >>", core]
+      steps:
+        - run:
+            name: Smoke packaged core over HTTP
+            command: <<include(scripts/qqq_all_core_smoke.sh)>>
+  - when:
+      condition:
+        equal: ["<< parameters.profile >>", full]
+      steps:
+        - run:
+            name: Smoke private full Compose over HTTP
+            command: python3 scripts/run_full_smoke.py
+        - store_artifacts:
+            path: target/smoke-diagnostics
+            destination: full-smoke-diagnostics

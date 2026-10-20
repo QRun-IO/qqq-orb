@@ -1,0 +1,278 @@
+# Orb-owned native worker extracted from frontend-next ada9946eea643eed6e2c6edb42e2446a185761b4.
+name: Real-backend acceptance
+
+# One production build feeds independent, serial-worker backends. Require "acceptance gate".
+on:
+  workflow_call:
+    inputs:
+      qqq_ref:
+        type: string
+        default: ""
+        description: QQQ source ref; empty preserves the repository variable/default.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QQQ_REF: ${{ inputs.qqq_ref || vars.QQQ_ACCEPTANCE_REF || 'develop' }}
+  NEXT_TELEMETRY_DISABLED: '1'
+  MAVEN_ARGS: -Dmaven.wagon.http.retryHandler.count=5 -Daether.transport.http.retryHandler.count=5 -Daether.connector.http.retryHandler.count=5
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      mode: ${{ steps.select.outputs.mode }}
+      matrix: ${{ steps.select.outputs.matrix }}
+      specs: ${{ steps.select.outputs.specs }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Select projects, shards and changed areas
+        id: select
+        run: node scripts/acceptance-select.mjs
+
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: QRun-IO/qqq
+          ref: ${{ env.QQQ_REF }}
+          path: qqq-backend
+      - name: Resolve QQQ source revision
+        id: qqq
+        run: echo "sha=$(git -C qqq-backend rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: qqq-cache
+        with:
+          path: ~/.m2/repository/com/kingsrook
+          key: qqq-source-${{ runner.os }}-java21-v1-${{ steps.qqq.outputs.sha }}
+      - run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Bundled UI API document matches the server's (src/lib/api/openapi/qqq-v1.json)
+        run: node scripts/check-ui-api-spec.mjs --server-spec qqq-backend/qqq-middleware-javalin/src/main/resources/openapi/v1/openapi.yaml
+      - name: Build QQQ from source
+        if: steps.qqq-cache.outputs.cache-hit != 'true'
+        run: bash scripts/ci/retry.sh 4 mvn -B -q -f qqq-backend/pom.xml install -DskipTests -Dspotbugs.skip=true -Dpmd.skip=true -Dcheckstyle.skip=true -Djacoco.skip=true
+      - name: Build and install the dashboard jar (static export)
+        run: |
+          # Equivalent to build:jar, with retries around its Maven invocation too.
+          pnpm build:export
+          bash scripts/ci/retry.sh 4 mvn -B -q clean package
+          bash scripts/ci/retry.sh 4 mvn -B -q install
+          # Failed-attempt Maven stdout must not become part of the version value.
+          bash scripts/ci/retry.sh 4 mvn -B -q help:evaluate -Dexpression=project.version -Doutput="$RUNNER_TEMP/acceptance-next-version"
+          next_version=$(cat "$RUNNER_TEMP/acceptance-next-version")
+          echo "NEXT_JAR_VERSION=$next_version" >> "$GITHUB_ENV"
+      - name: Build the sample application jar
+        working-directory: qqq-backend
+        run: |
+          # QQQ checkstyle/pmd paths are relative to this checkout.
+          bash "$GITHUB_WORKSPACE/scripts/ci/retry.sh" 4 mvn -B -q -f qqq-sample-project/pom.xml package -DskipTests -Djacoco.skip=true \
+            -Dqqq.frontend.next.version="$NEXT_JAR_VERSION"
+      - name: Stage runtime artifacts
+        run: |
+          sample_jars=(qqq-backend/qqq-sample-project/target/*-jar-with-dependencies.jar)
+          test "${#sample_jars[@]}" -eq 1
+          sample_version="${sample_jars[0]##*/}"
+          sample_version="${sample_version#qqq-sample-project-}"
+          sample_version="${sample_version%-jar-with-dependencies.jar}"
+          mkdir -p test-results/acceptance-jars
+          cp "${sample_jars[0]}" test-results/acceptance-jars/
+          # javac and the security fixture need the API JAR in addition to the fat sample JAR.
+          cp "$HOME/.m2/repository/com/kingsrook/qqq/qqq-middleware-api/$sample_version/qqq-middleware-api-$sample_version.jar" \
+            test-results/acceptance-jars/qqq-middleware-api.jar
+          tar -cf test-results/acceptance-build.tar out test-results/acceptance-jars
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: acceptance-build
+          path: test-results/acceptance-build.tar
+          if-no-files-found: error
+          retention-days: 30
+
+  shards:
+    name: acceptance ${{ matrix.project }} ${{ matrix.shard }}/${{ matrix.total }}
+    needs: [plan, build]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Installed Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: browser-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-${{ matrix.browser }}
+      - run: pnpm exec playwright install-deps ${{ matrix.browser }}
+      - if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install ${{ matrix.browser }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: acceptance-build
+          path: test-results
+      - name: Restore runtime artifacts
+        run: |
+          tar -xf test-results/acceptance-build.tar
+          echo "QQQ_SAMPLE_JAR=$(ls "$PWD"/test-results/acceptance-jars/*-jar-with-dependencies.jar)" >> "$GITHUB_ENV"
+          echo "QQQ_MIDDLEWARE_API_JAR=$PWD/test-results/acceptance-jars/qqq-middleware-api.jar" >> "$GITHUB_ENV"
+      - name: Run shard
+        env:
+          QQQ_ACCEPTANCE_BROWSERS: ${{ matrix.project }}
+          QQQ_ACCEPTANCE_SPEC_PATHS: ${{ needs.plan.outputs.specs }}
+          QQQ_ACCEPTANCE_BLOB: '1'
+          # Environment-selected projects must not produce colliding default blob names.
+          QQQ_ACCEPTANCE_BLOB_NAME: report-${{ matrix.project }}-${{ matrix.shard }}.zip
+          QQQ_ACCEPTANCE_TRANSPORT_TRACE: '1'
+          QQQ_ACCEPTANCE_BROWSER_TRACE: ${{ (matrix.project == 'webkit' || matrix.project == 'mobile' || matrix.project == 'tablet') && 'navigation' || '0' }}
+          DEBUG: pw:browser
+        run: node scripts/acceptance.mjs --skip-build --shard=${{ matrix.shard }}/${{ matrix.total }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: acceptance-blob-${{ matrix.project }}-${{ matrix.shard }}
+          path: test-results/acceptance/blob-report/
+          if-no-files-found: error
+          retention-days: 30
+
+  gate:
+    name: acceptance gate
+    if: always()
+    needs: [plan, build, shards]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: acceptance-blob-*
+          path: test-results/acceptance/blobs
+          merge-multiple: true
+      - name: Merge shard reports
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/acceptance/report.json
+          PLAYWRIGHT_HTML_OUTPUT_DIR: test-results/acceptance/html
+          PLAYWRIGHT_HTML_OPEN: never
+        run: npx playwright merge-reports --reporter=json,html test-results/acceptance/blobs
+      - name: Evaluate acceptance matrix
+        if: always()
+        env:
+          ACCEPTANCE_MODE: ${{ needs.plan.outputs.mode }}
+        run: |
+          args=()
+          if [[ "$ACCEPTANCE_MODE" == pr ]]; then args+=(--partial); fi
+          node scripts/acceptance-gate.mjs "${args[@]}"
+      - name: Require every planned shard and successful build
+        if: always()
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          SHARDS_RESULT: ${{ needs.shards.result }}
+          PLANNED_MATRIX: ${{ needs.plan.outputs.matrix }}
+        run: |
+          test "$PLAN_RESULT" = success
+          test "$BUILD_RESULT" = success
+          test "$SHARDS_RESULT" = success
+          node --input-type=module -e 'import { existsSync } from "node:fs"; for (const { project, shard } of JSON.parse(process.env.PLANNED_MATRIX).include) { const file = "test-results/acceptance/blobs/report-" + project + "-" + shard + ".zip"; if (!existsSync(file)) throw new Error("Missing shard report: " + file); }'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: acceptance
+          path: test-results/acceptance/
+          if-no-files-found: error
+          retention-days: 30
+
+  quarantine:
+    name: acceptance quarantine (chromium)
+    needs: [plan, build]
+    if: needs.plan.outputs.mode == 'full'
+    continue-on-error: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Installed Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: browser-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
+      - run: pnpm exec playwright install-deps chromium
+      - if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install chromium
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: acceptance-build
+          path: test-results
+      - name: Restore runtime artifacts
+        run: |
+          tar -xf test-results/acceptance-build.tar
+          echo "QQQ_SAMPLE_JAR=$(ls "$PWD"/test-results/acceptance-jars/*-jar-with-dependencies.jar)" >> "$GITHUB_ENV"
+          echo "QQQ_MIDDLEWARE_API_JAR=$PWD/test-results/acceptance-jars/qqq-middleware-api.jar" >> "$GITHUB_ENV"
+      - name: Run quarantined scenarios
+        env:
+          QQQ_ACCEPTANCE_BROWSERS: chromium
+          QQQ_ACCEPTANCE_QUARANTINE: only
+          QQQ_ACCEPTANCE_TRANSPORT_TRACE: '1'
+          QQQ_ACCEPTANCE_BROWSER_TRACE: '0'
+          DEBUG: pw:browser
+        run: node scripts/acceptance.mjs --skip-build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: acceptance-quarantine
+          path: test-results/acceptance/
+          retention-days: 30

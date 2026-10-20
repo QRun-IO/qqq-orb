@@ -1,0 +1,58 @@
+{
+  "executors": {
+    "playwright": {
+      "docker": [
+        {
+          "image": "mcr.microsoft.com/playwright:v1.58.2-jammy"
+        }
+      ]
+    }
+  },
+  "jobs": {
+    "playwright_tests": {
+      "executor": "playwright",
+      "steps": [
+        "checkout",
+        {
+          "restore_cache": {
+            "keys": [
+              "npm-deps-{{ checksum \"package-lock.json\" }}",
+              "npm-deps-"
+            ]
+          }
+        },
+        {
+          "run": {
+            "name": "Install dependencies",
+            "command": "npm ci --legacy-peer-deps"
+          }
+        },
+        {
+          "save_cache": {
+            "key": "npm-deps-{{ checksum \"package-lock.json\" }}",
+            "paths": [
+              "node_modules"
+            ]
+          }
+        },
+        {
+          "run": {
+            "name": "Run Playwright visual regression tests",
+            "command": "npx playwright test"
+          }
+        },
+        {
+          "store_artifacts": {
+            "path": "playwright-report/",
+            "destination": "playwright-report"
+          }
+        },
+        {
+          "store_test_results": {
+            "path": "test-results/"
+          }
+        }
+      ]
+    }
+  }
+}
