@@ -5,7 +5,7 @@ jobs:
     - image: cimg/python:3.12
     resource_class: small
     environment:
-      QQQ_CENTRAL_DEPLOYMENT_ID: 5f9ac128-9d79-4fad-99d6-a53139337933
+      QQQ_CENTRAL_DEPLOYMENT_ID: 5440c24f-9945-4b7f-a295-9d79e695cf3c
     steps:
     - checkout
     - run:
