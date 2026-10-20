@@ -171,10 +171,9 @@ class PipelineTests(unittest.TestCase):
             data = yaml.safe_load(PACKED.read_text(encoding="utf-8"))
             steps = data["commands"]["generate_pipeline"]["steps"]
             run = next(step["run"] for step in steps if step.get("run", {}).get("shell") == "python3")
-            # CircleCI writes run commands to a script; argv has a Linux size limit.
-            packed_script = self.root / "packed-runtime.py"
-            packed_script.write_text(run["command"], encoding="utf-8")
-            command = [sys.executable, str(packed_script)]
+            # Hosted CircleCI invokes the custom Python shell with the command as argv.
+            self.assertLessEqual(len(run["command"].encode("utf-8")), 100_000)
+            command = [sys.executable, "-c", run["command"]]
         result = subprocess.run(command, cwd=self.repo, env={**self.env, **environment}, capture_output=True, text=True)
         self.assertEqual(result.returncode == 0, ok, result.stderr)
         if ok:
