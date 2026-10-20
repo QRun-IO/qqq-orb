@@ -45,6 +45,7 @@ PROFILE_PARAMETERS = {
     "app-starter": {},
     "android": {},
     "mcp-policy": {},
+    "marketing": {},
 }
 
 

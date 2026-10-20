@@ -23,6 +23,7 @@ ALL_TEMPLATE = json.loads((_TEMPLATE_DIR / "all.json").read_text(encoding="utf-8
 STARTER_TEMPLATE = json.loads((_TEMPLATE_DIR / "app-starter.json").read_text(encoding="utf-8"))
 ANDROID_TEMPLATE = json.loads((_TEMPLATE_DIR / "android.json").read_text(encoding="utf-8"))
 POLICY_TEMPLATE = json.loads((_TEMPLATE_DIR / "mcp-policy.json").read_text(encoding="utf-8"))
+MARKETING_TEMPLATE = json.loads((_TEMPLATE_DIR / "marketing.json").read_text(encoding="utf-8"))
 # END PROFILE RESOURCES
 
 
@@ -68,7 +69,7 @@ def load_manifest(path, setup_version):
     if not isinstance(data, dict):
         raise ManifestError("Manifest must be a mapping")
     profile = data.get("profile")
-    if profile not in ("qbit", "core", "frontend-material", "frontend-core", "cli", "voyage", "frontend-next", "all", "app-starter", "android", "mcp-policy"):
+    if profile not in ("qbit", "core", "frontend-material", "frontend-core", "cli", "voyage", "frontend-next", "all", "app-starter", "android", "mcp-policy", "marketing"):
         raise ManifestError("Unsupported profile")
     allowed = ("profile", "orb_version", "default_branch", "docs_only", "publish")
     if profile in ("qbit", "core"):
@@ -77,7 +78,7 @@ def load_manifest(path, setup_version):
             allowed += ("release_completion",)
     elif profile == "cli":
         allowed += ("publish_context",)
-    elif profile in ("voyage", "frontend-next", "app-starter", "android", "mcp-policy"):
+    elif profile in ("voyage", "frontend-next", "app-starter", "android", "mcp-policy", "marketing"):
         allowed = ("profile", "orb_version", "default_branch")
     elif profile == "all":
         allowed = ("profile", "orb_version", "default_branch", "publish", "publish_context")
@@ -94,6 +95,8 @@ def load_manifest(path, setup_version):
     default_branch = data.get("default_branch")
     if default_branch not in ("main", "develop"):
         raise ManifestError("default_branch must be main or develop")
+    if profile == "marketing" and default_branch != "main":
+        raise ManifestError("Marketing requires the audited main production branch")
     java = data.get("java_version", "21")
     if java not in ("17", "21"):
         raise ManifestError("java_version must be the string 17 or 21")
@@ -343,6 +346,12 @@ def cli_template(config, branch, tag):
             "workflows": {"publish_release" if publish else "test_only": {"jobs": [{"qqq-orb/cli_verify_publish": options}]}}}
 
 
+def marketing_template(config, branch, tag):
+    del config, branch, tag
+    # One final continuation; Munitor supplies jobs, never another setup pipeline.
+    return copy.deepcopy(MARKETING_TEMPLATE)
+
+
 def android_template(config, branch, tag):
     del config, branch, tag
     return copy.deepcopy(ANDROID_TEMPLATE)
@@ -382,7 +391,7 @@ def voyage_template(config, branch, tag):
 
 PROFILE_TEMPLATES = {"qbit": qbit_template, "core": core_template,
                      "frontend-material": frontend_template, "frontend-core": frontend_template,
-                     "cli": cli_template, "voyage": voyage_template, "frontend-next": next_template, "all": all_template, "app-starter": starter_template, "android": android_template, "mcp-policy": policy_template}
+                     "cli": cli_template, "voyage": voyage_template, "frontend-next": next_template, "all": all_template, "app-starter": starter_template, "android": android_template, "mcp-policy": policy_template, "marketing": marketing_template}
 
 
 def runtime_boolean(name):

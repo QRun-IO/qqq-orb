@@ -28,6 +28,51 @@ spec.loader.exec_module(pipeline)
 MANIFEST = {"profile": "qbit", "orb_version": "0.7.0", "default_branch": "develop"}
 
 
+class MarketingContractTests(unittest.TestCase):
+    def test_exact_munitor_render_and_single_continuation(self):
+        baseline = yaml.safe_load((ROOT / "tests/fixtures/marketing-munitor-0311-rendered.yml").read_text(encoding="utf-8"))
+        for branch in ("feature/example", "main", "develop", "staging", "release/1"):
+            result = pipeline.marketing_template({}, branch, "")
+            self.assertEqual(result, baseline)
+            self.assertNotIn("setup", result)
+            self.assertEqual(result["orbs"], {"munitor": "kof22/munitor@0.3.11"})
+            self.assertEqual(sum(len(w["jobs"]) for w in result["workflows"].values()), 33)
+            self.assertNotIn("generate_pipeline", json.dumps(result))
+
+    def test_production_deployment_and_actual_test_contracts(self):
+        result = pipeline.marketing_template({}, "main", "")
+        for name, workflow in result["workflows"].items():
+            jobs = {next(iter(entry)): next(iter(entry.values())) for entry in workflow["jobs"]}
+            build = jobs["munitor/node_build_and_test"]
+            self.assertEqual(build["node_version"], "22")
+            self.assertEqual(json.loads(build["test_commands"]), [
+                "npx playwright install chromium --with-deps",
+                "npm run test:chromium", "npm run lighthouse"])
+            if name == "production":
+                cd = jobs["munitor/update_cd_repo"]
+                self.assertEqual(cd["cd_repo"], "KofTwentyTwo/cluster-gitops")
+                self.assertEqual(cd["cd_path"], "tenants/qrun/website/kustomization.yaml")
+                self.assertEqual(cd["filters"], {"branches": {"only": "main"}})
+                self.assertEqual(cd["requires"], ["docker-build-push"])
+                self.assertEqual(jobs["munitor/github_release"]["requires"], ["docker-build-push"])
+                self.assertEqual(jobs["munitor/docker_build_push"]["health_path"], "/")
+                self.assertEqual(jobs["munitor/docker_build_push"]["health_port"], "3000")
+            else:
+                self.assertNotIn("munitor/update_cd_repo", jobs)
+        result["workflows"].clear()
+        self.assertEqual(len(pipeline.marketing_template({}, "main", "")["workflows"]), 5)
+
+    def test_marketing_manifest_rejects_custom_policy_and_wrong_branch(self):
+        data = {"profile": "marketing", "orb_version": "0.7.0", "default_branch": "main"}
+        with mock.patch.object(Path, "read_text", return_value=yaml.safe_dump(data)):
+            self.assertEqual(pipeline.load_manifest("unused", "0.7.0")["profile"], "marketing")
+        for change in ({"default_branch": "develop"}, {"docs_only": True},
+                       {"publish": {"release": False}}, {"node_version": "24"}):
+            with mock.patch.object(Path, "read_text", return_value=yaml.safe_dump({**data, **change})):
+                with self.assertRaises(pipeline.ManifestError):
+                    pipeline.load_manifest("unused", "0.7.0")
+
+
 class RuntimeBooleanTests(unittest.TestCase):
     def test_all_publication_is_explicit_and_develop_only(self):
         config = {"orb_version": "0.7.0", "publish": {"snapshot": False}, "publish_context": "verified"}
@@ -98,7 +143,10 @@ class PipelineTests(unittest.TestCase):
             data = yaml.safe_load(PACKED.read_text(encoding="utf-8"))
             steps = data["commands"]["generate_pipeline"]["steps"]
             run = next(step["run"] for step in steps if step.get("run", {}).get("shell") == "python3")
-            command = [sys.executable, "-c", run["command"]]
+            # CircleCI writes run commands to a script; argv has a Linux size limit.
+            packed_script = self.root / "packed-runtime.py"
+            packed_script.write_text(run["command"], encoding="utf-8")
+            command = [sys.executable, str(packed_script)]
         result = subprocess.run(command, cwd=self.repo, env={**self.env, **environment}, capture_output=True, text=True)
         self.assertEqual(result.returncode == 0, ok, result.stderr)
         if ok:
@@ -430,6 +478,13 @@ class PipelineTests(unittest.TestCase):
                 self.assertNotIn("__ORB_VERSION__", json.dumps(result))
                 if PACKED:
                     self.assertEqual(result, self.render(packed=True, CIRCLE_BRANCH="main"))
+
+    def test_marketing_source_and_packed_parity(self):
+        self.write_manifest(profile="marketing", default_branch="main")
+        result = self.render(CIRCLE_BRANCH="main")
+        self.assertEqual(result, pipeline.MARKETING_TEMPLATE)
+        if PACKED:
+            self.assertEqual(result, self.render(packed=True, CIRCLE_BRANCH="main"))
 
     @unittest.skipUnless(PACKED, "pass --packed to verify the shipped orb resource")
     def test_packed_full_profile(self):
