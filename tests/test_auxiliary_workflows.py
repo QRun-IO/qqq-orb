@@ -3,6 +3,7 @@ import importlib.util
 import json
 from pathlib import Path
 import unittest
+import xml.etree.ElementTree as ET
 import yaml
 
 ROOT = Path(__file__).parents[1]
@@ -11,6 +12,65 @@ bridge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bridge)
 ORIGINALS = json.loads((ROOT / 'tests/fixtures/auxiliary-original-workflows.json').read_text())
 SHA = 'a' * 40
+
+
+class SpecialistNativeTests(unittest.TestCase):
+    def setUp(self):
+        self.originals = json.loads((ROOT / 'tests/fixtures/specialist-native-originals.json').read_text(encoding='utf-8'))
+
+    def worker(self, kind):
+        return yaml.safe_load((ROOT / '.github/workflows' / (kind + '.yml')).read_text(encoding='utf-8'))
+
+    def test_business_database_job_and_path_filters_are_unchanged(self):
+        original = self.originals['business-db']
+        worker = self.worker('business-db')
+        self.assertEqual(worker['jobs'], original['workflow']['jobs'])
+        caller = bridge.canonical('business-db', SHA)
+        self.assertEqual(caller['on'], original['events'])
+        self.assertEqual(set(worker['jobs']), {'empty-database-migration'})
+        self.assertNotIn('secrets', caller['jobs']['validate'])
+        self.assertNotIn('schedule', caller['on'])
+
+    def test_mcp_preserves_publication_and_secret_with_one_verification(self):
+        worker = self.worker('mcp-rag')
+        original = self.originals['mcp-rag']['workflow']
+        expected_publish = copy.deepcopy(original['jobs']['publish'])
+        for step in expected_publish['steps']:
+            if step.get('name') == 'Set image name':
+                step['run'] = 'printf \'IMAGE_NAME=%s\\n\' "${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"'
+        self.assertEqual(worker['jobs']['publish'], expected_publish)
+        self.assertEqual(worker['env'], original['env'])
+        self.assertEqual(set(worker['jobs']), {'build-and-test', 'publish'})
+        steps = worker['jobs']['build-and-test']['steps']
+        commands = [step['run'] for step in steps if 'run' in step]
+        self.assertEqual(commands, ['mvn -B -ntp clean verify'])
+        verify = next(step for step in steps if 'run' in step)
+        old_verify = next(step for step in original['jobs']['build-and-test']['steps'] if 'run' in step)
+        self.assertEqual(verify['env'], old_verify['env'])
+        self.assertEqual(steps[:2], original['jobs']['build-and-test']['steps'][:2])
+        self.assertEqual(steps[3], original['jobs']['build-and-test']['steps'][3])
+        self.assertEqual(steps[4]['if'], 'always()')
+        caller = bridge.canonical('mcp-rag', SHA)
+        self.assertEqual(caller['on']['push'], {'branches': ['**']})
+        self.assertEqual(caller['on']['pull_request'], {'branches': ['main']})
+        self.assertEqual(caller['jobs']['validate']['secrets'], {
+            'QQQ_MCP_VOYAGE_API_KEY': '${{ secrets.QQQ_MCP_VOYAGE_API_KEY }}'})
+        self.assertEqual(worker['on']['workflow_call']['secrets'], {
+            'QQQ_MCP_VOYAGE_API_KEY': {'required': False}})
+
+    def test_mcp_verify_really_contains_separate_lint_compile_and_integration_gates(self):
+        pom = ET.parse(ROOT / 'tests/fixtures/mcp-rag-pom.xml')
+        ns = {'m': 'http://maven.apache.org/POM/4.0.0'}
+        plugins = {p.findtext('m:artifactId', namespaces=ns): p
+                   for p in pom.findall('./m:build/m:plugins/m:plugin', ns)}
+        style = plugins['maven-checkstyle-plugin']
+        self.assertEqual(style.findtext('m:executions/m:execution/m:phase', namespaces=ns), 'validate')
+        self.assertIn('check', [g.text for g in style.findall('.//m:goal', ns)])
+        compiler = ET.tostring(plugins['maven-compiler-plugin'], encoding='unicode')
+        self.assertIn('error_prone_core', compiler)
+        self.assertIn('ErrorProne', compiler)
+        failsafe = plugins['maven-failsafe-plugin']
+        self.assertEqual({g.text for g in failsafe.findall('.//m:goal', ns)}, {'integration-test', 'verify'})
 
 
 class AuxiliaryTests(unittest.TestCase):

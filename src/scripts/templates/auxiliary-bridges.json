@@ -155,5 +155,74 @@
         }
       }
     }
+  },
+  "mcp-rag": {
+    "repository": "QRun-IO/qqq-mcp-rag",
+    "path": ".github/workflows/build.yml",
+    "caller": {
+      "name": "Build and Publish",
+      "on": {
+        "push": {
+          "branches": [
+            "**"
+          ]
+        },
+        "pull_request": {
+          "branches": [
+            "main"
+          ]
+        },
+        "workflow_dispatch": null
+      },
+      "permissions": {
+        "contents": "read",
+        "packages": "write"
+      },
+      "jobs": {
+        "validate": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/mcp-rag.yml@WORKER_SHA",
+          "secrets": {
+            "QQQ_MCP_VOYAGE_API_KEY": "${{ secrets.QQQ_MCP_VOYAGE_API_KEY }}"
+          }
+        }
+      },
+      "concurrency": {
+        "group": "mcp-rag-${{ github.event_name }}-${{ github.ref }}",
+        "cancel-in-progress": "${{ github.ref != 'refs/heads/main' }}"
+      }
+    }
+  },
+  "business-db": {
+    "repository": "QRun-IO/qqq-business-platform",
+    "path": ".github/workflows/db-migrations.yml",
+    "caller": {
+      "name": "Database migrations",
+      "on": {
+        "pull_request": {
+          "paths": [
+            "db/**",
+            "pom.xml",
+            ".github/workflows/db-migrations.yml"
+          ]
+        },
+        "push": {
+          "branches": [
+            "main"
+          ],
+          "paths": [
+            "db/**",
+            "pom.xml"
+          ]
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "jobs": {
+        "validate": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/business-db.yml@WORKER_SHA"
+        }
+      }
+    }
   }
 }
