@@ -112,6 +112,116 @@ class AuditTests(unittest.TestCase):
         report = audit.audit(entry, Snapshot({path: raw.replace(SHA, 'main')}), VERSION, SHA, POLICY)
         self.assertIn('native_maintenance_bridge_drift', [f['code'] for f in report['findings']])
 
+    def test_new_circle_profile_mappings_require_actual_configuration(self):
+        for name, profile in [('qqq-android', 'android'), ('qqq-mcp-rag-standard-policies', 'mcp-policy'), ('marketing-website', 'marketing')]:
+            entry = dict(ENTRY, name=name, nameWithOwner='QRun-IO/' + name)
+            report = audit.audit(entry, Snapshot({}), VERSION, SHA, {})
+            self.assertEqual(profile, report['profile'])
+            self.assertIn('missing_manifest', [f['code'] for f in report['findings']])
+            self.assertIn('missing_canonical_caller', [f['code'] for f in report['findings']])
+
+    def test_approved_no_ci_is_exact_allowlist_with_evidence_not_check_pass(self):
+        self.assertEqual(9, len(audit.NO_CI))
+        for repository, policy in audit.NO_CI.items():
+            entry = dict(ENTRY, name=repository.split('/')[-1], nameWithOwner=repository)
+            files = {path: 'identity fixture' for path in policy['required_paths']}
+            report = audit.audit(entry, Snapshot(files), VERSION, SHA, {})
+            self.assertEqual('approved-no-ci', report['classification'])
+            self.assertEqual([], report['findings'])
+            self.assertEqual('unknown', report['status'])
+            self.assertEqual('unknown', report['required_checks']['main']['state'])
+            for new_path in ['.github/workflows/new.yml', '.circleci/config.yml', '.qqq-ci.yml', 'Jenkinsfile']:
+                changed = dict(files, **{new_path: 'new CI'})
+                drift = audit.audit(entry, Snapshot(changed), VERSION, SHA, {})
+                self.assertIn('no_ci_configuration_drift', [f['code'] for f in drift['findings']])
+            missing = audit.audit(entry, Snapshot({}), VERSION, SHA, {})
+            self.assertIn('no_ci_identity_path_missing', [f['code'] for f in missing['findings']])
+
+    def test_unknown_no_ci_repo_is_not_silently_approved(self):
+        entry = dict(ENTRY, name='new-unknown-repo', nameWithOwner='QRun-IO/new-unknown-repo')
+        report = audit.audit(entry, Snapshot({}), VERSION, SHA, {})
+        self.assertIn('profile_not_assigned', [f['code'] for f in report['findings']])
+
+    def test_native_specialists_require_bridges_and_report_remaining_workflows(self):
+        for name, kind in [('qqq-mcp-rag', 'mcp-rag'), ('qqq-business-platform', 'business-db'), ('.github', 'github-workflow-lint')]:
+            entry = dict(ENTRY, name=name, nameWithOwner='QRun-IO/' + name)
+            definition = audit.auxiliary.BRIDGES[kind]
+            missing = audit.audit(entry, Snapshot({}), VERSION, SHA, {})
+            self.assertIn('missing_native_maintenance_bridge', [f['code'] for f in missing['findings']])
+            files = {item['path']: audit.generator.yaml.safe_dump(audit.auxiliary.canonical(key, SHA), sort_keys=False)
+                     for key, item in audit.auxiliary.BRIDGES.items() if item['repository'] == entry['nameWithOwner']}
+            report = audit.audit(entry, Snapshot(files), VERSION, SHA, {})
+            self.assertEqual([], report['findings'])
+            self.assertEqual('unknown', report['status'])
+            files['.circleci/config.yml'] = 'old pipeline'
+            files['.github/workflows/unconverted.yml'] = 'name: unconverted'
+            report = audit.audit(entry, Snapshot(files), VERSION, SHA, {})
+            self.assertIn('legacy_circle_pipeline', [f['code'] for f in report['findings']])
+            self.assertIn('unapproved_native_workflow', [f['code'] for f in report['findings']])
+
+    def test_owner_bootstrap_requires_real_gates_and_dependencies(self):
+        root = pathlib.Path(__file__).parents[1]
+        files = {path: (root / path).read_text(encoding='utf-8') for path in ['.circleci/config.yml', '.circleci/test-deploy.yml']}
+        entry = dict(ENTRY, name='qqq-orb', nameWithOwner='QRun-IO/qqq-orb')
+        report = audit.audit(entry, Snapshot(files), VERSION, SHA, {})
+        self.assertEqual('owner-bootstrap', report['classification'])
+        self.assertEqual([], report['findings'])
+        self.assertEqual('unknown', report['status'])
+        self.assertNotIn('missing_manifest', [f['code'] for f in report['findings']])
+        for path, old, new in [('.circleci/config.yml', 'orb-tools/pack', 'disabled-pack'),
+                               ('.circleci/test-deploy.yml', 'requires: [command-test, pipeline-contract-test]', 'requires: []'),
+                               ('.circleci/test-deploy.yml', 'circleci orb validate ', 'echo skipped ')]:
+            self.assertIn(old, files[path])
+            changed = dict(files, **{path: files[path].replace(old, new)})
+            report = audit.audit(entry, Snapshot(changed), VERSION, SHA, {})
+            self.assertIn('owner_bootstrap_gate_missing', [f['code'] for f in report['findings']])
+        report = audit.audit(entry, Snapshot({}), VERSION, SHA, {})
+        self.assertIn('owner_bootstrap_gate_missing', [f['code'] for f in report['findings']])
+
+    def test_managed_branches_explicit_main_only_and_actual_readback(self):
+        files = {'.github/workflows/build.yml': audit.qctl.generate(SHA)}
+        snapshot = Snapshot(files)
+        policy = {'managed_branches': ['main'], 'required_checks': {'main': ['native / test']}}
+        with patch.object(snapshot, 'checks', wraps=snapshot.checks) as read:
+            report = audit.audit(ENTRY, snapshot, VERSION, SHA, policy)
+            self.assertEqual('pass', report['status'])
+            self.assertEqual({'main'}, set(report['required_checks']))
+            read.assert_called_once_with('main')
+        with patch.object(snapshot, 'checks', side_effect=audit.ReadError('403 or missing branch')):
+            report = audit.audit(ENTRY, snapshot, VERSION, SHA, policy)
+            self.assertEqual('unknown', report['status'])
+        policy.pop('required_checks')
+        report = audit.audit(ENTRY, snapshot, VERSION, SHA, policy)
+        self.assertEqual('unknown', report['status'])
+
+    def test_empty_check_policy_only_for_exact_no_ci_and_actual_empty(self):
+        repository, definition = next(iter(audit.NO_CI.items()))
+        entry = dict(ENTRY, name=repository.split('/')[-1], nameWithOwner=repository)
+        files = {path: 'identity' for path in definition['required_paths']}
+        policy = {'managed_branches': ['main'], 'required_checks': {'main': []}}
+        snapshot = Snapshot(files, checks=[])
+        with patch.object(snapshot, 'checks', wraps=snapshot.checks) as read:
+            report = audit.audit(entry, snapshot, VERSION, SHA, policy)
+            self.assertEqual('pass', report['status'])
+            read.assert_called_once_with('main')
+        report = audit.audit(entry, Snapshot(files, checks=['removed CI context']), VERSION, SHA, policy)
+        self.assertEqual('stale', report['required_checks']['main']['state'])
+        self.assertIn('stale_required_merge_check', [f['code'] for f in report['findings']])
+        with patch.object(snapshot, 'checks', side_effect=audit.ReadError('404')):
+            report = audit.audit(entry, snapshot, VERSION, SHA, policy)
+            self.assertEqual('unknown', report['status'])
+        report = audit.audit(entry, snapshot, VERSION, SHA, {'managed_branches': ['main']})
+        self.assertEqual('unknown', report['status'])
+        for name in ['qctl', 'qqq-orb', 'qqq-mcp-rag', 'qbit-example', 'unknown']:
+            other = dict(ENTRY, name=name, nameWithOwner='QRun-IO/' + name)
+            with self.subTest(name=name), self.assertRaises(audit.ReadError):
+                audit.audit(other, Snapshot({}, checks=[]), VERSION, SHA, policy)
+
+    def test_invalid_managed_branches_cannot_bypass_policy(self):
+        for managed in [[], ['main', 'main'], ['feature'], 'main', None, [True]]:
+            with self.subTest(managed=managed), self.assertRaises(audit.ReadError):
+                self.native(policy={'managed_branches': managed, 'required_checks': {}})
+
     def test_gh_is_explicit_get_and_never_changes_settings(self):
         with patch.object(audit, 'command', return_value='{}') as command:
             audit.gh('repos/QRun-IO/example')

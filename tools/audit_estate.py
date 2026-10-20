@@ -37,7 +37,12 @@ rc_worker = module('generate_rc_workflow')
 PROFILES = {'qqq': 'core', 'qqq-frontend-material-dashboard': 'frontend-material',
             'qqq-frontend-core': 'frontend-core', 'qqq-cli': 'cli', 'Voyage': 'voyage',
             'qqq-frontend-next': 'frontend-next', 'qqq-all': 'all',
-            'qqq-app-starter': 'app-starter', 'qctl': 'qctl'}
+            'qqq-app-starter': 'app-starter', 'qctl': 'qctl',
+            'qqq-android': 'android', 'qqq-mcp-rag-standard-policies': 'mcp-policy',
+            'marketing-website': 'marketing', 'qqq-mcp-rag': 'native-mcp',
+            'qqq-business-platform': 'native-business', '.github': 'native-workflow-lint',
+            'qqq-orb': 'owner-bootstrap'}
+NO_CI = json.loads((ROOT / 'tools/no-ci-policy.json').read_text(encoding='utf-8'))
 
 
 class ReadError(RuntimeError):
@@ -108,6 +113,55 @@ class Snapshot:
         return sorted(contexts)
 
 
+def owner_gate_errors(snapshot):
+    """Check the owner's two-stage lint/test/publication graph, not a self-consuming manifest."""
+    try:
+        setup = standard.load_yaml(snapshot.read('.circleci/config.yml') or '')
+        deploy = standard.load_yaml(snapshot.read('.circleci/test-deploy.yml') or '')
+        if not isinstance(setup, dict) or not isinstance(deploy, dict):
+            return ['missing owner setup or test-deploy mapping']
+        def invocations(config, workflow):
+            result = {}
+            for item in config['workflows'][workflow]['jobs']:
+                if isinstance(item, str):
+                    result[item] = {}
+                else:
+                    name, options = next(iter(item.items()))
+                    result[name] = options or {}
+            return result
+        errors = []
+        lint = invocations(setup, 'lint-pack')
+        gates = {'orb-tools/lint', 'orb-tools/pack', 'orb-tools/review', 'shellcheck/check'}
+        if setup.get('setup') is not True or not gates.issubset(lint):
+            errors.append('lint/pack/review/shellcheck setup gates')
+        if not gates.issubset(set(lint.get('orb-tools/continue', {}).get('requires', []))):
+            errors.append('continuation must depend on every lint/pack/review/shellcheck gate')
+        tests = invocations(deploy, 'test-deploy')
+        required = {'command-test', 'pipeline-contract-test'}
+        for test in required:
+            definition = deploy.get('jobs', {}).get(test, {})
+            if test not in tests or not definition.get('steps') or not any(isinstance(step, dict) and 'run' in step for step in definition['steps']):
+                errors.append('executable test gate ' + test)
+        for name, branch in [('publish-dev-snapshot', 'develop'), ('publish-production', 'main')]:
+            invocation = tests.get(name, {})
+            if not required.issubset(set(invocation.get('requires', []))):
+                errors.append(name + ' must require both test gates')
+            if invocation.get('filters', {}).get('branches', {}).get('only') != [branch]:
+                errors.append(name + ' branch filter')
+            commands = []
+            for step in deploy.get('jobs', {}).get(name, {}).get('steps', []):
+                if isinstance(step, dict) and 'run' in step:
+                    run = step['run']
+                    commands.append(run if isinstance(run, str) else run.get('command', ''))
+            command = '\n'.join(commands)
+            for operation in ('circleci orb pack ', 'circleci orb validate ', 'circleci orb publish '):
+                if operation not in command:
+                    errors.append(name + ' missing ' + operation.strip())
+        return errors
+    except (ValueError, TypeError, KeyError, AttributeError):
+        return ['invalid owner bootstrap configuration']
+
+
 def audit(entry, snapshot, version, worker_sha, policy):
     name = entry['name']
     profile = policy.get('profile') or ('qbit' if name.startswith('qbit-') else PROFILES.get(name))
@@ -118,7 +172,7 @@ def audit(entry, snapshot, version, worker_sha, policy):
         findings.append({k: v for k, v in {'code': code, 'path': path, 'detail': detail}.items() if v is not None})
     native = profile in ('qctl', 'frontend-next')
     rc_enabled = policy.get('rc_release') is True
-    if profile != 'qctl' and profile:
+    if profile in standard.PROFILE_PARAMETERS:
         raw = snapshot.read('.qqq-ci.yml')
         caller = snapshot.read('.circleci/config.yml')
         if raw is None:
@@ -204,27 +258,60 @@ def audit(entry, snapshot, version, worker_sha, policy):
                     finding('invalid_native_bridge', path)
             if len(primary_native_paths) != 1:
                 finding('native_bridge_missing_or_duplicate', detail={'candidates': sorted(primary_native_paths)})
-    if not profile:
+    no_ci = NO_CI.get(entry['nameWithOwner'])
+    if no_ci is not None:
+        result['classification'] = 'approved-no-ci'
+        result['no_ci_policy'] = no_ci
+        for path in no_ci['required_paths']:
+            if path not in snapshot.paths:
+                finding('no_ci_identity_path_missing', path)
+        for path in sorted(snapshot.paths):
+            if path in no_ci['forbidden_paths'] or any(path.startswith(prefix) for prefix in no_ci['forbidden_prefixes']):
+                finding('no_ci_configuration_drift', path)
+    elif not profile:
         finding('profile_not_assigned')
+    elif profile == 'owner-bootstrap':
+        result['classification'] = 'owner-bootstrap'
+        for detail in owner_gate_errors(snapshot):
+            finding('owner_bootstrap_gate_missing', detail=detail)
+    elif profile.startswith('native-'):
+        result['classification'] = 'approved-native-bridges'
+        if snapshot.read('.circleci/config.yml') is not None:
+            finding('legacy_circle_pipeline', '.circleci/config.yml', 'Retire only after hosted equivalent native checks pass')
+        for path in workflows:
+            if path not in native_paths:
+                finding('unapproved_native_workflow', path)
+
     for path in workflows:
-        if path in native_paths:
+        if path in native_paths or profile == 'owner-bootstrap':
             continue
         raw = snapshot.read(path)
         # Candidate detection only: security/release maintenance workflows are not automatically removed.
         if re.search(r'(?m)\b(?:mvnw?|npm|pnpm|yarn|gradlew?|cargo)\s+(?:clean|verify|test|build|run|package)\b', raw):
             finding('possible_duplicate_legacy_build', path)
     branches = policy.get('required_checks', {})
-    for branch in ('main', 'develop'):
+    managed = policy.get('managed_branches', ['main', 'develop'])
+    if (not isinstance(managed, list) or not managed
+            or any(branch not in ('main', 'develop') for branch in managed)
+            or len(set(managed)) != len(managed)):
+        raise ReadError('managed_branches must be a nonempty unique main/develop list')
+    result['managed_branches'] = managed
+    for branch in managed:
         if branch not in branches:
             result['required_checks'][branch] = {'state': 'unknown', 'reason': 'observed context policy missing'}
             continue
         expected = branches[branch]
-        if not isinstance(expected, list) or not expected or not all(isinstance(x, str) and x for x in expected):
-            raise ReadError('required check policy must contain nonempty observed contexts')
+        if (not isinstance(expected, list) or not all(isinstance(x, str) and x for x in expected)
+                or (not expected and no_ci is None)):
+            raise ReadError('required check policy must contain nonempty observed contexts except approved no-CI repositories')
         try:
             actual = snapshot.checks(branch)
             missing = sorted(set(expected) - set(actual))
-            result['required_checks'][branch] = {'state': 'missing' if missing else 'pass', 'actual': actual, 'expected': expected, 'missing': missing}
+            stale = sorted(actual) if no_ci is not None and not expected else []
+            state = 'stale' if stale else 'missing' if missing else 'pass'
+            result['required_checks'][branch] = {'state': state, 'actual': actual, 'expected': expected, 'missing': missing}
+            if stale:
+                finding('stale_required_merge_check', detail={'branch': branch, 'contexts': stale})
             if missing:
                 finding('missing_required_merge_check', detail={'branch': branch, 'contexts': missing})
         except ReadError:

@@ -62,6 +62,8 @@ test-pipelines: pack
 	python3 tests/test_voyage_profile.py
 	python3 tests/test_next_native.py
 	python3 tests/test_auxiliary_workflows.py
+	python3 tests/test_workflow_lint.py
+	python3 tests/test_business_e2e.py
 	python3 tests/test_qctl_native.py
 	python3 -m unittest discover -s tests -p test_generate_qctl_workflow.py
 	python3 tests/test_rc_finalize_sweep.py
@@ -69,6 +71,8 @@ test-pipelines: pack
 	python3 -m unittest discover -s tests -p test_generate_rc_workflow.py
 	python3 -m unittest discover -s tests -p test_audit_estate.py
 	python3 tests/test_all_profiles.py
+	python3 -m unittest discover -s tests -p 'test_qqq_all_release*.py'
+	python3 tests/test_verify_all_circle_smoke.py
 	python3 tests/test_mobile_policy_profiles.py
 	bash tests/test_all_artifact.sh
 	python3 tests/test_maven_ci_rc_completion.py

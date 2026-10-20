@@ -1,0 +1,131 @@
+{
+  "repository": "QRun-IO/qqq-business-platform",
+  "sha": "8af799fce97e972f81f195df969d79a959f71dbc",
+  "path": ".github/workflows/e2e.yml",
+  "events": {
+    "pull_request": null,
+    "push": {
+      "branches": [
+        "main"
+      ]
+    },
+    "schedule": [
+      {
+        "cron": "17 6 * * *"
+      }
+    ],
+    "workflow_dispatch": null
+  },
+  "workflow": {
+    "name": "Required E2E validation",
+    "permissions": {
+      "contents": "read"
+    },
+    "concurrency": {
+      "group": "e2e-${{ github.ref }}",
+      "cancel-in-progress": true
+    },
+    "jobs": {
+      "e2e": {
+        "name": "E2E / live services",
+        "runs-on": "ubuntu-latest",
+        "timeout-minutes": 30,
+        "env": {
+          "CI": "true",
+          "E2E_BASE_URL": "http://localhost:3004",
+          "E2E_API_URL": "http://localhost:18080",
+          "E2E_KEYCLOAK_URL": "http://localhost:18081",
+          "NEXTAUTH_URL": "http://localhost:3004",
+          "NEXTAUTH_SECRET": "ci-only-e2e-secret-not-for-production",
+          "KEYCLOAK_ISSUER": "http://localhost:18081/realms/qqq-platform",
+          "KEYCLOAK_CLIENT_ID": "platform-web",
+          "KEYCLOAK_CLIENT_SECRET": "platform-web-secret",
+          "API_BASE_URL_INTERNAL": "http://localhost:18080",
+          "E2E_ALERT_WEBHOOK_URL": "${{ secrets.E2E_ALERT_WEBHOOK_URL }}"
+        },
+        "steps": [
+          {
+            "uses": "actions/checkout@v4"
+          },
+          {
+            "uses": "actions/setup-node@v4",
+            "with": {
+              "node-version": 20,
+              "cache": "npm",
+              "cache-dependency-path": "web/package-lock.json"
+            }
+          },
+          {
+            "uses": "actions/setup-java@v4",
+            "with": {
+              "distribution": "temurin",
+              "java-version": "21",
+              "cache": "maven"
+            }
+          },
+          {
+            "name": "Install web dependencies and Chromium",
+            "working-directory": "web",
+            "run": "npm ci\nnpx playwright install --with-deps chromium\n"
+          },
+          {
+            "name": "Start actual platform dependencies and API",
+            "run": "docker compose -f deploy/compose/docker-compose.yml up -d --build postgres migrate keycloak minio minio-setup mailpit qqq-server"
+          },
+          {
+            "name": "Wait for actual services",
+            "shell": "bash",
+            "run": "set -euo pipefail\nwait_for() {\n  local name=\"$1\" url=\"$2\"\n  for attempt in {1..90}; do\n    if curl --fail --silent --show-error \"$url\" >/dev/null; then\n      echo \"$name is ready\"\n      return 0\n    fi\n    sleep 2\n  done\n  echo \"::error::$name did not become ready at $url\"\n  docker compose -f deploy/compose/docker-compose.yml ps\n  return 1\n}\nwait_for Keycloak \"$E2E_KEYCLOAK_URL/realms/qqq-platform/.well-known/openid-configuration\"\nwait_for API \"$E2E_API_URL/api/public/v1/health\"\n"
+          },
+          {
+            "name": "Run blocking E2E suite",
+            "working-directory": "web",
+            "run": "npm run test:e2e:ci"
+          },
+          {
+            "name": "Publish test summary",
+            "if": "always()",
+            "working-directory": "web",
+            "run": "node scripts/report-e2e-results.mjs"
+          },
+          {
+            "name": "Upload Playwright evidence",
+            "if": "always()",
+            "uses": "actions/upload-artifact@v4",
+            "with": {
+              "name": "playwright-results-${{ github.run_id }}",
+              "path": "web/playwright-report/\nweb/test-results/\n",
+              "if-no-files-found": "warn",
+              "retention-days": 14
+            }
+          },
+          {
+            "name": "Notify configured alert webhook",
+            "if": "failure() && env.E2E_ALERT_WEBHOOK_URL != ''",
+            "run": "curl --fail-with-body -X POST -H 'Content-Type: application/json' \\\n  --data \"{\\\"text\\\":\\\"E2E validation failed for $GITHUB_REPOSITORY ($GITHUB_REF_NAME): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\\\"}\" \\\n  \"$E2E_ALERT_WEBHOOK_URL\"\n"
+          },
+          {
+            "name": "Show service logs after failure",
+            "if": "failure()",
+            "run": "docker compose -f deploy/compose/docker-compose.yml logs --no-color --tail=300"
+          },
+          {
+            "name": "Stop services",
+            "if": "always()",
+            "run": "docker compose -f deploy/compose/docker-compose.yml down -v"
+          }
+        ]
+      },
+      "deployment-gate": {
+        "name": "Deployment gate / E2E passed",
+        "needs": "e2e",
+        "runs-on": "ubuntu-latest",
+        "steps": [
+          {
+            "run": "echo \"Deployment is permitted only because the live-service E2E job passed.\""
+          }
+        ]
+      }
+    }
+  }
+}

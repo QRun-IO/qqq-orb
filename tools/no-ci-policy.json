@@ -1,0 +1,146 @@
+{
+  "QRun-IO/new-qqq-application-template": {
+    "baseline_sha": "730a836a666535a361927d83f15720e91eb71541",
+    "required_paths": [
+      "README.md"
+    ],
+    "forbidden_prefixes": [
+      ".circleci/",
+      ".github/workflows/"
+    ],
+    "forbidden_paths": [
+      ".qqq-ci.yml",
+      "Jenkinsfile",
+      ".gitlab-ci.yml"
+    ],
+    "rationale": "Template source; core generated-consumer acceptance owns validation."
+  },
+  "QRun-IO/voyage-cd": {
+    "baseline_sha": "f8734e2d30b59af4909bd0a4c39fa6c9d6981d61",
+    "required_paths": [
+      "README.md"
+    ],
+    "forbidden_prefixes": [
+      ".circleci/",
+      ".github/workflows/"
+    ],
+    "forbidden_paths": [
+      ".qqq-ci.yml",
+      "Jenkinsfile",
+      ".gitlab-ci.yml"
+    ],
+    "rationale": "GitOps deployment declarations; audited repository has no CI."
+  },
+  "QRun-IO/qqq-templates-hub": {
+    "baseline_sha": "bd591168c7200ce40a3535f2052b8327056e82e0",
+    "required_paths": [
+      "templates.yaml"
+    ],
+    "forbidden_prefixes": [
+      ".circleci/",
+      ".github/workflows/"
+    ],
+    "forbidden_paths": [
+      ".qqq-ci.yml",
+      "Jenkinsfile",
+      ".gitlab-ci.yml"
+    ],
+    "rationale": "Template catalog, no standalone CI in approved snapshot."
+  },
+  "QRun-IO/qqq-meta-manager": {
+    "baseline_sha": "da17eb306bf1587cbf98a1555499e9b27f4caa50",
+    "required_paths": [
+      "README.md"
+    ],
+    "forbidden_prefixes": [
+      ".circleci/",
+      ".github/workflows/"
+    ],
+    "forbidden_paths": [
+      ".qqq-ci.yml",
+      "Jenkinsfile",
+      ".gitlab-ci.yml"
+    ],
+    "rationale": "Metadata and automation knowledge repository; no registered CI entrypoint."
+  },
+  "QRun-IO/qqq-maven-registry": {
+    "baseline_sha": "134576e4e701984635105f97c8f52aa1e27205b2",
+    "required_paths": [
+      "README.md"
+    ],
+    "forbidden_prefixes": [
+      ".circleci/",
+      ".github/workflows/"
+    ],
+    "forbidden_paths": [
+      ".qqq-ci.yml",
+      "Jenkinsfile",
+      ".gitlab-ci.yml"
+    ],
+    "rationale": "Documentation/license repository, no current package build."
+  },
+  "QRun-IO/qqq-frontend-component-sequential-workflow": {
+    "baseline_sha": "a32a7b4d437f09c09b03eb8828fccfd7de4eae7a",
+    "required_paths": [
+      "README.md"
+    ],
+    "forbidden_prefixes": [
+      ".circleci/",
+      ".github/workflows/"
+    ],
+    "forbidden_paths": [
+      ".qqq-ci.yml",
+      "Jenkinsfile",
+      ".gitlab-ci.yml"
+    ],
+    "rationale": "Component placeholder documentation with no executable CI."
+  },
+  "QRun-IO/qqq-app-developer-intellij-plugin": {
+    "baseline_sha": "7d6a0a8b76c2ca7adcf8750d15635818e677b96e",
+    "required_paths": [
+      "build.gradle.kts"
+    ],
+    "forbidden_prefixes": [
+      ".circleci/",
+      ".github/workflows/"
+    ],
+    "forbidden_paths": [
+      ".qqq-ci.yml",
+      "Jenkinsfile",
+      ".gitlab-ci.yml"
+    ],
+    "rationale": "Plugin source has no audited CI; do not invent a Gradle pipeline."
+  },
+  "QRun-IO/homebrew-qctl": {
+    "baseline_sha": "8dc185d2172c9cbf14dd5b7f83caf350430a632b",
+    "required_paths": [
+      "README.md"
+    ],
+    "forbidden_prefixes": [
+      ".circleci/",
+      ".github/workflows/"
+    ],
+    "forbidden_paths": [
+      ".qqq-ci.yml",
+      "Jenkinsfile",
+      ".gitlab-ci.yml"
+    ],
+    "rationale": "Distribution tap; qctl publication owns formula updates, no local CI."
+  },
+  "QRun-IO/.github-private": {
+    "baseline_sha": "3eb51cfc419398b2d4f1f6e5ebdeb17f3469ef8a",
+    "required_paths": [
+      "profile/README.md"
+    ],
+    "forbidden_prefixes": [
+      ".circleci/",
+      ".github/workflows/"
+    ],
+    "forbidden_paths": [
+      ".qqq-ci.yml",
+      "Jenkinsfile",
+      ".gitlab-ci.yml"
+    ],
+    "rationale": "Organization profile only, no executable CI."
+  }
+}
