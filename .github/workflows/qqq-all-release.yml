@@ -1,0 +1,175 @@
+name: qqq-all guarded release
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Reviewed source version (GA or exact coordinated RC)
+        required: true
+        type: string
+      release_sha:
+        description: Full develop commit SHA already signed and tagged with the selected version
+        required: true
+        type: string
+      smoke_run_id:
+        description: Successful Smoke workflow run ID for that exact develop SHA
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+  packages: write
+
+concurrency:
+  group: qqq-all-release-4.1.0
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: qqq-all-release
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      SMOKE_RUN_ID: ${{ inputs.smoke_run_id }}
+      RELEASE_ENABLED: ${{ vars.QQQ_ALL_RELEASE_ENABLED }}
+      LICENSE_CLEARED: ${{ vars.QQQ_ALL_RELEASE_LICENSE_APPROVED }}
+      VERSION: ${{ inputs.version }}
+      TAG: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check manual release controls and exact tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/develop
+          test "$RELEASE_ENABLED" = true
+          test "$LICENSE_CLEARED" = true
+          case "$VERSION" in 4.1.0|4.1.0-RC.1) ;; *) exit 1 ;; esac
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$SMOKE_RUN_ID" =~ ^[0-9]+$ ]]
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$RELEASE_SHA" = "$GITHUB_SHA"
+          test "$(git cat-file -t "refs/tags/$TAG")" = tag
+          test "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$RELEASE_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/git/tags/$(git rev-parse "refs/tags/$TAG")" > "$RUNNER_TEMP/tag-object.json"
+      - name: Verify upstream release, signed tag, exact-commit smoke, public pins, and public GHCR
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/QRun-IO/qqq/releases/tags/v$VERSION" > "$RUNNER_TEMP/upstream-release.json"
+          next_version="$(python3 -c 'import sys; sys.path.insert(0, "scripts"); from release_gate import properties, validate_poms; from pathlib import Path; import os; validate_poms(Path("."), os.environ["VERSION"]); print(properties(Path("qqq-all-bom/pom.xml"))["qqq-frontend-next.version"])')"
+          gh api "repos/QRun-IO/qqq-frontend-next/releases/tags/v$next_version" > "$RUNNER_TEMP/next-release.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SMOKE_RUN_ID" > "$RUNNER_TEMP/smoke-run.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SMOKE_RUN_ID/jobs?per_page=100" > "$RUNNER_TEMP/smoke-jobs.json"
+          central="https://repo.maven.apache.org/maven2/com/kingsrook/qqq"
+          for artifact in qqq-all-parent qqq-all-bom; do
+            curl --fail --silent --show-error \
+              "$central/$artifact/$VERSION/$artifact-$VERSION.pom" \
+              --output "$RUNNER_TEMP/$artifact.pom"
+          done
+          python3 scripts/release_gate.py --root . --version "$VERSION" --sha "$RELEASE_SHA" \
+            --smoke-run "$RUNNER_TEMP/smoke-run.json" \
+            --smoke-jobs "$RUNNER_TEMP/smoke-jobs.json" \
+            --published-parent "$RUNNER_TEMP/qqq-all-parent.pom" \
+            --published-bom "$RUNNER_TEMP/qqq-all-bom.pom" \
+            --upstream-release "$RUNNER_TEMP/upstream-release.json" \
+            --next-release "$RUNNER_TEMP/next-release.json" \
+            --tag-object "$RUNNER_TEMP/tag-object.json" \
+            --tag-sha "$(git rev-parse "refs/tags/$TAG")" \
+            --public-inputs "$RUNNER_TEMP/public-inputs"
+          test "$(gh api /orgs/QRun-IO/packages/container/qqq-all --jq .visibility)" = public
+          gh api --paginate 'orgs/QRun-IO/packages/container/qqq-all/versions?per_page=100' \
+            --jq '.[] | .metadata.container.tags[]?' > "$RUNNER_TEMP/ghcr-tags.txt"
+          if grep -Fxq "$VERSION" "$RUNNER_TEMP/ghcr-tags.txt"; then
+            echo "GHCR tag $VERSION already exists" >&2
+            exit 1
+          fi
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Verify release reactor
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"/>\n' > "$RUNNER_TEMP/public-settings.xml"
+          python3 -m unittest discover -s scripts -p 'test_*.py' -v
+          mvn -B -ntp -s "$RUNNER_TEMP/public-settings.xml" -gs "$RUNNER_TEMP/public-settings.xml" \
+            -Dmaven.repo.local="$RUNNER_TEMP/release-m2" verify \
+            org.apache.maven.plugins:maven-enforcer-plugin:3.5.0:enforce -Drules=requireReleaseDeps
+      - name: Recheck develop, annotated tag, and release absence before publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/branches/develop" --jq .commit.sha)" = "$RELEASE_SHA"
+          test "$(git ls-remote origin "refs/tags/$TAG" | cut -f1)" = "$(git rev-parse "refs/tags/$TAG")"
+          test "$(git ls-remote origin "refs/tags/$TAG^{}" | cut -f1)" = "$RELEASE_SHA"
+          if release_check="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" 2>&1)"; then
+            echo "GitHub release $TAG already exists" >&2
+            exit 1
+          elif [[ "$release_check" != *"HTTP 404"* ]]; then
+            echo "$release_check" >&2
+            exit 1
+          fi
+          gh api --paginate 'orgs/QRun-IO/packages/container/qqq-all/versions?per_page=100' \
+            --jq '.[] | .metadata.container.tags[]?' > "$RUNNER_TEMP/ghcr-tags-final.txt"
+          if grep -Fxq "$VERSION" "$RUNNER_TEMP/ghcr-tags-final.txt"; then
+            echo "GHCR tag $VERSION already exists" >&2
+            exit 1
+          fi
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish versioned image
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/qrun-io/qqq-all:$VERSION"
+          docker build \
+            --label org.opencontainers.image.source=https://github.com/QRun-IO/qqq-all \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --label "org.opencontainers.image.revision=$RELEASE_SHA" \
+            --tag "$image" .
+          docker push "$image"
+          printf 'Published image: %s\n' "$image" >> "$GITHUB_STEP_SUMMARY"
+      - name: Build image Compose distribution bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="$(docker image inspect --format '{{index .RepoDigests 0}}' "ghcr.io/qrun-io/qqq-all:$VERSION")"
+          python3 scripts/release_bundle.py --root . --version "$VERSION" --sha "$RELEASE_SHA" \
+            --image "$image" --output "$RUNNER_TEMP"
+      - name: Publish GitHub release with Compose bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_flags=()
+          case "$VERSION" in
+            4.1.0) ;;
+            4.1.0-RC.1) release_flags=(--prerelease --latest=false) ;;
+            *) exit 1 ;;
+          esac
+          gh release create "$TAG" "$RUNNER_TEMP/qqq-all-$VERSION.tar.gz" \
+            "$RUNNER_TEMP/qqq-all-$VERSION/compose.yaml" --repo "$GITHUB_REPOSITORY" \
+            --verify-tag --title "qqq-all $VERSION" --notes-from-tag "${release_flags[@]}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-evidence-${{ inputs.version }}
+          path: |
+            ${{ runner.temp }}/public-inputs/receipts.json
+            ${{ runner.temp }}/tag-object.json
+            ${{ runner.temp }}/upstream-release.json
+            ${{ runner.temp }}/next-release.json
+            ${{ runner.temp }}/smoke-run.json
+            ${{ runner.temp }}/smoke-jobs.json
+            ${{ runner.temp }}/qqq-all-${{ inputs.version }}/release.json

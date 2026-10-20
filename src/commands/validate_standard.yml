@@ -1,0 +1,19 @@
+description: >
+  Enforces the canonical setup caller and profile-specific pipeline parameters.
+  Run after installing pinned PyYAML and before generating the continuation.
+parameters:
+  orb_version:
+    type: string
+    description: Exact version imported by setup and pinned in the manifest.
+  manifest:
+    type: string
+    default: .qqq-ci.yml
+    description: Standard manifest path (only .qqq-ci.yml is accepted).
+steps:
+  - run:
+      name: Validate central CI ownership
+      shell: python3
+      environment:
+        QQQ_CI_ORB_VERSION: << parameters.orb_version >>
+        QQQ_CI_MANIFEST: << parameters.manifest >>
+      command: <<include(scripts/validate_standard.py)>>

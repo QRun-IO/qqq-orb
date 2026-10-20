@@ -1,0 +1,5 @@
+# Packed scripts execute on Linux regardless of the contributor's checkout OS.
+*.sh text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf

@@ -5,6 +5,10 @@ description: >
   - Commits version changes if modified (skipped for feature branches)
 
 parameters:
+  require_pushed_version:
+    type: boolean
+    default: false
+    description: "Require and record a successful version push for release completion"
   branch_type:
     type: string
     default: "snapshot"
@@ -19,4 +23,5 @@ steps:
       name: Commit version change if modified
       environment:
         BRANCH_TYPE: << parameters.branch_type >>
+        REQUIRE_PUSHED_VERSION: << parameters.require_pushed_version >>
       command: <<include(scripts/manage_version_commit.sh)>>

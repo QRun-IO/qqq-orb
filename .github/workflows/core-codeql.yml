@@ -1,0 +1,38 @@
+name: CodeQL Advanced
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - language: java-kotlin
+          build-mode: none
+        - language: javascript-typescript
+          build-mode: none
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
+    - name: Run manual build steps
+      if: matrix.build-mode == 'manual'
+      shell: bash
+      run: "echo 'If you are using a \"manual\" build mode for one or more of the' \\\n  'languages you are analyzing, replace\
+        \ this with the commands to build' \\\n  'your code, for example:'\necho '  make bootstrap'\necho '  make release'\n\
+        exit 1\n"
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v4
+      with:
+        category: /language:${{matrix.language}}
+'on':
+  workflow_call: {}

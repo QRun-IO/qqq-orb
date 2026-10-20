@@ -1,0 +1,159 @@
+{
+  "core-codeql": {
+    "repository": "QRun-IO/qqq",
+    "path": ".github/workflows/codeql.yml",
+    "caller": {
+      "name": "CodeQL Advanced",
+      "on": {
+        "push": {
+          "branches": [
+            "develop",
+            "dependabot",
+            "feature",
+            "hotfix/*",
+            "main",
+            "release/*"
+          ]
+        },
+        "pull_request": {
+          "branches": [
+            "develop",
+            "dependabot",
+            "feature",
+            "hotfix/*",
+            "main",
+            "release/*"
+          ]
+        },
+        "schedule": [
+          {
+            "cron": "41 16 * * 0"
+          }
+        ]
+      },
+      "permissions": {
+        "security-events": "write",
+        "packages": "read",
+        "actions": "read",
+        "contents": "read"
+      },
+      "jobs": {
+        "analyze": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/core-codeql.yml@WORKER_SHA"
+        }
+      }
+    }
+  },
+  "core-published-bom-consumer": {
+    "repository": "QRun-IO/qqq",
+    "path": ".github/workflows/published-bom-consumer.yml",
+    "caller": {
+      "name": "Published BOM consumer",
+      "on": {
+        "workflow_dispatch": {
+          "inputs": {
+            "version": {
+              "description": "Published QQQ release or candidate version",
+              "required": true,
+              "type": "string"
+            }
+          }
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "jobs": {
+        "verify": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/core-published-bom-consumer.yml@WORKER_SHA",
+          "with": {
+            "version": "${{ inputs.version || '' }}"
+          }
+        }
+      }
+    }
+  },
+  "core-quickstart-lifecycle": {
+    "repository": "QRun-IO/qqq",
+    "path": ".github/workflows/quickstart-lifecycle.yml",
+    "caller": {
+      "name": "Public quickstart lifecycle",
+      "on": {
+        "push": {
+          "tags": [
+            "quickstart-4.1.0-RC.1"
+          ]
+        },
+        "workflow_dispatch": {
+          "inputs": {
+            "version": {
+              "description": "Exact public candidate to verify",
+              "required": true,
+              "type": "choice",
+              "options": [
+                "4.1.0-RC.1"
+              ]
+            },
+            "source_sha": {
+              "description": "Full reviewed commit of the immutable quickstart tag",
+              "required": true,
+              "type": "string"
+            },
+            "boundary_capture": {
+              "description": "Diagnose one macOS15 WebKit lifecycle with private boundary evidence",
+              "required": false,
+              "type": "boolean",
+              "default": false
+            }
+          }
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "jobs": {
+        "lifecycle": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/core-quickstart-lifecycle.yml@WORKER_SHA",
+          "with": {
+            "version": "${{ inputs.version || '' }}",
+            "source_sha": "${{ inputs.source_sha || '' }}",
+            "boundary_capture": "${{ inputs.boundary_capture || false }}"
+          }
+        }
+      }
+    }
+  },
+  "qbit-schema-drift": {
+    "repository": "QRun-IO/qbit-authentik",
+    "path": ".github/workflows/schema-drift.yml",
+    "caller": {
+      "name": "authentik-schema-drift",
+      "on": {
+        "schedule": [
+          {
+            "cron": "17 6 * * 1"
+          }
+        ],
+        "workflow_dispatch": {
+          "inputs": {
+            "version": {
+              "description": "Authentik version (e.g. 2026.10.0); empty = latest release",
+              "required": false
+            }
+          }
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "jobs": {
+        "drift": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/qbit-schema-drift.yml@WORKER_SHA",
+          "with": {
+            "version": "${{ inputs.version || '' }}"
+          }
+        }
+      }
+    }
+  }
+}

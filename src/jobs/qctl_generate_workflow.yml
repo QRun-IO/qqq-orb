@@ -1,0 +1,11 @@
+description: Render the native qctl workflow bridge. Does not build duplicate Circle binaries or publish.
+parameters:
+  shared_ref:
+    type: string
+    description: Reviewed immutable QRun-IO/.github worker commit.
+docker:
+  - image: cimg/python:3.12
+resource_class: small
+steps:
+  - generate_qctl_workflow:
+      shared_ref: << parameters.shared_ref >>

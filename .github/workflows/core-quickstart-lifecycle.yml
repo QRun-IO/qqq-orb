@@ -1,0 +1,109 @@
+name: Public quickstart lifecycle
+permissions:
+  contents: read
+jobs:
+  lifecycle:
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.boundary_capture && '{"os":["macos-15"],"browser":["webkit"]}' || '{"os":["ubuntu-24.04","macos-14"],"browser":["chromium","firefox","webkit"],"exclude":[{"os":"macos-14","browser":"webkit"}],"include":[{"os":"macos-15","browser":"webkit"}]}')
+        }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: actions/checkout@v4
+      with:
+        repository: QRun-IO/qqq-frontend-next
+        ref: 2853b9b148282ae0e6d454adab6d0f534ba48280
+        path: acceptance-tools
+        persist-credentials: false
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    - name: Install acceptance tools only
+      working-directory: acceptance-tools
+      run: 'corepack enable
+
+        corepack prepare pnpm@9.15.9 --activate
+
+        pnpm install --frozen-lockfile
+
+        pnpm exec playwright install --with-deps "$BROWSER"
+
+        '
+      env:
+        BROWSER: ${{ matrix.browser }}
+    - name: Diagnostic boundary preflight
+      if: ${{ inputs.boundary_capture }}
+      env:
+        EXPECTED_SHA: ${{ inputs.source_sha }}
+        QQQ_QUICKSTART_PREFLIGHT_OUTPUT: ${{ runner.temp }}/qqq-quickstart-diagnostic
+      run: 'umask 077
+
+        mkdir -p "$QQQ_QUICKSTART_PREFLIGHT_OUTPUT"
+
+        node --test qqq-sample-project/acceptance/quickstart/*.test.mjs > "$QQQ_QUICKSTART_PREFLIGHT_OUTPUT/pure-tests.log"
+        2>&1
+
+        node qqq-sample-project/acceptance/quickstart/boundary-preflight.mjs
+
+        '
+    - name: Run the public launcher lifecycle
+      env:
+        QQQ_QUICKSTART_BOUNDARY_CAPTURE: ${{ inputs.boundary_capture && '1' || '0' }}
+        CANDIDATE_VERSION: ${{ inputs.version }}
+        EXPECTED_SHA: ${{ inputs.source_sha }}
+        BROWSER: ${{ matrix.browser }}
+      run: "umask 077\nif [[ \"$GITHUB_EVENT_NAME\" == \"push\" ]]; then\n  CANDIDATE_VERSION=\"${GITHUB_REF_NAME#quickstart-}\"\
+        \n  EXPECTED_SHA=\"$(git rev-parse HEAD)\"\nfi\nrun_lifecycle() {\n  node qqq-sample-project/acceptance/quickstart/run-public.mjs\
+        \ \\\n    --playwright-project acceptance-tools \\\n    --output \"$RUNNER_TEMP/qqq-public-lifecycle\" \\\n    --version\
+        \ \"$CANDIDATE_VERSION\" --expected-sha \"$EXPECTED_SHA\" \\\n    --browser \"$BROWSER\"\n}\nif [[ \"$QQQ_QUICKSTART_BOUNDARY_CAPTURE\"\
+        \ == \"1\" ]]; then\n  set -o pipefail\n  mkdir -p \"$RUNNER_TEMP/qqq-quickstart-private-protocol\"\n  DEBUG=pw:browser,pw:protocol\
+        \ DEBUG_FILE=\"$RUNNER_TEMP/qqq-quickstart-private-protocol/protocol.raw\" run_lifecycle 2>&1 | tee \"$RUNNER_TEMP/qqq-quickstart-diagnostic/native.log\"\
+        \nelse\n  run_lifecycle\nfi\n"
+    - name: Summarize private first-page protocol
+      if: ${{ always() && inputs.boundary_capture }}
+      run: "umask 077\nnode qqq-sample-project/acceptance/quickstart/protocol-files.mjs \\\n  \"$RUNNER_TEMP/qqq-quickstart-private-protocol/protocol.raw\"\
+        \ \\\n  \"$RUNNER_TEMP/qqq-public-lifecycle/phase-journal.json\" \\\n  \"$RUNNER_TEMP/qqq-quickstart-diagnostic/first-page-protocol.json\"\
+        \n"
+    - name: Retain lifecycle results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: quickstart-${{ matrix.os }}-${{ matrix.browser }}
+        if-no-files-found: error
+        path: '${{ runner.temp }}/qqq-public-lifecycle/*.json
+
+          ${{ runner.temp }}/qqq-public-lifecycle/*.log
+
+          ${{ runner.temp }}/qqq-public-lifecycle/*.png
+
+          ${{ runner.temp }}/qqq-quickstart-diagnostic/*.json
+
+          ${{ runner.temp }}/qqq-quickstart-diagnostic/*.log
+
+          '
+'on':
+  workflow_call:
+    inputs:
+      version:
+        description: Exact public candidate to verify
+        required: false
+        type: string
+        default: ''
+      source_sha:
+        description: Full reviewed commit of the immutable quickstart tag
+        required: false
+        type: string
+        default: ''
+      boundary_capture:
+        description: Diagnose one macOS15 WebKit lifecycle with private boundary evidence
+        required: false
+        type: boolean
+        default: false

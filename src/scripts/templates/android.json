@@ -1,0 +1,125 @@
+{
+  "version": 2.1,
+  "orbs": {
+    "android": "circleci/android@2.5.0",
+    "gcp-cli": "circleci/gcp-cli@3.2.2"
+  },
+  "jobs": {
+    "unit-test": {
+      "executor": {
+        "name": "android/android-machine",
+        "tag": "default"
+      },
+      "steps": [
+        "checkout",
+        "android/restore-gradle-cache",
+        {
+          "android/run-tests": {
+            "test-command": "./gradlew testDebug"
+          }
+        },
+        "android/save-gradle-cache",
+        {
+          "run": {
+            "name": "Save test results",
+            "command": "mkdir -p ~/test-results/junit/\nfind . -type f -regex \".*/build/test-results/.*xml\" -exec cp {} ~/test-results/junit/ \\;\n",
+            "when": "always"
+          }
+        },
+        {
+          "store_test_results": {
+            "path": "~/test-results"
+          }
+        },
+        {
+          "store_artifacts": {
+            "path": "~/test-results/junit"
+          }
+        }
+      ]
+    },
+    "android-test": {
+      "parameters": {
+        "system-image": {
+          "type": "string",
+          "default": "system-images;android-30;google_apis;x86"
+        }
+      },
+      "executor": {
+        "name": "android/android-machine",
+        "tag": "default"
+      },
+      "steps": [
+        "checkout",
+        {
+          "android/start-emulator-and-run-tests": {
+            "test-command": "./gradlew connectedDebugAndroidTest",
+            "system-image": "<< parameters.system-image >>"
+          }
+        },
+        {
+          "run": {
+            "name": "Save test results",
+            "command": "mkdir -p ~/test-results/junit/\nfind . -type f -regex \".*/build/outputs/androidTest-results/.*xml\" -exec cp {} ~/test-results/junit/ \\;\n",
+            "when": "always"
+          }
+        },
+        {
+          "store_test_results": {
+            "path": "~/test-results"
+          }
+        },
+        {
+          "store_artifacts": {
+            "path": "~/test-results/junit"
+          }
+        }
+      ]
+    },
+    "maven-deploy": {
+      "executor": {
+        "name": "android/android-machine",
+        "tag": "default"
+      },
+      "steps": [
+        "checkout",
+        "android/restore-gradle-cache",
+        {
+          "run": {
+            "name": "Write credentials to gradle.properties",
+            "command": "echo \"\" >> gradle.properties\necho \"githubQqqMavenRegistryUsername=${QQQ_ANDROID_MAVEN_REGISTRY_USERNAME}\" >> gradle.properties\necho \"githubQqqMavenRegistryPassword=${QQQ_ANDROID_MAVEN_REGISTRY_PASSWORD}\" >> gradle.properties\n"
+          }
+        },
+        {
+          "run": {
+            "name": "Publish (Deploy) to Maven",
+            "command": "./gradlew publishMavenPublicationToGithubQqqMavenRegistryRepository\n"
+          }
+        }
+      ]
+    }
+  },
+  "workflows": {
+    "test-and-build": {
+      "jobs": [
+        "unit-test",
+        {
+          "android-test": {}
+        },
+        {
+          "maven-deploy": {
+            "requires": [
+              "unit-test",
+              "android-test"
+            ],
+            "filters": {
+              "branches": {
+                "only": "main"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

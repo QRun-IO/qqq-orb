@@ -1,0 +1,51 @@
+name: Published BOM consumer
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+    - name: Check source and release version
+      env:
+        CANDIDATE_VERSION: ${{ inputs.version }}
+        SOURCE_REF: ${{ github.ref }}
+      run: "python3 - <<'PY'\nimport os\nimport re\nimport xml.etree.ElementTree as ET\n\nversion = os.environ[\"CANDIDATE_VERSION\"\
+        ]\nsource_ref = os.environ[\"SOURCE_REF\"]\nif not re.fullmatch(r\"4\\.1\\.0(?:-RC\\.[1-9][0-9]*)?\", version):\n\
+        \    raise SystemExit(\"Version must be 4.1.0 or a 4.1.0-RC.N candidate\")\nexpected_ref = \"refs/heads/release/4.1\"\
+        \ if \"-RC.\" in version else \"refs/tags/v4.1.0\"\nif source_ref != expected_ref:\n    raise SystemExit(f\"Select\
+        \ {expected_ref} for {version}; received {source_ref}\")\nroot = ET.parse(\"pom.xml\").getroot()\nns = {\"m\": \"\
+        http://maven.apache.org/POM/4.0.0\"}\nrevision = root.findtext(\"m:properties/m:revision\", namespaces=ns)\nif revision\
+        \ != version:\n    raise SystemExit(f\"Source revision {revision} differs from {version}\")\nPY\n"
+    - name: Resolve the public BOM from a fresh consumer
+      env:
+        CANDIDATE_VERSION: ${{ inputs.version }}
+      run: python3 qqq-sample-project/verify-published-bom.py "$CANDIDATE_VERSION"
+    - name: Retain resolution evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: published-bom-evidence
+        if-no-files-found: warn
+        path: 'qqq-sample-project/target/published-bom-*/evidence.json
+
+          qqq-sample-project/target/published-bom-*/pom.xml
+
+          qqq-sample-project/target/published-bom-*/maven.log
+
+          qqq-sample-project/target/published-bom-*/dependency-tree.json
+
+          '
+'on':
+  workflow_call:
+    inputs:
+      version:
+        description: Published QQQ release or candidate version
+        required: true
+        type: string

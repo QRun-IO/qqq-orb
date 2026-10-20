@@ -1,0 +1,11 @@
+description: Central scheduled RC finalization sweep. Requires existing cross-repository GITHUB_TOKEN context.
+parameters:
+  repositories:
+    type: string
+    description: Explicit JSON repository allowlist owned by the central schedule.
+docker:
+  - image: cimg/python:3.12
+resource_class: small
+steps:
+  - rc_finalize_sweep:
+      repositories: << parameters.repositories >>

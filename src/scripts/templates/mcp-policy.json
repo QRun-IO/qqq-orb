@@ -1,0 +1,35 @@
+{
+  "version": 2.1,
+  "jobs": {
+    "validate-patterns": {
+      "docker": [
+        {
+          "image": "cimg/python:3.12"
+        }
+      ],
+      "resource_class": "small",
+      "steps": [
+        "checkout",
+        {
+          "run": {
+            "name": "Install PyYAML",
+            "command": "pip install --disable-pip-version-check PyYAML==6.0.3"
+          }
+        },
+        {
+          "run": {
+            "name": "Validate pattern files",
+            "command": "python3 << 'EOF'\nimport yaml\nimport sys\nfrom pathlib import Path\n\nerrors = []\npattern_count = 0\n\nfor yaml_file in Path('.').rglob('*.yaml'):\n    if any(part.startswith('.') for part in yaml_file.parts):\n        continue\n\n    try:\n        with open(yaml_file) as f:\n            data = yaml.safe_load(f)\n\n        if 'patterns/' in str(yaml_file):\n            required = ['id', 'title', 'category', 'description', 'content']\n            missing = [f for f in required if f not in data]\n            if missing:\n                errors.append(f\"{yaml_file}: Missing fields: {missing}\")\n            pattern_count += 1\n\n    except yaml.YAMLError as e:\n        errors.append(f\"{yaml_file}: YAML parse error: {e}\")\n    except Exception as e:\n        errors.append(f\"{yaml_file}: Error: {e}\")\n\nprint(f\"Validated {pattern_count} pattern files\")\n\nif errors:\n    print(\"\\nErrors found:\")\n    for e in errors:\n        print(f\"  - {e}\")\n    sys.exit(1)\nelse:\n    print(\"All patterns valid\")\nEOF\n"
+          }
+        }
+      ]
+    }
+  },
+  "workflows": {
+    "validate": {
+      "jobs": [
+        "validate-patterns"
+      ]
+    }
+  }
+}

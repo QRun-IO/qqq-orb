@@ -1,0 +1,80 @@
+version: 2.1
+
+orbs:
+  qqq-orb: kingsrook/qqq-orb@0.6
+
+# â”€â”€â”€ Jobs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# The dashboard jar (static export under next-dashboard/) is published to Maven
+# Central on release tags, with the same orb commands and credentials as the
+# Material Dashboard. QApplicationJavalinServer serves it at / when it is present.
+
+commands:
+  configure-package-install:
+    steps:
+      - run:
+          name: Keep package installation unattended
+          command: |
+            # These build machines are discarded after the job; avoid the interactive needrestart prompt.
+            sudo sed -i 's|http://security.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list
+            sudo install -d /etc/needrestart/conf.d
+            printf '%s\n' '$nrconf{restart} = "l";' | sudo tee /etc/needrestart/conf.d/99-qqq-ci.conf >/dev/null
+
+jobs:
+  publish_dashboard_jar:
+    executor: qqq-orb/java
+    steps:
+      - configure-package-install
+      - checkout
+      - qqq-orb/install_java:
+          install_node: true
+          node_version: "22"
+      - run:
+          name: Verify the immutable release version
+          command: |
+            release_version="${CIRCLE_TAG#v}"
+            frontend_version=$(node -p "require('./package.json').version")
+            maven_version=$(mvn -B -q help:evaluate -Dexpression=project.version -DforceStdout)
+            test "$frontend_version" = "$release_version"
+            test "$maven_version" = "$release_version"
+      - run:
+          name: Build the static export
+          command: |
+            corepack enable
+            pnpm install --frozen-lockfile
+            pnpm typecheck
+            pnpm lint
+            pnpm test
+            pnpm build:export
+      - qqq-orb/mvn_jar_deploy
+
+# â”€â”€â”€ Workflows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# Trunk-based: main is the only long-lived branch (see CONTRIBUTING.md).
+#   test_only       â†’ every branch except main (the PR check ci/circleci: qqq-orb/node_app_test_only)
+#   publish_release â†’ main builds; v* version tags publish the dashboard jar
+
+workflows:
+
+  test_only:
+    jobs:
+      - qqq-orb/node_app_test_only:
+          filters:
+            branches:
+              ignore: main
+            tags:
+              only: []
+
+  publish_release:
+    jobs:
+      - qqq-orb/node_app_build:
+          filters:
+            branches:
+              only: [ main ]
+            tags:
+              only: [ /v.*/ ]
+      - publish_dashboard_jar:
+          context: [qqq-maven-registry-credentials]
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v[0-9]+\.[0-9]+\.[0-9]+(-RC\.[0-9]+)?$/

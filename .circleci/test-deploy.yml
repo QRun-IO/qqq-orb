@@ -22,6 +22,41 @@ main-filters: &main-filters
     only: [main]
 
 jobs:
+  pipeline-contract-test:
+    resource_class: small
+    docker:
+      - image: cimg/python:3.12-node
+    steps:
+      - checkout
+      - run:
+          name: Install the setup manifest parser
+          command: python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
+      - run:
+          name: Verify pipeline selection and Maven compatibility contracts
+          command: |
+            python3 tests/test_generate_pipeline.py
+            python3 scripts/pack_pipeline.py --check
+            bash tests/test_cli_ci_behavior.sh
+            python3 tests/test_cli_ci_contract.py
+            python3 tests/test_maven_ci_contract.py
+            python3 tests/test_standardize_qbit.py
+            python3 tests/test_validate_standard.py
+            python3 tests/test_voyage_profile.py
+            python3 tests/test_next_native.py
+            python3 tests/test_auxiliary_workflows.py
+            python3 tests/test_qctl_native.py
+            python3 -m unittest discover -s tests -p test_generate_qctl_workflow.py
+            python3 tests/test_rc_finalize_sweep.py
+            python3 -m unittest discover -s tests -p test_audit_estate.py
+            python3 tests/test_all_profiles.py
+            python3 tests/test_mobile_policy_profiles.py
+            bash tests/test_all_artifact.sh
+            python3 tests/test_maven_ci_rc_completion.py
+            bash tests/test_maven_ci_push.sh
+            bash tests/test_maven_ci_cache.sh
+            bash tests/test_maven_ci_install.sh
+            bash tests/test_snapshot_refresh.sh
+            bash tests/test_maven_settings_output.sh
   # Create jobs to test the commands of your orbs.
   # You may want to add additional validation steps to ensure the commands are working as expected.
   command-test:
@@ -102,13 +137,15 @@ workflows:
       # Test your orb's commands in a custom job and test your orb's jobs directly as a part of this workflow.
       - command-test:
           filters: *filters
+      - pipeline-contract-test:
+          filters: *filters
       # Auto-publish dev snapshot on develop
       - publish-dev-snapshot:
           context: orb-publishing
           filters: *develop-filters
-          requires: [command-test]
+          requires: [command-test, pipeline-contract-test]
       # Auto-publish production release on main
       - publish-production:
           context: orb-publishing
           filters: *main-filters
-          requires: [command-test]
+          requires: [command-test, pipeline-contract-test]

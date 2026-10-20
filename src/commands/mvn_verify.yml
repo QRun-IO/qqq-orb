@@ -1,6 +1,6 @@
 description: >
   Runs the complete Maven lifecycle including tests and generates reports
-  - Restores Maven dependency cache
+  - Saves the complete Maven dependency repository after successful verification
   - Runs Maven verify (compile, test, package, verify)
   - Collects JaCoCo code coverage reports
   - Stores test output artifacts
@@ -13,6 +13,7 @@ steps:
   - run:
       name: Run Maven Verify
       command: <<include(scripts/mvn_verify.sh)>>
+  - mvn_cache_save
   - run:
       name: Collect JaCoCo reports
       command: <<include(scripts/collect_jacoco_reports.sh)>>

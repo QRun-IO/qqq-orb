@@ -1,0 +1,13 @@
+description: >
+  Saves the Maven repository after a successful complete lifecycle.
+  Includes snapshot metadata, classifiers and installed reactor artifacts;
+  excludes user settings and credentials outside the repository.
+  Call after verify/install, never after preliminary compile alone.
+steps:
+  - run:
+      name: Fingerprint verified Maven inputs
+      command: <<include(scripts/maven_cache_fingerprint.sh)>>
+  - save_cache:
+      paths:
+        - ~/.m2/repository
+      key: v2-maven-repository-{{ arch }}-{{ checksum "/tmp/circleci/maven-cache-fingerprint" }}

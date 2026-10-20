@@ -1,0 +1,25 @@
+{
+  "version": 2.1,
+  "orbs": {
+    "qqq-orb": "kingsrook/qqq-orb@__ORB_VERSION__"
+  },
+  "workflows": {
+    "test_only": {
+      "jobs": [
+        {
+          "qqq-orb/mvn_test_only": {
+            "compile_before_verify": false,
+            "context": [
+              "qqq-maven-registry-credentials"
+            ],
+            "filters": {
+              "tags": {
+                "ignore": "/.*/"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

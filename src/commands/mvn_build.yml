@@ -1,23 +1,31 @@
 description: >
-  Builds the project and sets up the development environment
-  - Restores Maven dependency cache for faster builds
-  - Installs Chrome/ChromeDriver for browser testing
-  - Compiles the project with Maven
-  - Saves Maven cache for future builds
+  Prepares Maven settings and restores the dependency repository.
+  Browser installation and preliminary compilation retain their legacy defaults.
+  The complete verification lifecycle saves the warmed repository.
+
+parameters:
+  install_browsers:
+    type: boolean
+    default: true
+    description: "Install Chrome and ChromeDriver for browser tests"
+  compile_before_verify:
+    type: boolean
+    default: true
+    description: "Run preliminary compile; disable when a later lifecycle compiles the project"
 
 steps:
   - run:
       name: Setup Maven Settings
       command: <<include(scripts/setup_maven_settings.sh)>>
-  - restore_cache:
-      keys:
-        - v1-dependencies-{{ checksum "pom.xml" }}
-  - browser-tools/install-chrome
-  - browser-tools/install-chromedriver
-  - run:
-      name: Run Maven Compile
-      command: <<include(scripts/mvn_build_compile.sh)>>
-  - save_cache:
-      paths:
-        - ~/.m2
-      key: v1-dependencies-{{ checksum "pom.xml" }}
+  - mvn_cache_restore
+  - when:
+      condition: << parameters.install_browsers >>
+      steps:
+        - browser-tools/install-chrome
+        - browser-tools/install-chromedriver
+  - when:
+      condition: << parameters.compile_before_verify >>
+      steps:
+        - run:
+            name: Run Maven Compile
+            command: <<include(scripts/mvn_build_compile.sh)>>

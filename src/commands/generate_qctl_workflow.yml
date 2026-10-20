@@ -1,0 +1,12 @@
+description: Emit the canonical qctl native-platform GitHub bridge pinned to a reviewed central worker SHA.
+parameters:
+  shared_ref:
+    type: string
+    description: Immutable 40-character QRun-IO/.github commit containing qctl-native.yml.
+steps:
+  - run:
+      name: Generate qctl native workflow caller
+      shell: python3
+      environment:
+        QCTL_SHARED_REF: << parameters.shared_ref >>
+      command: <<include(scripts/generate_qctl_workflow.py)>>

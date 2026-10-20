@@ -1,0 +1,325 @@
+name: Build
+
+# Native macOS/Windows binaries require GitHub-hosted platforms; the orb generates the tiny caller.
+on:
+  workflow_call:
+    inputs:
+      full_native:
+        description: Qualify all five native platforms on an explicit manual run
+        type: boolean
+        default: false
+    secrets:
+      HOMEBREW_TAP_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qctl-native-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')) }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Run tests
+        run: mvn clean verify -q
+
+  build-native:
+    needs: test
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.full_native)
+    strategy:
+      matrix:
+        include: ${{ fromJSON((startsWith(github.ref, 'refs/tags/v') || inputs.full_native) && '[{"os":"ubuntu-latest","artifact":"qctl-linux-amd64"},{"os":"ubuntu-24.04-arm","artifact":"qctl-linux-arm64"},{"os":"macos-15-intel","artifact":"qctl-macos-amd64"},{"os":"macos-14","artifact":"qctl-macos-arm64"},{"os":"windows-latest","artifact":"qctl-windows-amd64.exe"}]' || '[{"os":"ubuntu-latest","artifact":"qctl-linux-amd64"}]') }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Verify artifact architecture
+        shell: bash
+        env:
+          ARTIFACT: ${{ matrix.artifact }}
+        run: |
+          case "$ARTIFACT" in
+            *arm64) [[ "$(uname -m)" == arm64 || "$(uname -m)" == aarch64 ]] ;;
+            *amd64|*amd64.exe) [[ "$(uname -m)" == x86_64 ]] ;;
+            *) exit 1 ;;
+          esac
+
+      - name: Build native image
+        run: mvn clean package -DskipTests -Pnative -q
+
+      - name: Rename artifact (Unix)
+        if: runner.os != 'Windows'
+        run: mv qctl-cli/target/qctl qctl-cli/target/${{ matrix.artifact }}
+
+      - name: Rename artifact (Windows)
+        if: runner.os == 'Windows'
+        run: mv qctl-cli/target/qctl.exe qctl-cli/target/${{ matrix.artifact }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: qctl-cli/target/${{ matrix.artifact }}
+
+  release:
+    needs: build-native
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten artifacts
+        run: |
+          mkdir -p release
+          find artifacts -type f -exec mv {} release/ \;
+          ls -la release/
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
+
+  docker:
+    needs: release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Linux AMD64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qctl-linux-amd64
+          path: .
+
+      - name: Download Linux ARM64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qctl-linux-arm64
+          path: .
+
+      - name: Prepare binaries
+        run: |
+          chmod +x qctl-linux-amd64 qctl-linux-arm64
+          # Dockerfile expects qctl-linux-amd64 and qctl-linux-arm64
+          ls -la qctl-linux-*
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packaging/docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/qrun-io/qctl:${{ github.ref_name }}
+            ghcr.io/qrun-io/qctl:latest
+
+  update-homebrew:
+    permissions:
+      contents: read
+    needs: release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Checkout homebrew-qctl tap
+        uses: actions/checkout@v4
+        with:
+          repository: QRun-IO/homebrew-qctl
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update Homebrew formula
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          VERSION="${VERSION#v}"
+
+          SHA_MACOS_ARM64=$(shasum -a 256 artifacts/qctl-macos-arm64/qctl-macos-arm64 | cut -d' ' -f1)
+          SHA_MACOS_AMD64=$(shasum -a 256 artifacts/qctl-macos-amd64/qctl-macos-amd64 | cut -d' ' -f1)
+          SHA_LINUX_ARM64=$(shasum -a 256 artifacts/qctl-linux-arm64/qctl-linux-arm64 | cut -d' ' -f1)
+          SHA_LINUX_AMD64=$(shasum -a 256 artifacts/qctl-linux-amd64/qctl-linux-amd64 | cut -d' ' -f1)
+
+          FORMULA="homebrew-tap/Formula/qctl.rb"
+
+          # Update version
+          sed -i "s/version \"[^\"]*\"/version \"${VERSION}\"/" "$FORMULA"
+
+          # Update SHA256 hashes in order: macos-arm64, macos-amd64, linux-arm64, linux-amd64
+          awk -v v1="$SHA_MACOS_ARM64" -v v2="$SHA_MACOS_AMD64" -v v3="$SHA_LINUX_ARM64" -v v4="$SHA_LINUX_AMD64" '
+            BEGIN { n = 0 }
+            /sha256/ {
+              n++
+              if (n == 1) sub(/sha256 "[^"]*"/, "sha256 \"" v1 "\"")
+              else if (n == 2) sub(/sha256 "[^"]*"/, "sha256 \"" v2 "\"")
+              else if (n == 3) sub(/sha256 "[^"]*"/, "sha256 \"" v3 "\"")
+              else if (n == 4) sub(/sha256 "[^"]*"/, "sha256 \"" v4 "\"")
+            }
+            { print }
+          ' "$FORMULA" > "$FORMULA.tmp" && mv "$FORMULA.tmp" "$FORMULA"
+
+      - name: Commit and push
+        run: |
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/qctl.rb
+          git diff --staged --quiet || git commit -m "Update qctl to ${GITHUB_REF_NAME}"
+          git push
+
+  update-scoop:
+    needs: release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qctl-windows-amd64.exe
+          path: artifacts
+
+      - name: Update Scoop manifest
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          VERSION="${VERSION#v}"
+          SHA_WINDOWS=$(shasum -a 256 artifacts/qctl-windows-amd64.exe | cut -d' ' -f1)
+
+          MANIFEST="packaging/scoop/qctl.json"
+
+          # Update version
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" "$MANIFEST"
+
+          # Update download URL version
+          sed -i "s|/download/v[^/]*/|/download/v${VERSION}/|g" "$MANIFEST"
+
+          # Update hash
+          sed -i "s/\"hash\": \"[^\"]*\"/\"hash\": \"${SHA_WINDOWS}\"/" "$MANIFEST"
+
+      - name: Clean up artifacts
+        run: rm -rf artifacts
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(scoop): update manifest to ${{ github.ref_name }}"
+          title: "chore(scoop): update manifest to ${{ github.ref_name }}"
+          body: "Automated Scoop manifest update for release ${{ github.ref_name }}"
+          branch: chore/scoop-${{ github.ref_name }}
+          base: develop
+          add-paths: packaging/scoop/qctl.json
+
+  update-aur:
+    needs: release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Download Linux AMD64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: qctl-linux-amd64
+          path: artifacts
+
+      - name: Update AUR PKGBUILD
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          VERSION="${VERSION#v}"
+          SHA_LINUX=$(shasum -a 256 artifacts/qctl-linux-amd64 | cut -d' ' -f1)
+
+          PKGBUILD="packaging/aur/PKGBUILD"
+
+          # Update version
+          sed -i "s/pkgver=.*/pkgver=${VERSION}/" "$PKGBUILD"
+
+          # Reset pkgrel for new version
+          sed -i "s/pkgrel=.*/pkgrel=1/" "$PKGBUILD"
+
+          # Update hash
+          sed -i "s/sha256sums_x86_64=('[^']*')/sha256sums_x86_64=('${SHA_LINUX}')/" "$PKGBUILD"
+
+      - name: Clean up artifacts
+        run: rm -rf artifacts
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(aur): update PKGBUILD to ${{ github.ref_name }}"
+          title: "chore(aur): update PKGBUILD to ${{ github.ref_name }}"
+          body: "Automated AUR PKGBUILD update for release ${{ github.ref_name }}"
+          branch: chore/aur-${{ github.ref_name }}
+          base: develop
+          add-paths: packaging/aur/PKGBUILD
