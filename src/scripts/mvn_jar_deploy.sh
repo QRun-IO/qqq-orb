@@ -25,4 +25,9 @@ set -e
 ##############################################
 ## Deploy signed artifacts to Maven Central ##
 ##############################################
-mvn -s /tmp/circleci/mvn-settings.xml -P release -B -DskipTests -Dgpg.keyname="$GPG_KEYNAME" -Dgpg.passphrase="$GPG_PASSPHRASE" deploy
+# Resolve CI-friendly coordinates without stripping parent/BOM configuration.
+# Flatten must share this Maven process so deploy uses the resolved project POMs.
+mvn -s /tmp/circleci/mvn-settings.xml -P release -B -DskipTests \
+  -Dgpg.keyname="$GPG_KEYNAME" -Dgpg.passphrase="$GPG_PASSPHRASE" \
+  -Dflatten.mode=resolveCiFriendliesOnly -DupdatePomFile=true \
+  org.codehaus.mojo:flatten-maven-plugin:1.7.3:flatten deploy
