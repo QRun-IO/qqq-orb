@@ -38,6 +38,7 @@ PROFILES = {'qqq': 'core', 'qqq-frontend-material-dashboard': 'frontend-material
             'qqq-frontend-core': 'frontend-core', 'qqq-cli': 'cli', 'Voyage': 'voyage',
             'qqq-frontend-next': 'frontend-next', 'qqq-all': 'all',
             'qqq-app-starter': 'app-starter', 'qctl': 'qctl',
+            'qqq-app-developer-intellij-plugin': 'intellij-plugin',
             'qqq-android': 'android', 'qqq-mcp-rag-standard-policies': 'mcp-policy',
             'marketing-website': 'marketing', 'qqq-mcp-rag': 'native-mcp',
             'qqq-business-platform': 'native-business', '.github': 'native-workflow-lint',

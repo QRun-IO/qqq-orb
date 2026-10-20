@@ -285,5 +285,127 @@
         }
       }
     }
+  },
+  "all-release": {
+    "repository": "QRun-IO/qqq-all",
+    "path": ".github/workflows/release.yml",
+    "caller": {
+      "name": "Release 4.1.0",
+      "on": {
+        "workflow_dispatch": {
+          "inputs": {
+            "version": {
+              "description": "Reviewed source version (GA or exact coordinated RC)",
+              "required": true,
+              "type": "choice",
+              "default": "4.1.0",
+              "options": [
+                "4.1.0",
+                "4.1.0-RC.1"
+              ]
+            },
+            "release_sha": {
+              "description": "Full develop commit SHA already signed and tagged with the selected version",
+              "required": true,
+              "type": "string"
+            },
+            "smoke_run_id": {
+              "description": "Successful Smoke workflow run ID for that exact develop SHA",
+              "required": false,
+              "type": "string",
+              "default": ""
+            },
+            "smoke_evidence": {
+              "description": "Evidence provider; github preserves the original Smoke workflow validation",
+              "type": "choice",
+              "default": "github",
+              "options": [
+                "github",
+                "circle"
+              ],
+              "required": true
+            },
+            "circle_workflow_id": {
+              "description": "Exact successful Circle workflow UUID when circle evidence is selected",
+              "type": "string",
+              "required": false,
+              "default": ""
+            }
+          }
+        }
+      },
+      "permissions": {
+        "actions": "read",
+        "contents": "write",
+        "packages": "write",
+        "checks": "read"
+      },
+      "jobs": {
+        "release": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/qqq-all-release.yml@WORKER_SHA",
+          "with": {
+            "version": "${{ inputs.version }}",
+            "release_sha": "${{ inputs.release_sha }}",
+            "smoke_run_id": "${{ inputs.smoke_run_id }}",
+            "smoke_evidence": "${{ inputs.smoke_evidence }}",
+            "circle_workflow_id": "${{ inputs.circle_workflow_id }}"
+          },
+          "secrets": {
+            "CIRCLECI_TOKEN": "${{ secrets.CIRCLECI_TOKEN }}"
+          }
+        }
+      }
+    }
+  },
+  "intellij-plugin": {
+    "repository": "QRun-IO/qqq-app-developer-intellij-plugin",
+    "path": ".github/workflows/build.yml",
+    "caller": {
+      "name": "IntelliJ plugin",
+      "on": {
+        "push": {
+          "branches": [
+            "main",
+            "develop"
+          ],
+          "tags": [
+            "v*"
+          ]
+        },
+        "pull_request": {
+          "branches": [
+            "main",
+            "develop"
+          ]
+        },
+        "workflow_dispatch": {
+          "inputs": {
+            "publish": {
+              "description": "Sign and publish the selected vVERSION tag after approval",
+              "type": "boolean",
+              "default": false
+            },
+            "version": {
+              "description": "Exact source version for signed Marketplace publication",
+              "type": "string",
+              "default": ""
+            }
+          }
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "jobs": {
+        "plugin": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/intellij-plugin.yml@WORKER_SHA",
+          "with": {
+            "publish": "${{ github.event_name == 'workflow_dispatch' && inputs.publish }}",
+            "version": "${{ inputs.version || '' }}"
+          },
+          "secrets": "inherit"
+        }
+      }
+    }
   }
 }

@@ -120,8 +120,16 @@ class AuditTests(unittest.TestCase):
             self.assertIn('missing_manifest', [f['code'] for f in report['findings']])
             self.assertIn('missing_canonical_caller', [f['code'] for f in report['findings']])
 
+    def test_intellij_is_native_product_not_no_ci_exception(self):
+        repository = 'QRun-IO/qqq-app-developer-intellij-plugin'
+        self.assertNotIn(repository, audit.NO_CI)
+        entry = dict(ENTRY, name='qqq-app-developer-intellij-plugin', nameWithOwner=repository)
+        report = audit.audit(entry, Snapshot({}), VERSION, SHA, POLICY)
+        self.assertEqual('intellij-plugin', report['profile'])
+        self.assertIn('missing_native_maintenance_bridge', [f['code'] for f in report['findings']])
+
     def test_approved_no_ci_is_exact_allowlist_with_evidence_not_check_pass(self):
-        self.assertEqual(9, len(audit.NO_CI))
+        self.assertEqual(8, len(audit.NO_CI))
         for repository, policy in audit.NO_CI.items():
             entry = dict(ENTRY, name=repository.split('/')[-1], nameWithOwner=repository)
             files = {path: 'identity fixture' for path in policy['required_paths']}

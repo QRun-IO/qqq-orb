@@ -95,22 +95,6 @@
     ],
     "rationale": "Component placeholder documentation with no executable CI."
   },
-  "QRun-IO/qqq-app-developer-intellij-plugin": {
-    "baseline_sha": "7d6a0a8b76c2ca7adcf8750d15635818e677b96e",
-    "required_paths": [
-      "build.gradle.kts"
-    ],
-    "forbidden_prefixes": [
-      ".circleci/",
-      ".github/workflows/"
-    ],
-    "forbidden_paths": [
-      ".qqq-ci.yml",
-      "Jenkinsfile",
-      ".gitlab-ci.yml"
-    ],
-    "rationale": "Plugin source has no audited CI; do not invent a Gradle pipeline."
-  },
   "QRun-IO/homebrew-qctl": {
     "baseline_sha": "8dc185d2172c9cbf14dd5b7f83caf350430a632b",
     "required_paths": [
