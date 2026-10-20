@@ -75,7 +75,7 @@ printf '#!/bin/bash\nexit 24\n' > "$scratch/bin/mvn"
 if "$QQQ_MAVEN_BIN_DIR/mvn" verify; then exit 1; else [[ $? -eq 24 ]]; fi
 # A shell function is not a valid native fallback and must fail closed.
 # Exported to child Bash to test rejecting a function as native Maven.
-# shellcheck disable=SC2329
+# shellcheck disable=SC2329,SC2317
 mvn() { return 0; }
 export -f mvn
 if PARAM_INSTALL_NODE=false bash "$script_dir/install_java.sh" >/dev/null 2>&1; then

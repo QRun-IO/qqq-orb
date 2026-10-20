@@ -20,7 +20,7 @@ steps:
       steps:
         - run:
             name: Smoke packaged core over HTTP
-            command: python3 scripts/run_core_smoke.py qqq-all-app/target/qqq-all-app.jar
+            command: <<include(scripts/qqq_all_core_smoke.sh)>>
   - when:
       condition:
         equal: ["<< parameters.profile >>", full]

@@ -13,10 +13,7 @@ steps:
       command: mvn -B -ntp --update-snapshots clean verify
   - run:
       name: Record framework dependency classpath for smoke diagnostics
-      command: >-
-        mvn -B -ntp --update-snapshots -pl qqq-all-app -am
-        dependency:build-classpath -DincludeGroupIds=com.kingsrook.qqq,com.kingsrook.qbits
-        -Dmdep.outputFile=target/smoke-classpath.txt
+      command: <<include(scripts/qqq_all_classpath.sh)>>
   - run:
       name: Record verified artifact identity
       environment:
