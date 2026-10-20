@@ -208,50 +208,73 @@ REQUEST_BODY=$(jq -n \
     generate_release_notes: true
   }')
 
-# Create the release with retry logic
-MAX_RETRIES=2
-RETRY_COUNT=0
-
-while [[ $RETRY_COUNT -lt $MAX_RETRIES ]]; do
-  HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-    -H "Accept: application/vnd.github.v3+json" \
-    -H "Authorization: token $GITHUB_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "$REQUEST_BODY" \
-    "$API_URL")
-
-  HTTP_BODY=$(echo "$HTTP_RESPONSE" | sed '$d')
-  HTTP_CODE=$(echo "$HTTP_RESPONSE" | tail -n1)
-
-  if [[ "$HTTP_CODE" -ge 200 ]] && [[ "$HTTP_CODE" -lt 300 ]]; then
-    RELEASE_URL=$(echo "$HTTP_BODY" | jq -r '.html_url')
-    echo "GitHub release created successfully: $RELEASE_URL"
-    exit 0
-  elif [[ "$HTTP_CODE" -ge 500 ]]; then
-    echo "Server error (HTTP $HTTP_CODE), retrying..."
-    RETRY_COUNT=$((RETRY_COUNT + 1))
-    sleep 2
-  elif [[ "$HTTP_CODE" == "422" ]]; then
-    # Check if release already exists
-    if echo "$HTTP_BODY" | grep -q "already_exists"; then
-      echo "Release for $TAG_NAME already exists, skipping"
-      exit 0
-    else
-      echo "ERROR: GitHub API returned HTTP $HTTP_CODE"
-      echo "$HTTP_BODY"
-      # Don't fail the build - artifacts are already published
-      echo "WARNING: GitHub release creation failed, but artifacts are published"
-      exit 0
-    fi
-  else
-    echo "ERROR: GitHub API returned HTTP $HTTP_CODE"
-    echo "$HTTP_BODY"
-    # Don't fail the build - artifacts are already published
-    echo "WARNING: GitHub release creation failed, but artifacts are published"
-    exit 0
+# Keep response bodies private: errors can contain repository details or echoed input.
+request_release() {
+  local method="$1" url="$2"
+  local args=(-s --connect-timeout 10 --max-time 60 -w "\n%{http_code}" -X "$method"
+    -H "Accept: application/vnd.github.v3+json"
+    -H "Authorization: token $GITHUB_TOKEN")
+  if [[ "$method" == POST ]]; then
+    args+=(-H "Content-Type: application/json" -d "$REQUEST_BODY")
   fi
-done
+  if ! HTTP_RESPONSE=$(curl "${args[@]}" "$url"); then
+    echo "ERROR: GitHub release request failed at the transport layer"
+    return 1
+  fi
+  HTTP_BODY=$(printf '%s\n' "$HTTP_RESPONSE" | sed '$d')
+  HTTP_CODE=$(printf '%s\n' "$HTTP_RESPONSE" | tail -n1)
+  if [[ ! "$HTTP_CODE" =~ ^[0-9]{3}$ ]]; then
+    echo "ERROR: GitHub release request returned an invalid HTTP status"
+    return 1
+  fi
+}
 
-echo "WARNING: GitHub release creation failed after $MAX_RETRIES retries"
-echo "Artifacts are published, continuing..."
-exit 0
+same_published_tag() {
+  jq -e --arg tag "$TAG_NAME" '.tag_name == $tag and .draft == false' \
+    <<< "$HTTP_BODY" >/dev/null 2>&1
+}
+
+MAX_ATTEMPTS=2
+for ((attempt=1; attempt<=MAX_ATTEMPTS; attempt++)); do
+  request_release POST "$API_URL"
+  case "$HTTP_CODE" in
+    2??)
+      if ! same_published_tag; then
+        echo "ERROR: GitHub release response did not confirm the requested published tag"
+        exit 1
+      fi
+      echo "GitHub release created successfully for $TAG_NAME"
+      exit 0
+      ;;
+    5??)
+      if [[ "$attempt" -lt "$MAX_ATTEMPTS" ]]; then
+        echo "GitHub server error (HTTP $HTTP_CODE); retrying release creation"
+        sleep 2
+      else
+        echo "ERROR: GitHub release creation failed after $MAX_ATTEMPTS attempts (HTTP $HTTP_CODE)"
+        exit 1
+      fi
+      ;;
+    422)
+      # A validation failure is not proof that this release already exists.
+      if ! jq -e 'any(.errors[]?; .resource == "Release" and .field == "tag_name" and .code == "already_exists")' \
+          <<< "$HTTP_BODY" >/dev/null 2>&1; then
+        echo "ERROR: GitHub release creation rejected (HTTP 422)"
+        exit 1
+      fi
+      ENCODED_TAG=$(jq -nr --arg tag "$TAG_NAME" '$tag | @uri')
+      request_release GET "$API_URL/tags/$ENCODED_TAG"
+      if [[ "$HTTP_CODE" != 200 ]] || ! same_published_tag; then
+        echo "ERROR: Existing GitHub release could not be verified for the requested published tag (HTTP $HTTP_CODE)"
+        exit 1
+      fi
+      echo "Published GitHub release for $TAG_NAME already exists; verified"
+      exit 0
+      ;;
+    *)
+      echo "ERROR: GitHub release creation failed (HTTP $HTTP_CODE)"
+      exit 1
+      ;;
+  esac
+done
+exit 1
