@@ -27,7 +27,10 @@ set -e
 ##############################################
 # Resolve CI-friendly coordinates without stripping parent/BOM configuration.
 # Flatten must share this Maven process so deploy uses the resolved project POMs.
+# Central 0.8.x: this completion flag overrides inherited literal waitUntil=uploaded.
+# Do not report a release as successful until Central confirms publication.
 mvn -s /tmp/circleci/mvn-settings.xml -P release -B -DskipTests \
   -Dgpg.keyname="$GPG_KEYNAME" -Dgpg.passphrase="$GPG_PASSPHRASE" \
+  -DwaitForPublishCompletion=true \
   -Dflatten.mode=resolveCiFriendliesOnly -DupdatePomFile=true \
   org.codehaus.mojo:flatten-maven-plugin:1.7.3:flatten deploy

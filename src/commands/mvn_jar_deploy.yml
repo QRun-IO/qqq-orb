@@ -1,9 +1,8 @@
 description: >
   Publishes artifacts to Maven Central (Sonatype Central Portal)
-  - Restores Maven dependency cache
-  - Debugs Maven settings to verify configuration
+  - Configures Maven credentials without logging settings
   - Sets up GPG signing for artifact verification
-  - Deploys signed artifacts to Maven Central using release profile
+  - Deploys signed artifacts and waits for confirmed Central release publication
   - Saves Maven cache for future builds
 
 steps:
