@@ -1,0 +1,370 @@
+# Cut briefly, then finalize from the Circle publisher completion callback.
+# The pending ref bridges runs without an allocated waiting runner. See docs/rc-release.md.
+#
+# Signing: the tag is signed with the SSH key in the QRUN_TAG_SIGNING_KEY secret (callers pass
+# `secrets: inherit`). Without it the job fails before tagging; it never creates an unsigned tag.
+#
+# Release line: develop's <revision>X.Y.Z-SNAPSHOT</revision> picks release/X.Y.Z if that branch
+# exists, else release/X.Y (created from develop when missing).
+name: qbit release candidate
+
+on:
+  workflow_call:
+    inputs:
+      dry_run:
+        description: Print the plan without merging or creating branches
+        type: boolean
+        default: false
+      finalize:
+        description: Finalize an existing cut from repository_dispatch or an explicit retry
+        type: boolean
+        default: false
+      merge_sha:
+        type: string
+        default: ''
+      bump_sha:
+        type: string
+        default: ''
+      branch:
+        type: string
+        default: ''
+      version:
+        type: string
+        default: ''
+    secrets:
+      QRUN_TAG_SIGNING_KEY:
+        description: SSH private key that signs release tags
+        required: false
+
+permissions:
+  contents: write
+  actions: read
+  checks: read
+
+# Hold the release lane across BOTH jobs, not just each independent merge/tag job.
+concurrency:
+  group: qbit-release-rc-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  cut-rc:
+    if: ${{ !inputs.finalize }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      branch: ${{ steps.merge.outputs.branch }}
+      merge_sha: ${{ steps.merge.outputs.merge_sha }}
+      merged_at: ${{ steps.merge.outputs.merged_at }}
+    steps:
+      - name: Merge develop into the release line
+        id: merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          # An unresolved release owns this ref until verified finalization or explicit recovery.
+          lock=automation/qbit-rc-pending
+          if gh api "repos/$REPO/git/ref/heads/$lock" --silent 2>/dev/null; then
+            echo "::error::An RC is unresolved ($lock); finalize or explicitly recover it before cutting another."
+            exit 1
+          fi
+          develop_sha=$(gh api "repos/$REPO/branches/develop" -q .commit.sha)
+          revision=$(gh api "repos/$REPO/contents/pom.xml?ref=$develop_sha" -q .content | base64 -d \
+            | sed -n 's:.*<revision>\(.*\)</revision>.*:\1:p' | head -n 1)
+          if [[ ! "$revision" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)-SNAPSHOT$ ]]; then
+            echo "::error::develop pom.xml <revision> must be X.Y.Z-SNAPSHOT, found '$revision'"
+            exit 1
+          fi
+          full="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+          line="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+          branch_exists() { gh api "repos/$REPO/branches/$1" --silent 2>/dev/null; }
+          if branch_exists "release/$full"; then branch="release/$full"
+          elif branch_exists "release/$line"; then branch="release/$line"
+          else branch=""; fi
+
+          if [[ "$DRY_RUN" != true ]]; then
+            # POST is atomic: a concurrent creator gets 422 and cannot steal the lock.
+            gh api "repos/$REPO/git/refs" -f ref="refs/heads/$lock" -f sha="$develop_sha" --silent
+          fi
+          if [[ -z "$branch" ]]; then
+            branch="release/$line"
+            echo "Plan: create $branch from develop $develop_sha (first RC of $full)"
+            [[ "$DRY_RUN" == true ]] && exit 0
+            gh api "repos/$REPO/git/refs" -f ref="refs/heads/$branch" -f sha="$develop_sha" --silent
+            merge_sha="$develop_sha"
+          else
+            echo "Plan: merge develop $develop_sha into $branch"
+            [[ "$DRY_RUN" == true ]] && exit 0
+            # 201 merged, 204 already up to date (nothing new to release), 409 conflict.
+            response=$(gh api --include "repos/$REPO/merges" -f base="$branch" -f head="$develop_sha" \
+              -f commit_message="Merge develop into $branch for the next $full RC" 2>&1) || true
+            status=$(printf '%s\n' "$response" | sed -n 's:^HTTP/[0-9.]* \([0-9][0-9]*\).*:\1:p' | head -n 1)
+            case "$status" in
+              201) merge_sha=$(printf '%s\n' "$response" | sed '1,/^\r\{0,1\}$/d' | jq -er .sha) ;;
+              204)
+                [[ "$(gh api "repos/$REPO/git/ref/heads/$lock" -q .object.sha)" == "$develop_sha" ]]
+                gh api -X DELETE "repos/$REPO/git/refs/heads/$lock"
+                echo "::warning::$branch already contains develop; no new RC"; exit 0 ;;
+              409) echo "::error::Merge conflict between develop and $branch; resolve it in a PR into $branch"; exit 1 ;;
+              *) echo "::error::Merge of develop into $branch failed (HTTP ${status:-unknown})"; exit 1 ;;
+            esac
+          fi
+          [[ "$(gh api "repos/$REPO/git/ref/heads/$lock" -q .object.sha)" == "$develop_sha" ]]
+          gh api -X PATCH "repos/$REPO/git/refs/heads/$lock" -f sha="$merge_sha" -F force=false --silent
+          merged_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          jq -n --arg repo "$REPO" --arg branch "$branch" --arg merge_sha "$merge_sha" \
+            --arg merged_at "$merged_at" --arg run_id "$GITHUB_RUN_ID" --arg attempt "$GITHUB_RUN_ATTEMPT" \
+            '{repo:$repo,branch:$branch,merge_sha:$merge_sha,merged_at:$merged_at,run_id:$run_id,attempt:$attempt}' \
+            > "$RUNNER_TEMP/rc-intent.json"
+          {
+            echo "branch=$branch"
+            echo "merge_sha=$merge_sha"
+            echo "merged_at=$merged_at"
+          } >> "$GITHUB_OUTPUT"
+          echo "Pushed $branch; CircleCI publish_release_candidate cuts the RC." >> "$GITHUB_STEP_SUMMARY"
+          echo "Release line: $branch. Waiting without a runner for qbit-rc-published." >> "$GITHUB_STEP_SUMMARY"
+      - name: Persist trusted release intent
+        if: steps.merge.outputs.merge_sha != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: qbit-rc-intent-${{ steps.merge.outputs.merge_sha }}
+          path: ${{ runner.temp }}/rc-intent.json
+          if-no-files-found: error
+          retention-days: 90
+
+  tag-and-release:
+    if: inputs.finalize
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Verify completion against trusted intent, then tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ inputs.branch }}
+          MERGE_SHA: ${{ inputs.merge_sha }}
+          BUMP_SHA: ${{ inputs.bump_sha }}
+          VERSION: ${{ inputs.version }}
+          SIGNING_KEY: ${{ secrets.QRUN_TAG_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$SIGNING_KEY" ]]; then
+            echo "::error::QRUN_TAG_SIGNING_KEY is not available (the caller needs 'secrets: inherit'); not creating an unsigned tag. The release captain tags this RC."
+            exit 1
+          fi
+          workdir=$(mktemp -d)
+          trap 'rm -rf "$workdir"' EXIT
+          # The evaluator is inline so a pinned reusable workflow cannot fetch mutable code.
+          cat > "$workdir/rc_guard.py" <<'PY'
+          # BEGIN RC GUARD
+          import re
+
+          class ReleaseFailure(ValueError):
+              pass
+
+          def evaluate(merge_sha, status, commit):
+              if status.get("sha") != merge_sha:
+                  raise ReleaseFailure("Status response does not identify the exact release merge")
+              # Circle's workflow Check Run is stable even when job statuses receive -1/-2 suffixes.
+              publishers = [x for x in status.get("check_runs", [])
+                            if x.get("name") == "publish_release_candidate" and x.get("app", {}).get("id") == 18001]
+              if not publishers:
+                  return ""
+              publisher = max(publishers, key=lambda x: x["id"])
+              if publisher.get("head_sha") != merge_sha:
+                  raise ReleaseFailure("Publisher Check Run identifies a different source")
+              if publisher.get("status") != "completed":
+                  return ""
+              if publisher.get("conclusion") != "success":
+                  raise ReleaseFailure("CircleCI failed for release merge: " + str(publisher.get("conclusion")))
+              message = commit.get("commit", {}).get("message", "").split("\n")[0]
+              match = re.fullmatch(r"Bump version to (\d+\.\d+\.\d+-RC\.\d+) \[skip ci\]", message)
+              if not match:
+                  return ""
+              if [x.get("sha") for x in commit.get("parents", [])] != [merge_sha]:
+                  raise ReleaseFailure("RC bump is not the direct child of the published merge")
+              return match.group(1)
+
+          def validate_intent(run, intent, repo, merge, branch, run_id):
+              if run.get("conclusion") != "success" or run.get("status") != "completed":
+                  raise ReleaseFailure("Cut run has not succeeded")
+              if run.get("event") not in ("workflow_dispatch", "pull_request") or run.get("path") != ".github/workflows/release-rc.yml":
+                  raise ReleaseFailure("Untrusted cut workflow or trigger")
+              if run.get("repository", {}).get("full_name") != repo or run.get("head_repository", {}).get("full_name") != repo:
+                  raise ReleaseFailure("Wrong cut repository")
+              actual = tuple(intent.get(x) for x in ("repo", "merge_sha", "branch", "run_id"))
+              if actual != (repo, merge, branch, run_id) or str(run.get("id")) != run_id:
+                  raise ReleaseFailure("Intent mismatch")
+              if str(run.get("run_attempt")) != intent.get("attempt"):
+                  raise ReleaseFailure("Intent from an older attempt")
+
+          def tag_action(existing_target, bump, release_exists, lock):
+              if existing_target and existing_target != bump:
+                  raise ReleaseFailure("Existing tag points at a different source")
+              if existing_target and release_exists:
+                  return "complete"
+              if not lock:
+                  raise ReleaseFailure("No matching pending intent lock")
+              return "release" if existing_target else "tag"
+
+          def validate_lock(current, expected, completed=False):
+              if current != expected and not (completed and not current):
+                  raise ReleaseFailure("Different release owns pending lock, or lock missing")
+
+          def validate_central(version, artifact, xml, modified, merged):
+              import xml.etree.ElementTree as ET
+              from email.utils import parsedate_to_datetime
+              from datetime import datetime
+              root = ET.fromstring(xml)
+              ns = {"m": "http://maven.apache.org/POM/4.0.0"}
+              if root.findtext("m:artifactId", namespaces=ns) != artifact or root.findtext("m:version", namespaces=ns) != version:
+                  raise ReleaseFailure("Central POM does not match the expected artifact/version")
+              if parsedate_to_datetime(modified).timestamp() <= datetime.fromisoformat(merged.replace("Z", "+00:00")).timestamp():
+                  raise ReleaseFailure("Central artifact predates the exact release merge")
+          # END RC GUARD
+          if __name__ == "__main__":
+              import json, sys
+              try:
+                  if sys.argv[1] == "lock":
+                      validate_lock(sys.argv[2], sys.argv[3])
+                  elif sys.argv[1] == "tag":
+                      print(tag_action(sys.argv[2], sys.argv[3], sys.argv[4] == "true", sys.argv[5]))
+                  elif sys.argv[1] == "central":
+                      validate_central(*sys.argv[2:4], open(sys.argv[4]).read(), *sys.argv[5:7])
+                  else:
+                      print(evaluate(sys.argv[1], json.load(open(sys.argv[2])), json.load(open(sys.argv[3]))))
+              except (ValueError, KeyError) as error:
+                  sys.exit(str(error))
+          PY
+
+          # Dispatch payload is only a hint. Bind it to immutable successful cut-run evidence.
+          [[ "$MERGE_SHA" =~ ^[0-9a-f]{40}$ && "$BUMP_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BRANCH" =~ ^release/[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-RC\.[0-9]+$ ]]
+          artifact_name="qbit-rc-intent-$MERGE_SHA"
+          gh api "repos/$REPO/actions/artifacts?name=$artifact_name&per_page=100" > "$workdir/artifacts.json"
+          count=$(jq --arg name "$artifact_name" '[.artifacts[] | select(.name == $name and .expired == false)] | length' "$workdir/artifacts.json")
+          if [[ "$count" == 0 ]]; then
+            [[ "$(gh api "repos/$REPO/git/ref/heads/automation/qbit-rc-pending" -q .object.sha)" == "$MERGE_SHA" ]]
+            echo "::warning::Cut artifact not visible yet; pending lock retained for central sweep."
+            exit 0
+          fi
+          artifact_id=$(jq -er --arg name "$artifact_name" \
+            '[.artifacts[] | select(.name == $name and .expired == false)] | if length == 1 then .[0].id else error("Expected one unexpired cut intent") end' "$workdir/artifacts.json")
+          cut_run=$(jq -er --argjson id "$artifact_id" '.artifacts[] | select(.id == $id) | .workflow_run.id' "$workdir/artifacts.json")
+          gh api "repos/$REPO/actions/runs/$cut_run" > "$workdir/run.json"
+          if [[ "$(jq -r .status "$workdir/run.json")" != completed ]]; then
+            echo "::warning::Cut run still completing; pending lock retained for central sweep."
+            exit 0
+          fi
+          gh api "repos/$REPO/actions/artifacts/$artifact_id/zip" > "$workdir/intent.zip"
+          python3 - "$workdir" "$REPO" "$MERGE_SHA" "$BRANCH" "$cut_run" <<'PY'
+          import json, pathlib, sys, zipfile
+          directory, repo, merge, branch, run_id = sys.argv[1:]
+          directory = pathlib.Path(directory)
+          run = json.loads((directory / "run.json").read_text())
+          with zipfile.ZipFile(directory / "intent.zip") as archive:
+              info = archive.getinfo("rc-intent.json")
+              assert info.file_size < 10000, "Oversized intent"
+              intent = json.loads(archive.read(info))
+          import importlib.util
+          spec = importlib.util.spec_from_file_location("guard", directory / "rc_guard.py")
+          guard = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(guard)
+          guard.validate_intent(run, intent, repo, merge, branch, run_id)
+          (directory / "intent.json").write_text(json.dumps(intent))
+          PY
+          MERGED_AT=$(jq -er .merged_at "$workdir/intent.json")
+          lock=automation/qbit-rc-pending
+          current_lock=$(gh api "repos/$REPO/git/ref/heads/$lock" -q .object.sha 2>/dev/null || true)
+          # A duplicate after completed finalization is safe only after tag/source checks below.
+          [[ -z "$current_lock" || "$current_lock" == "$MERGE_SHA" ]] || { echo "::error::Different release owns pending lock"; exit 1; }
+          gh api "repos/$REPO/commits/$MERGE_SHA/check-runs?filter=latest&per_page=100" \
+            | jq --arg sha "$MERGE_SHA" '{sha:$sha,check_runs:.check_runs}' > "$workdir/status.json"
+          gh api "repos/$REPO/commits/$BUMP_SHA" > "$workdir/commit.json"
+          version=$(python3 "$workdir/rc_guard.py" "$MERGE_SHA" "$workdir/status.json" "$workdir/commit.json")
+          [[ -n "$version" && "$version" == "$VERSION" ]] || { echo "::error::Publisher not successful or callback version mismatch"; exit 1; }
+          bump_sha=$BUMP_SHA
+          [[ "$(gh api "repos/$REPO/branches/$BRANCH" -q .commit.sha)" == "$bump_sha" ]] || { echo "::error::Release branch moved away from exact bump"; exit 1; }
+          # The project's own artifactId: skip the <parent> block (qbit-build-parent).
+          artifact=$(gh api "repos/$REPO/contents/pom.xml?ref=$MERGE_SHA" -q .content | base64 -d \
+            | sed '/<parent>/,/<\/parent>/d' \
+            | sed -n 's:.*<artifactId>\(qbit-[^<]*\)</artifactId>.*:\1:p' | head -n 1)
+          group_path=com/kingsrook/qbits
+
+          # Central visibility may lag deployment. A retry reuses this intent; it never cuts again.
+          # 2. Provenance: the Central artifact must exist and be newer than this merge.
+          pom="https://repo1.maven.org/maven2/$group_path/$artifact/$version/$artifact-$version.pom"
+          if [[ "$(curl -s -o /dev/null -w '%{http_code}' "$pom")" != 200 ]]; then
+            echo "::warning::Central not visible yet; pending intent retained. Retry finalization with the same payload."
+            echo "Central pending for $artifact $version; no tag created and lock retained." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          last_modified=$(curl -sI "$pom" | tr -d '\r' | sed -n 's/^[Ll]ast-[Mm]odified: //p')
+          if [[ "$(curl -s -o /dev/null -w '%{http_code}' "$pom")" != 200 || -z "$last_modified" ]]; then
+            echo "::error::$artifact $version is not on Maven Central"
+            exit 1
+          fi
+          if (( $(date -d "$last_modified" +%s) <= $(date -d "$MERGED_AT" +%s) )); then
+            echo "::error::$artifact $version on Central ($last_modified) predates this merge ($MERGED_AT); not tagging."
+            exit 1
+          fi
+
+          curl -fsS "$pom" -o "$workdir/central.pom"
+          python3 "$workdir/rc_guard.py" central "$version" "$artifact" "$workdir/central.pom" "$last_modified" "$MERGED_AT"
+
+          # 3. Signed annotated tag on the exact bump; duplicate runs must not accept a different tag.
+          existing=$(gh api "repos/$REPO/git/ref/tags/v$version" --jq '.object.sha' 2>/dev/null || true)
+          target=""; release_exists=false
+          if [[ -n "$existing" ]]; then
+            target=$(gh api "repos/$REPO/git/tags/$existing" --jq '.object.sha')
+            if gh release view "v$version" -R "$REPO" >/dev/null 2>&1; then release_exists=true; fi
+          fi
+          # Ownership was checked above, so tag_action never authorizes a different pending owner.
+          action=$(python3 "$workdir/rc_guard.py" tag "$target" "$bump_sha" "$release_exists" "$current_lock")
+          if [[ "$action" == complete ]]; then
+            if [[ "$current_lock" == "$MERGE_SHA" ]]; then
+              python3 "$workdir/rc_guard.py" lock "$(gh api "repos/$REPO/git/ref/heads/$lock" -q .object.sha)" "$MERGE_SHA"
+              gh api -X DELETE "repos/$REPO/git/refs/heads/$lock"
+            fi
+            echo "Tag and release already exist for the verified source."
+            exit 0
+          fi
+          if [[ "$action" == tag ]]; then
+          key="$workdir/signing_key"
+          install -m 600 /dev/null "$key"
+          printf '%s\n' "$SIGNING_KEY" > "$key"
+          git init -q "$workdir/repo"
+          git -C "$workdir/repo" fetch -q --depth=1 "https://x-access-token:$GH_TOKEN@github.com/$REPO.git" "$bump_sha"
+          git -C "$workdir/repo" -c user.name="James Maes" -c user.email=james@kof22.com -c gpg.format=ssh \
+            -c user.signingkey="$key" tag -s "v$version" "$bump_sha" -m "$artifact $version"
+          rm -f "$key"
+          git -C "$workdir/repo" push -q "https://x-access-token:$GH_TOKEN@github.com/$REPO.git" "v$version"
+          fi
+
+          [[ "$current_lock" == "$MERGE_SHA" ]] || { echo "::error::No matching pending intent lock"; exit 1; }
+          # 4. GitHub prerelease whose notes list the merged PRs since the previous tag.
+          previous=$(gh api "repos/$REPO/tags?per_page=100" -q '.[].name' | grep -E '^v[0-9]' | grep -vx "v$version" | sort -V | tail -n 1 || true)
+          prs=$(gh api "repos/$REPO/compare/${previous:-$MERGE_SHA}...$bump_sha" \
+            -q '.commits[].commit.message | select(startswith("Merge pull request #")) | split("\n") | (.[0] | capture("#(?<n>[0-9]+)").n) + "\t" + (.[2] // "")')
+          notes="$workdir/notes.md"
+          {
+            echo "$artifact **$version** release candidate (Maven Central, $last_modified)."
+            echo
+            echo "## Changes"
+            if [[ -n "$prs" ]]; then
+              while IFS=$'\t' read -r n title; do echo "- $title ([#$n](https://github.com/$REPO/pull/$n))"; done <<< "$prs"
+            else
+              echo "- See the commits since ${previous:-the previous release}."
+            fi
+            echo
+            echo "The signed annotated tag \`v$version\` fixes source \`${bump_sha:0:7}\` on \`$BRANCH\`."
+            echo
+            echo "No GA approval is implied."
+          } > "$notes"
+          gh release create "v$version" -R "$REPO" --verify-tag --prerelease --title "$artifact $version" --notes-file "$notes"
+          python3 "$workdir/rc_guard.py" lock "$(gh api "repos/$REPO/git/ref/heads/$lock" -q .object.sha)" "$MERGE_SHA"
+          gh api -X DELETE "repos/$REPO/git/refs/heads/$lock"
+          echo "Tagged and released v$version ($artifact) on ${bump_sha:0:7}." >> "$GITHUB_STEP_SUMMARY"

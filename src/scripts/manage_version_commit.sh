@@ -20,6 +20,13 @@
 
 set -e
 
+# Only the opt-in completion path requires a positively acknowledged push.
+PUSH_MARKER="${QQQ_PUSHED_VERSION_FILE:-/tmp/circleci/qqq-pushed-version}"
+if [[ "${REQUIRE_PUSHED_VERSION:-false}" == "true" ]]; then
+  mkdir -p "$(dirname "$PUSH_MARKER")"
+  rm -f "$PUSH_MARKER"
+fi
+
 ################################################################
 ## Skip version commit for feature branches                   ##
 ## Feature versions are ephemeral (include commit hash) and   ##
@@ -48,8 +55,15 @@ if [[ -n "$(git status --porcelain pom.xml)" ]]; then
   # Try to push, but don't fail the build if push fails
   # This can happen if another build pushed first (race condition)
   if git push origin "HEAD:${TARGET_BRANCH}"; then
+    if [[ "${REQUIRE_PUSHED_VERSION:-false}" == "true" ]]; then
+      git rev-parse HEAD > "$PUSH_MARKER"
+    fi
     echo "Version updated to: $NEW_VERSION and pushed to ${TARGET_BRANCH}"
   else
+    if [[ "${REQUIRE_PUSHED_VERSION:-false}" == "true" ]]; then
+      echo "ERROR: Version push failed; release completion will not be dispatched" >&2
+      exit 1
+    fi
     echo "WARNING: Failed to push version commit to ${TARGET_BRANCH}"
     echo "This is not fatal - version will be updated on next build"
     echo "Common causes: concurrent builds, branch protection rules"

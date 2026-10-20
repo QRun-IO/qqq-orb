@@ -1,0 +1,60 @@
+---
+
+version: 2.1
+
+jobs:
+  validate-patterns:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Install PyYAML
+          command: pip install pyyaml
+      - run:
+          name: Validate pattern files
+          command: |
+            python3 \<< 'EOF'
+            import yaml
+            import sys
+            from pathlib import Path
+
+            errors = []
+            pattern_count = 0
+
+            for yaml_file in Path('.').rglob('*.yaml'):
+                if any(part.startswith('.') for part in yaml_file.parts):
+                    continue
+
+                try:
+                    with open(yaml_file) as f:
+                        data = yaml.safe_load(f)
+
+                    if 'patterns/' in str(yaml_file):
+                        required = ['id', 'title', 'category', 'description', 'content']
+                        missing = [f for f in required if f not in data]
+                        if missing:
+                            errors.append(f"{yaml_file}: Missing fields: {missing}")
+                        pattern_count += 1
+
+                except yaml.YAMLError as e:
+                    errors.append(f"{yaml_file}: YAML parse error: {e}")
+                except Exception as e:
+                    errors.append(f"{yaml_file}: Error: {e}")
+
+            print(f"Validated {pattern_count} pattern files")
+
+            if errors:
+                print("\nErrors found:")
+                for e in errors:
+                    print(f"  - {e}")
+                sys.exit(1)
+            else:
+                print("All patterns valid")
+            EOF
+
+workflows:
+  validate:
+    jobs:
+      - validate-patterns

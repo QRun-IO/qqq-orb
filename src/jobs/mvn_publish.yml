@@ -6,6 +6,18 @@ description: >
 executor: java
 
 parameters:
+  notify_rc_published:
+    type: boolean
+    default: false
+    description: "Dispatch trusted RC completion after deployment and a verified version push"
+  install_browsers:
+    type: boolean
+    default: true
+    description: "Install Chrome and ChromeDriver for browser tests"
+  compile_before_verify:
+    type: boolean
+    default: true
+    description: "Run preliminary compile; disable when a later lifecycle compiles the project"
   java_version:
     type: string
     default: "21"
@@ -29,7 +41,9 @@ steps:
 
   - git_full_checkout
 
-  - mvn_build
+  - mvn_build:
+      install_browsers: << parameters.install_browsers >>
+      compile_before_verify: << parameters.compile_before_verify >>
 
   - mvn_manage_version
 
@@ -52,6 +66,17 @@ steps:
       steps:
         - git_operations:
             branch_type: << parameters.branch_type >>
+            require_pushed_version: << parameters.notify_rc_published >>
+
+  - when:
+      condition:
+        and:
+          - << parameters.notify_rc_published >>
+          - equal: [ "<< parameters.branch_type >>", "release_candidate" ]
+      steps:
+        - run:
+            name: Notify verified RC publication
+            command: <<include(scripts/notify_rc_published.sh)>>
 
   - when:
       condition: << parameters.publish_asciidoc >>

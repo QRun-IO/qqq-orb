@@ -1,0 +1,411 @@
+{
+  "core-codeql": {
+    "repository": "QRun-IO/qqq",
+    "path": ".github/workflows/codeql.yml",
+    "caller": {
+      "name": "CodeQL Advanced",
+      "on": {
+        "push": {
+          "branches": [
+            "develop",
+            "dependabot",
+            "feature",
+            "hotfix/*",
+            "main",
+            "release/*"
+          ]
+        },
+        "pull_request": {
+          "branches": [
+            "develop",
+            "dependabot",
+            "feature",
+            "hotfix/*",
+            "main",
+            "release/*"
+          ]
+        },
+        "schedule": [
+          {
+            "cron": "41 16 * * 0"
+          }
+        ]
+      },
+      "permissions": {
+        "security-events": "write",
+        "packages": "read",
+        "actions": "read",
+        "contents": "read"
+      },
+      "jobs": {
+        "analyze": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/core-codeql.yml@WORKER_SHA"
+        }
+      }
+    }
+  },
+  "core-published-bom-consumer": {
+    "repository": "QRun-IO/qqq",
+    "path": ".github/workflows/published-bom-consumer.yml",
+    "caller": {
+      "name": "Published BOM consumer",
+      "on": {
+        "workflow_dispatch": {
+          "inputs": {
+            "version": {
+              "description": "Published QQQ release or candidate version",
+              "required": true,
+              "type": "string"
+            }
+          }
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "jobs": {
+        "verify": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/core-published-bom-consumer.yml@WORKER_SHA",
+          "with": {
+            "version": "${{ inputs.version || '' }}"
+          }
+        }
+      }
+    }
+  },
+  "core-quickstart-lifecycle": {
+    "repository": "QRun-IO/qqq",
+    "path": ".github/workflows/quickstart-lifecycle.yml",
+    "caller": {
+      "name": "Public quickstart lifecycle",
+      "on": {
+        "push": {
+          "tags": [
+            "quickstart-4.1.0-RC.1"
+          ]
+        },
+        "workflow_dispatch": {
+          "inputs": {
+            "version": {
+              "description": "Exact public candidate to verify",
+              "required": true,
+              "type": "choice",
+              "options": [
+                "4.1.0-RC.1"
+              ]
+            },
+            "source_sha": {
+              "description": "Full reviewed commit of the immutable quickstart tag",
+              "required": true,
+              "type": "string"
+            },
+            "boundary_capture": {
+              "description": "Diagnose one macOS15 WebKit lifecycle with private boundary evidence",
+              "required": false,
+              "type": "boolean",
+              "default": false
+            }
+          }
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "jobs": {
+        "lifecycle": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/core-quickstart-lifecycle.yml@WORKER_SHA",
+          "with": {
+            "version": "${{ inputs.version || '' }}",
+            "source_sha": "${{ inputs.source_sha || '' }}",
+            "boundary_capture": "${{ inputs.boundary_capture || false }}"
+          }
+        }
+      }
+    }
+  },
+  "qbit-schema-drift": {
+    "repository": "QRun-IO/qbit-authentik",
+    "path": ".github/workflows/schema-drift.yml",
+    "caller": {
+      "name": "authentik-schema-drift",
+      "on": {
+        "schedule": [
+          {
+            "cron": "17 6 * * 1"
+          }
+        ],
+        "workflow_dispatch": {
+          "inputs": {
+            "version": {
+              "description": "Authentik version (e.g. 2026.10.0); empty = latest release",
+              "required": false
+            }
+          }
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "jobs": {
+        "drift": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/qbit-schema-drift.yml@WORKER_SHA",
+          "with": {
+            "version": "${{ inputs.version || '' }}"
+          }
+        }
+      }
+    }
+  },
+  "mcp-rag": {
+    "repository": "QRun-IO/qqq-mcp-rag",
+    "path": ".github/workflows/build.yml",
+    "caller": {
+      "name": "Build and Publish",
+      "on": {
+        "push": {
+          "branches": [
+            "**"
+          ]
+        },
+        "pull_request": {
+          "branches": [
+            "main"
+          ]
+        },
+        "workflow_dispatch": null
+      },
+      "permissions": {
+        "contents": "read",
+        "packages": "write"
+      },
+      "jobs": {
+        "validate": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/mcp-rag.yml@WORKER_SHA",
+          "secrets": {
+            "QQQ_MCP_VOYAGE_API_KEY": "${{ secrets.QQQ_MCP_VOYAGE_API_KEY }}"
+          }
+        }
+      },
+      "concurrency": {
+        "group": "mcp-rag-${{ github.event_name }}-${{ github.ref }}",
+        "cancel-in-progress": "${{ github.ref != 'refs/heads/main' }}"
+      }
+    }
+  },
+  "business-db": {
+    "repository": "QRun-IO/qqq-business-platform",
+    "path": ".github/workflows/db-migrations.yml",
+    "caller": {
+      "name": "Database migrations",
+      "on": {
+        "pull_request": {
+          "paths": [
+            "db/**",
+            "pom.xml",
+            ".github/workflows/db-migrations.yml"
+          ]
+        },
+        "push": {
+          "branches": [
+            "main"
+          ],
+          "paths": [
+            "db/**",
+            "pom.xml"
+          ]
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "jobs": {
+        "validate": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/business-db.yml@WORKER_SHA"
+        }
+      }
+    }
+  },
+  "github-workflow-lint": {
+    "repository": "QRun-IO/.github",
+    "path": ".github/workflows/workflow-lint.yml",
+    "caller": {
+      "name": "Workflow lint",
+      "on": {
+        "push": {
+          "branches": [
+            "**"
+          ]
+        },
+        "pull_request": null,
+        "workflow_dispatch": null
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "jobs": {
+        "actionlint": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/workflow-lint.yml@WORKER_SHA",
+          "if": "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository"
+        }
+      }
+    }
+  },
+  "business-e2e": {
+    "repository": "QRun-IO/qqq-business-platform",
+    "path": ".github/workflows/e2e.yml",
+    "caller": {
+      "name": "Required E2E validation",
+      "on": {
+        "pull_request": null,
+        "push": {
+          "branches": [
+            "main"
+          ]
+        },
+        "schedule": [
+          {
+            "cron": "17 6 * * *"
+          }
+        ],
+        "workflow_dispatch": null
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "concurrency": {
+        "group": "e2e-${{ github.ref }}",
+        "cancel-in-progress": true
+      },
+      "jobs": {
+        "validate": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/business-e2e.yml@WORKER_SHA",
+          "secrets": {
+            "E2E_ALERT_WEBHOOK_URL": "${{ secrets.E2E_ALERT_WEBHOOK_URL }}"
+          }
+        }
+      }
+    }
+  },
+  "all-release": {
+    "repository": "QRun-IO/qqq-all",
+    "path": ".github/workflows/release.yml",
+    "caller": {
+      "name": "Release 4.1.0",
+      "on": {
+        "workflow_dispatch": {
+          "inputs": {
+            "version": {
+              "description": "Reviewed source version (GA or exact coordinated RC)",
+              "required": true,
+              "type": "choice",
+              "default": "4.1.0",
+              "options": [
+                "4.1.0",
+                "4.1.0-RC.1"
+              ]
+            },
+            "release_sha": {
+              "description": "Full develop commit SHA already signed and tagged with the selected version",
+              "required": true,
+              "type": "string"
+            },
+            "smoke_run_id": {
+              "description": "Successful Smoke workflow run ID for that exact develop SHA",
+              "required": false,
+              "type": "string",
+              "default": ""
+            },
+            "smoke_evidence": {
+              "description": "Evidence provider; github preserves the original Smoke workflow validation",
+              "type": "choice",
+              "default": "github",
+              "options": [
+                "github",
+                "circle"
+              ],
+              "required": true
+            },
+            "circle_workflow_id": {
+              "description": "Exact successful Circle workflow UUID when circle evidence is selected",
+              "type": "string",
+              "required": false,
+              "default": ""
+            }
+          }
+        }
+      },
+      "permissions": {
+        "actions": "read",
+        "contents": "write",
+        "packages": "write",
+        "checks": "read"
+      },
+      "jobs": {
+        "release": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/qqq-all-release.yml@WORKER_SHA",
+          "with": {
+            "version": "${{ inputs.version }}",
+            "release_sha": "${{ inputs.release_sha }}",
+            "smoke_run_id": "${{ inputs.smoke_run_id }}",
+            "smoke_evidence": "${{ inputs.smoke_evidence }}",
+            "circle_workflow_id": "${{ inputs.circle_workflow_id }}"
+          },
+          "secrets": {
+            "CIRCLECI_TOKEN": "${{ secrets.CIRCLECI_TOKEN }}"
+          }
+        }
+      }
+    }
+  },
+  "intellij-plugin": {
+    "repository": "QRun-IO/qqq-app-developer-intellij-plugin",
+    "path": ".github/workflows/build.yml",
+    "caller": {
+      "name": "IntelliJ plugin",
+      "on": {
+        "push": {
+          "branches": [
+            "main",
+            "develop"
+          ],
+          "tags": [
+            "v*"
+          ]
+        },
+        "pull_request": {
+          "branches": [
+            "main",
+            "develop"
+          ]
+        },
+        "workflow_dispatch": {
+          "inputs": {
+            "publish": {
+              "description": "Sign and publish the selected vVERSION tag after approval",
+              "type": "boolean",
+              "default": false
+            },
+            "version": {
+              "description": "Exact source version for signed Marketplace publication",
+              "type": "string",
+              "default": ""
+            }
+          }
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "jobs": {
+        "plugin": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/intellij-plugin.yml@WORKER_SHA",
+          "with": {
+            "publish": "${{ github.event_name == 'workflow_dispatch' && inputs.publish }}",
+            "version": "${{ inputs.version || '' }}"
+          },
+          "secrets": "inherit"
+        }
+      }
+    }
+  }
+}

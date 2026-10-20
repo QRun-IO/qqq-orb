@@ -1,0 +1,12 @@
+description: Publish a develop image only from the verified and smoke-tested workspace artifact.
+executor: java
+steps:
+  - checkout
+  - attach_workspace:
+      at: .
+  - run:
+      name: Verify source and artifact identity
+      command: <<include(scripts/qqq_all_artifact.sh)>>
+  - run:
+      name: Publish public develop image
+      command: <<include(scripts/qqq_all_develop_image.sh)>>

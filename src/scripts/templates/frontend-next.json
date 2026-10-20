@@ -1,0 +1,68 @@
+{
+  "version": 2.1,
+  "orbs": {
+    "qqq-orb": "kingsrook/qqq-orb@__ORB_VERSION__"
+  },
+  "jobs": {
+    "publish_dashboard_jar": {
+      "executor": "qqq-orb/java",
+      "steps": [
+        "checkout",
+        {
+          "qqq-orb/install_java": {
+            "install_node": true,
+            "node_version": "22"
+          }
+        },
+        {
+          "run": {
+            "name": "Verify the immutable release version",
+            "command": "release_version=\"${CIRCLE_TAG#v}\"\nfrontend_version=$(node -p \"require('./package.json').version\")\nmaven_version=$(mvn -B -q help:evaluate -Dexpression=project.version -DforceStdout)\ntest \"$frontend_version\" = \"$release_version\"\ntest \"$maven_version\" = \"$release_version\"\n"
+          }
+        },
+        {
+          "run": {
+            "name": "Build the static export",
+            "command": "corepack enable\npnpm install --frozen-lockfile\npnpm typecheck\npnpm lint\npnpm test\npnpm build:export\n"
+          }
+        },
+        "qqq-orb/mvn_jar_deploy"
+      ]
+    }
+  },
+  "workflows": {
+    "publish_release": {
+      "jobs": [
+        {
+          "qqq-orb/node_app_build": {
+            "filters": {
+              "branches": {
+                "ignore": "/.*/"
+              },
+              "tags": {
+                "only": [
+                  "/v.*/"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "publish_dashboard_jar": {
+            "context": [
+              "qqq-maven-registry-credentials"
+            ],
+            "filters": {
+              "branches": {
+                "ignore": "/.*/"
+              },
+              "tags": {
+                "only": "/^v[0-9]+\\.[0-9]+\\.[0-9]+(-RC\\.[0-9]+)?$/"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

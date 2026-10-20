@@ -1,6 +1,7 @@
 description: >
   Installs Eclipse Temurin JDK and Maven on Ubuntu machine executor.
   Sets JAVA_HOME and updates PATH for subsequent steps.
+  Configures unattended package installation centrally.
   Optionally installs Node.js for frontend builds.
   Also verifies Docker is available (required for Testcontainers/LocalStack tests).
 

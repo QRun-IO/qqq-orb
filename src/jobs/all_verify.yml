@@ -1,0 +1,37 @@
+description: Verify the complete qqq-all reactor once and record exact artifacts for smoke and image jobs.
+executor: java
+steps:
+  - checkout
+  - install_java:
+      java_version: "21"
+  - mvn_cache_restore
+  - run:
+      name: Test smoke and release assertions
+      command: python3 -m unittest discover -s scripts -p 'test_*.py' -v
+  - run:
+      name: Verify complete reactor including BOM tests and packaged integration tests
+      command: mvn -B -ntp --update-snapshots clean verify
+  - run:
+      name: Record framework dependency classpath for smoke diagnostics
+      command: <<include(scripts/qqq_all_classpath.sh)>>
+  - run:
+      name: Record verified artifact identity
+      environment:
+        QQQ_ALL_ARTIFACT_ACTION: write
+      command: <<include(scripts/qqq_all_artifact.sh)>>
+  - mvn_cache_save
+  - store_test_results:
+      path: qqq-all-app/target/surefire-reports
+  - store_test_results:
+      path: qqq-all-app/target/failsafe-reports
+  - store_test_results:
+      path: qqq-all-bom-test/target/surefire-reports
+  - store_artifacts:
+      path: qqq-all-app/target/site
+      destination: app-reports
+  - persist_to_workspace:
+      root: .
+      paths:
+        - qqq-all-app/target/qqq-all-app.jar
+        - qqq-all-app/target/smoke-classpath.txt
+        - .qqq-ci-artifact.json

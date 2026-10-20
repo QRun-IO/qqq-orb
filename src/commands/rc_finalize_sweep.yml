@@ -1,0 +1,12 @@
+description: Reconcile pending RC intents and dispatch verified finalizers without waiting runners.
+parameters:
+  repositories:
+    type: string
+    description: Explicit JSON allowlist of QRun-IO qbit repositories (maximum 64).
+steps:
+  - run:
+      name: Reconcile pending release candidates
+      environment:
+        RC_REPOSITORIES_JSON: << parameters.repositories >>
+      shell: python3
+      command: <<include(scripts/rc_finalize_sweep.py)>>

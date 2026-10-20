@@ -1,0 +1,593 @@
+{
+  "version": 2.1,
+  "jobs": {
+    "build-and-test": {
+      "machine": {
+        "image": "ubuntu-2204:current"
+      },
+      "resource_class": "large",
+      "environment": {
+        "MAVEN_OPTS": "-Xmx2048m"
+      },
+      "steps": [
+        "checkout",
+        {
+          "qqq-orb/install_java": {
+            "java_version": "21"
+          }
+        },
+        "qqq-orb/mvn_cache_restore",
+        {
+          "run": {
+            "name": "Verify application, integration tests, quality and coverage",
+            "command": "mvn clean verify -B -T4 --update-snapshots --no-transfer-progress"
+          }
+        },
+        "qqq-orb/mvn_cache_save",
+        {
+          "store_test_results": {
+            "path": "target/surefire-reports"
+          }
+        },
+        {
+          "store_test_results": {
+            "path": "target/failsafe-reports"
+          }
+        },
+        {
+          "store_artifacts": {
+            "path": "target/voyage.jar",
+            "destination": "app.jar"
+          }
+        },
+        {
+          "store_artifacts": {
+            "path": "target/site",
+            "destination": "quality-and-coverage"
+          }
+        },
+        {
+          "persist_to_workspace": {
+            "root": ".",
+            "paths": [
+              "target/classes",
+              "target/test-classes",
+              "target/surefire-reports",
+              "target/voyage.jar",
+              "target/site",
+              "target/jacoco.exec",
+              "Dockerfile",
+              "pom.xml",
+              "src",
+              ".config",
+              "sonar-project.properties"
+            ]
+          }
+        }
+      ]
+    },
+    "secrets-scan": {
+      "docker": [
+        {
+          "image": "cimg/base:current"
+        }
+      ],
+      "resource_class": "small",
+      "steps": [
+        "checkout",
+        {
+          "run": {
+            "name": "Install Gitleaks",
+            "command": "wget -q https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz\ntar -xzf gitleaks_8.21.2_linux_x64.tar.gz\nchmod +x gitleaks\n"
+          }
+        },
+        {
+          "run": {
+            "name": "Run Gitleaks",
+            "command": "./gitleaks detect --source . --config .gitleaks.toml --verbose"
+          }
+        }
+      ]
+    },
+    "sast-scan": {
+      "docker": [
+        {
+          "image": "returntocorp/semgrep:latest"
+        }
+      ],
+      "resource_class": "medium",
+      "steps": [
+        "checkout",
+        {
+          "run": {
+            "name": "Semgrep SAST Scan",
+            "command": "semgrep scan \\\n  --config auto \\\n  --config p/java \\\n  --config p/owasp-top-ten \\\n  --config p/security-audit \\\n  --error \\\n  --json --output semgrep-results.json \\\n  . || true\nsemgrep scan \\\n  --config auto \\\n  --config p/java \\\n  --config p/owasp-top-ten \\\n  . 2>&1 | tee semgrep-report.txt || true\n"
+          }
+        },
+        {
+          "store_artifacts": {
+            "path": "semgrep-results.json",
+            "destination": "semgrep-results.json"
+          }
+        },
+        {
+          "store_artifacts": {
+            "path": "semgrep-report.txt",
+            "destination": "semgrep-report.txt"
+          }
+        }
+      ]
+    },
+    "security-scan": {
+      "machine": {
+        "image": "ubuntu-2204:current"
+      },
+      "resource_class": "large",
+      "steps": [
+        "checkout",
+        {
+          "qqq-orb/install_java": {
+            "java_version": "21"
+          }
+        },
+        "qqq-orb/mvn_cache_restore",
+        {
+          "restore_cache": {
+            "keys": [
+              "owasp-nvd-v1-{{ .Branch }}",
+              "owasp-nvd-v1-develop",
+              "owasp-nvd-v1-"
+            ]
+          }
+        },
+        {
+          "run": {
+            "name": "OWASP Dependency Check",
+            "no_output_timeout": "20m",
+            "command": "mkdir -p ~/.dependency-check\nfor attempt in 1 2 3; do\n  echo \"=== Attempt $attempt of 3 ===\"\n  if mvn org.owasp:dependency-check-maven:check -B \\\n    -DnvdApiKey=${NVD_API_KEY:-} \\\n    -DfailBuildOnCVSS=7 \\\n    -DsuppressionFile=.config/owasp/suppressions.xml \\\n    -DdataDirectory=${HOME}/.dependency-check \\\n    -DnvdMaxRetryCount=3; then\n    echo \"OWASP check succeeded\"\n    exit 0\n  fi\n  if [ $attempt -lt 3 ]; then\n    echo \"Cleaning corrupted H2 database...\"\n    rm -rf ~/.dependency-check/nvdcve* ~/.dependency-check/*.lock 2>/dev/null || true\n    sleep 10\n  fi\ndone\necho \"OWASP check failed after 3 attempts (non-blocking on develop)\"\nif [ \"${CIRCLE_BRANCH}\" = \"develop\" ]; then\n  echo \"WARNING: Continuing despite OWASP failure on develop branch\"\n  exit 0\nfi\nexit 1\n"
+          }
+        },
+        {
+          "save_cache": {
+            "key": "owasp-nvd-v1-{{ .Branch }}-{{ epoch }}",
+            "paths": [
+              "~/.dependency-check"
+            ]
+          }
+        },
+        {
+          "store_artifacts": {
+            "path": "target/dependency-check-report.html",
+            "destination": "owasp-report"
+          }
+        }
+      ]
+    },
+    "sonar-scan": {
+      "machine": {
+        "image": "ubuntu-2204:current"
+      },
+      "resource_class": "medium",
+      "steps": [
+        "checkout",
+        {
+          "attach_workspace": {
+            "at": "."
+          }
+        },
+        {
+          "qqq-orb/install_java": {
+            "java_version": "21"
+          }
+        },
+        "qqq-orb/mvn_cache_restore",
+        {
+          "run": {
+            "name": "SonarCloud Analysis",
+            "command": "mvn -B sonar:sonar \\\n  -Dsonar.projectKey=qrun-io_voyage \\\n  -Dsonar.organization=qrun-io \\\n  -Dsonar.host.url=https://sonarcloud.io \\\n  -Dsonar.token=${SONAR_TOKEN} \\\n  -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \\\n  -Dsonar.scm.disabled=true\n"
+          }
+        }
+      ]
+    },
+    "docker-build": {
+      "machine": {
+        "image": "ubuntu-2204:current"
+      },
+      "resource_class": "medium",
+      "steps": [
+        "checkout",
+        {
+          "attach_workspace": {
+            "at": "."
+          }
+        },
+        {
+          "run": {
+            "name": "Build Docker Image",
+            "command": "docker build -t voyage:${CIRCLE_SHA1:0:7} .\ndocker tag voyage:${CIRCLE_SHA1:0:7} voyage:latest\n"
+          }
+        },
+        {
+          "run": {
+            "name": "Trivy Container Scan",
+            "command": "TRIVY_VERSION=\"0.58.2\"\ndocker run --rm \\\n  -v /var/run/docker.sock:/var/run/docker.sock \\\n  aquasec/trivy:${TRIVY_VERSION} image \\\n  --severity CRITICAL,HIGH \\\n  --exit-code 1 \\\n  --ignore-unfixed \\\n  voyage:${CIRCLE_SHA1:0:7}\n"
+          }
+        },
+        {
+          "run": {
+            "name": "Push to GitHub Packages",
+            "command": "echo \"${GHCR_TOKEN}\" | docker login ghcr.io -u \"${GHCR_USERNAME}\" --password-stdin\ndocker tag voyage:${CIRCLE_SHA1:0:7} ghcr.io/qrun-io/voyage:${CIRCLE_SHA1:0:7}\ndocker tag voyage:latest ghcr.io/qrun-io/voyage:latest\ndocker push ghcr.io/qrun-io/voyage:${CIRCLE_SHA1:0:7}\ndocker push ghcr.io/qrun-io/voyage:latest\nif [ \"${CIRCLE_BRANCH}\" = \"develop\" ] || [ \"${CIRCLE_BRANCH}\" = \"main\" ]; then\n  docker tag voyage:${CIRCLE_SHA1:0:7} ghcr.io/qrun-io/voyage:${CIRCLE_BRANCH}\n  docker push ghcr.io/qrun-io/voyage:${CIRCLE_BRANCH}\n  echo \"Pushed ghcr.io/qrun-io/voyage:${CIRCLE_BRANCH}\"\nfi\necho \"Pushed ghcr.io/qrun-io/voyage:${CIRCLE_SHA1:0:7}\"\n"
+          }
+        }
+      ]
+    },
+    "sbom": {
+      "docker": [
+        {
+          "image": "cimg/openjdk:21.0"
+        }
+      ],
+      "resource_class": "small",
+      "steps": [
+        "checkout",
+        "qqq-orb/mvn_cache_restore",
+        {
+          "run": {
+            "name": "Generate SBOM (CycloneDX)",
+            "command": "mvn org.cyclonedx:cyclonedx-maven-plugin:makeAggregateBom \\\n  -DoutputFormat=json \\\n  -DoutputName=sbom \\\n  -B\n"
+          }
+        },
+        {
+          "store_artifacts": {
+            "path": "target/sbom.json",
+            "destination": "sbom.json"
+          }
+        }
+      ]
+    },
+    "update-cd-repo": {
+      "docker": [
+        {
+          "image": "cimg/base:current"
+        }
+      ],
+      "resource_class": "small",
+      "steps": [
+        {
+          "setup_remote_docker": {
+            "version": "default"
+          }
+        },
+        {
+          "run": {
+            "name": "Update CD repo with new image digest",
+            "command": "echo \"${GHCR_TOKEN}\" | docker login ghcr.io -u \"${GHCR_USERNAME}\" --password-stdin\n\nIMAGE_DIGEST=$(docker manifest inspect ghcr.io/qrun-io/voyage:${CIRCLE_SHA1:0:7} --verbose 2>/dev/null | jq -r '.Descriptor.digest // empty' || true)\n\nif [ -z \"${IMAGE_DIGEST}\" ]; then\n  docker pull ghcr.io/qrun-io/voyage:${CIRCLE_SHA1:0:7}\n  IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/qrun-io/voyage:${CIRCLE_SHA1:0:7} | cut -d@ -f2)\nfi\n\necho \"Image digest: ${IMAGE_DIGEST}\"\n\nif [ -z \"${IMAGE_DIGEST}\" ]; then\n  echo \"ERROR: Could not determine image digest\"\n  exit 1\nfi\n\ngit clone --branch main https://${GITHUB_TOKEN}@github.com/QRun-IO/Voyage-CD-Pipeline.git\ncd Voyage-CD-Pipeline\n\nsed -i \"s|digest: sha256:.*|digest: ${IMAGE_DIGEST}|\" overlays/production/kustomization.yaml\n\nif git diff --quiet overlays/production/kustomization.yaml; then\n  echo \"No changes to commit - digest already up to date\"\n  exit 0\nfi\n\ngit config user.name \"CircleCI\"\ngit config user.email \"ci@qrun.io\"\ngit add overlays/production/kustomization.yaml\ngit commit -m \"chore(production): update voyage image to ${CIRCLE_SHA1:0:7}\"\ngit push origin main\n\necho \"Successfully updated CD repo with new image digest\"\n"
+          }
+        }
+      ]
+    },
+    "release-please": {
+      "docker": [
+        {
+          "image": "cimg/node:20.11"
+        }
+      ],
+      "resource_class": "small",
+      "steps": [
+        "checkout",
+        {
+          "run": {
+            "name": "Run release-please",
+            "command": "npx release-please github-release \\\n  --token=${GITHUB_TOKEN} \\\n  --repo-url=QRun-IO/voyage \\\n  --release-type=maven \\\n  --package-name=voyage\nnpx release-please release-pr \\\n  --token=${GITHUB_TOKEN} \\\n  --repo-url=QRun-IO/voyage \\\n  --release-type=maven \\\n  --package-name=voyage\n"
+          }
+        }
+      ]
+    }
+  },
+  "workflows": {
+    "pull-request": {
+      "jobs": [
+        {
+          "build-and-test": {
+            "filters": {
+              "branches": {
+                "ignore": [
+                  "main",
+                  "develop",
+                  "/^release-please--.*/",
+                  "/^release\\/.*/"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "secrets-scan": {
+            "filters": {
+              "branches": {
+                "ignore": [
+                  "main",
+                  "develop",
+                  "/^release-please--.*/",
+                  "/^release\\/.*/"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "sast-scan": {
+            "filters": {
+              "branches": {
+                "ignore": [
+                  "main",
+                  "develop",
+                  "/^release-please--.*/",
+                  "/^release\\/.*/"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "security-scan": {
+            "requires": [
+              "build-and-test"
+            ],
+            "filters": {
+              "branches": {
+                "ignore": [
+                  "main",
+                  "develop",
+                  "/^release-please--.*/",
+                  "/^release\\/.*/"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "develop": {
+      "jobs": [
+        {
+          "build-and-test": {
+            "filters": {
+              "branches": {
+                "only": "develop"
+              }
+            }
+          }
+        },
+        {
+          "secrets-scan": {
+            "filters": {
+              "branches": {
+                "only": "develop"
+              }
+            }
+          }
+        },
+        {
+          "sast-scan": {
+            "filters": {
+              "branches": {
+                "only": "develop"
+              }
+            }
+          }
+        },
+        {
+          "security-scan": {
+            "context": [
+              "nvd"
+            ],
+            "requires": [
+              "build-and-test"
+            ],
+            "filters": {
+              "branches": {
+                "only": "develop"
+              }
+            }
+          }
+        },
+        {
+          "sonar-scan": {
+            "context": [
+              "sonarcloud"
+            ],
+            "requires": [
+              "build-and-test"
+            ],
+            "filters": {
+              "branches": {
+                "only": "develop"
+              }
+            }
+          }
+        },
+        {
+          "sbom": {
+            "context": [
+              "github"
+            ],
+            "requires": [
+              "build-and-test"
+            ],
+            "filters": {
+              "branches": {
+                "only": "develop"
+              }
+            }
+          }
+        },
+        {
+          "docker-build": {
+            "context": [
+              "ghcr"
+            ],
+            "requires": [
+              "build-and-test",
+              "secrets-scan",
+              "sast-scan"
+            ],
+            "filters": {
+              "branches": {
+                "only": "develop"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "release": {
+      "jobs": [
+        {
+          "build-and-test": {
+            "filters": {
+              "branches": {
+                "only": [
+                  "main",
+                  "/^release\\/.*/"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "secrets-scan": {
+            "filters": {
+              "branches": {
+                "only": [
+                  "main",
+                  "/^release\\/.*/"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "sast-scan": {
+            "filters": {
+              "branches": {
+                "only": [
+                  "main",
+                  "/^release\\/.*/"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "security-scan": {
+            "context": [
+              "nvd"
+            ],
+            "requires": [
+              "build-and-test"
+            ],
+            "filters": {
+              "branches": {
+                "only": [
+                  "main",
+                  "/^release\\/.*/"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "sonar-scan": {
+            "context": [
+              "sonarcloud"
+            ],
+            "requires": [
+              "build-and-test"
+            ],
+            "filters": {
+              "branches": {
+                "only": [
+                  "main",
+                  "/^release\\/.*/"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "sbom": {
+            "context": [
+              "github"
+            ],
+            "requires": [
+              "build-and-test"
+            ],
+            "filters": {
+              "branches": {
+                "only": [
+                  "main",
+                  "/^release\\/.*/"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "docker-build": {
+            "context": [
+              "ghcr"
+            ],
+            "requires": [
+              "build-and-test",
+              "secrets-scan",
+              "sast-scan"
+            ],
+            "filters": {
+              "branches": {
+                "only": [
+                  "main",
+                  "/^release\\/.*/"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "update-cd-repo": {
+            "context": [
+              "github",
+              "ghcr"
+            ],
+            "requires": [
+              "docker-build"
+            ],
+            "filters": {
+              "branches": {
+                "only": "main"
+              }
+            }
+          }
+        },
+        {
+          "release-please": {
+            "context": [
+              "github"
+            ],
+            "requires": [
+              "docker-build"
+            ],
+            "filters": {
+              "branches": {
+                "only": "main"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "orbs": {
+    "qqq-orb": "kingsrook/qqq-orb@__ORB_VERSION__"
+  }
+}

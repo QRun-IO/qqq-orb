@@ -1,0 +1,390 @@
+version: 2.1
+
+orbs:
+  munitor: kof22/munitor@0.3.11
+
+workflows:
+  pr-checks:
+    jobs:
+      - munitor/node_build_and_test:
+          name: build-and-test
+          node_version: "22"
+          package_manager: "npm"
+          test_commands: '[
+  "npx playwright install chromium --with-deps",
+  "npm run test:chromium",
+  "npm run lighthouse"
+]'
+          context:
+            - github
+          filters:
+            branches:
+              only:
+                - /feature\/.*/
+                - /hotfix\/.*/
+      - munitor/docker_scan:
+          name: image-scan
+          image_name: marketing-website
+          registry: ghcr.io/qrun-io
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only:
+                - /feature\/.*/
+                - /hotfix\/.*/
+      - munitor/secrets_scan:
+          name: secrets-scan
+          filters:
+            branches:
+              only:
+                - /feature\/.*/
+                - /hotfix\/.*/
+      - munitor/sast_scan:
+          name: sast-scan
+          fail_on_findings: "false"
+          filters:
+            branches:
+              only:
+                - /feature\/.*/
+                - /hotfix\/.*/
+      - munitor/node_code_quality:
+          name: code-quality
+          node_version: "22"
+          package_manager: "npm"
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only:
+                - /feature\/.*/
+                - /hotfix\/.*/
+      - munitor/node_coverage:
+          name: coverage
+          node_version: "22"
+          package_manager: "npm"
+          min_coverage: "0"
+          coverage_tool: jest
+          coverage_summary_path: "coverage/coverage-summary.json"
+          coverage_command: mkdir -p coverage && echo '{"total":{"lines":{"pct":100}}}' > coverage/coverage-summary.json
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only:
+                - /feature\/.*/
+                - /hotfix\/.*/
+      - munitor/node_security_scan:
+          name: security-scan
+          node_version: "22"
+          package_manager: "npm"
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only:
+                - /feature\/.*/
+                - /hotfix\/.*/
+
+  develop:
+    jobs:
+      - munitor/node_build_and_test:
+          name: build-and-test
+          node_version: "22"
+          package_manager: "npm"
+          test_commands: '[
+  "npx playwright install chromium --with-deps",
+  "npm run test:chromium",
+  "npm run lighthouse"
+]'
+          context:
+            - github
+          filters:
+            branches:
+              only: develop
+      - munitor/secrets_scan:
+          name: secrets-scan
+          filters:
+            branches:
+              only: develop
+      - munitor/sast_scan:
+          name: sast-scan
+          fail_on_findings: "false"
+          filters:
+            branches:
+              only: develop
+      - munitor/node_code_quality:
+          name: code-quality
+          node_version: "22"
+          package_manager: "npm"
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only: develop
+      - munitor/node_coverage:
+          name: coverage
+          node_version: "22"
+          package_manager: "npm"
+          min_coverage: "0"
+          coverage_tool: jest
+          coverage_summary_path: "coverage/coverage-summary.json"
+          coverage_command: mkdir -p coverage && echo '{"total":{"lines":{"pct":100}}}' > coverage/coverage-summary.json
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only: develop
+      - munitor/node_security_scan:
+          name: security-scan
+          node_version: "22"
+          package_manager: "npm"
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only: develop
+      - munitor/docker_build_push:
+          name: docker-build-push
+          image_name: marketing-website
+          registry: ghcr.io/qrun-io
+          health_path: /
+          health_port: "3000"
+          health_db: "false"
+          requires:
+            - code-quality
+            - coverage
+            - secrets-scan
+            - sast-scan
+            - security-scan
+          context:
+            - ghcr
+          filters:
+            branches:
+              only: develop
+  staging:
+    jobs:
+      - munitor/node_build_and_test:
+          name: build-and-test
+          node_version: "22"
+          package_manager: "npm"
+          test_commands: '[
+  "npx playwright install chromium --with-deps",
+  "npm run test:chromium",
+  "npm run lighthouse"
+]'
+          context:
+            - github
+          filters:
+            branches:
+              only: staging
+      - munitor/secrets_scan:
+          name: secrets-scan
+          filters:
+            branches:
+              only: staging
+      - munitor/sast_scan:
+          name: sast-scan
+          fail_on_findings: "false"
+          filters:
+            branches:
+              only: staging
+      - munitor/node_code_quality:
+          name: code-quality
+          node_version: "22"
+          package_manager: "npm"
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only: staging
+      - munitor/node_coverage:
+          name: coverage
+          node_version: "22"
+          package_manager: "npm"
+          min_coverage: "0"
+          coverage_tool: jest
+          coverage_summary_path: "coverage/coverage-summary.json"
+          coverage_command: mkdir -p coverage && echo '{"total":{"lines":{"pct":100}}}' > coverage/coverage-summary.json
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only: staging
+      - munitor/node_security_scan:
+          name: security-scan
+          node_version: "22"
+          package_manager: "npm"
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only: staging
+      - munitor/docker_build_push:
+          name: docker-build-push
+          image_name: marketing-website
+          registry: ghcr.io/qrun-io
+          health_path: /
+          health_port: "3000"
+          health_db: "false"
+          requires:
+            - code-quality
+            - coverage
+            - secrets-scan
+            - sast-scan
+            - security-scan
+          context:
+            - ghcr
+          filters:
+            branches:
+              only: staging
+
+  release-candidate:
+    jobs:
+      - munitor/node_build_and_test:
+          name: build-and-test
+          node_version: "22"
+          package_manager: "npm"
+          test_commands: '[
+  "npx playwright install chromium --with-deps",
+  "npm run test:chromium",
+  "npm run lighthouse"
+]'
+          context:
+            - github
+          filters:
+            branches:
+              only:
+                - /release\/.*/
+      - munitor/secrets_scan:
+          name: secrets-scan
+          filters:
+            branches:
+              only:
+                - /release\/.*/
+      - munitor/sast_scan:
+          name: sast-scan
+          fail_on_findings: "false"
+          filters:
+            branches:
+              only:
+                - /release\/.*/
+      - munitor/node_code_quality:
+          name: code-quality
+          node_version: "22"
+          package_manager: "npm"
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only:
+                - /release\/.*/
+      - munitor/node_coverage:
+          name: coverage
+          node_version: "22"
+          package_manager: "npm"
+          min_coverage: "0"
+          coverage_tool: jest
+          coverage_summary_path: "coverage/coverage-summary.json"
+          coverage_command: mkdir -p coverage && echo '{"total":{"lines":{"pct":100}}}' > coverage/coverage-summary.json
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only:
+                - /release\/.*/
+      - munitor/node_security_scan:
+          name: security-scan
+          node_version: "22"
+          package_manager: "npm"
+          requires:
+            - build-and-test
+          filters:
+            branches:
+              only:
+                - /release\/.*/
+      - munitor/docker_build_push:
+          name: docker-build-push
+          image_name: marketing-website
+          registry: ghcr.io/qrun-io
+          health_path: /
+          health_port: "3000"
+          health_db: "false"
+          requires:
+            - code-quality
+            - coverage
+            - secrets-scan
+            - sast-scan
+            - security-scan
+          context:
+            - ghcr
+          filters:
+            branches:
+              only:
+                - /release\/.*/
+      - munitor/github_release:
+          name: github-release
+          requires:
+            - docker-build-push
+          context:
+            - github
+          filters:
+            branches:
+              only:
+                - /release\/.*/
+
+  production:
+    jobs:
+      - munitor/node_build_and_test:
+          name: build-and-test
+          node_version: "22"
+          package_manager: "npm"
+          test_commands: '[
+  "npx playwright install chromium --with-deps",
+  "npm run test:chromium",
+  "npm run lighthouse"
+]'
+          context:
+            - github
+          filters:
+            branches:
+              only: main
+      - munitor/docker_build_push:
+          name: docker-build-push
+          image_name: marketing-website
+          registry: ghcr.io/qrun-io
+          health_path: /
+          health_port: "3000"
+          health_db: "false"
+          requires:
+            - build-and-test
+          context:
+            - ghcr
+          filters:
+            branches:
+              only: main
+      - munitor/update_cd_repo:
+          name: update-cd-repo
+          cd_repo: KofTwentyTwo/cluster-gitops
+          environment: prod
+          cd_format: kustomize
+          cd_image_name: ghcr.io/qrun-io/marketing-website
+          cd_path: tenants/qrun/website/kustomization.yaml
+          ci_git_email: 'ci@qrun.io'
+          ci_git_name: 'Munitor CI'
+          requires:
+            - docker-build-push
+          context:
+            - github
+          filters:
+            branches:
+              only: main
+      - munitor/github_release:
+          name: github-release
+          requires:
+            - docker-build-push
+          context:
+            - github
+          filters:
+            branches:
+              only: main

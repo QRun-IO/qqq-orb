@@ -1,0 +1,35 @@
+description: >
+  Authoritative QQQ CLI validation, with optional tagged GitHub Packages publication.
+  Preserves generated-schema drift, build, tests and Prism smoke before publishing.
+docker:
+  - image: cimg/node:22.12
+parameters:
+  publish:
+    type: boolean
+    default: false
+    description: "Publish three workspaces with rc dist-tag; requires matching version tag and GITHUB_TOKEN"
+steps:
+  - checkout
+  - restore_cache:
+      keys:
+        - v1-cli-npm-{{ arch }}-{{ checksum "package-lock.json" }}
+        - v1-cli-npm-{{ arch }}-
+  - run:
+      name: Install locked CLI dependencies
+      command: npm ci
+  - run:
+      name: Validate generated client, build, tests and Prism
+      command: <<include(scripts/cli_verify.sh)>>
+  - save_cache:
+      key: v1-cli-npm-{{ arch }}-{{ checksum "package-lock.json" }}
+      paths:
+        - ~/.npm
+  - store_artifacts:
+      path: prism.log
+      destination: prism.log
+  - when:
+      condition: << parameters.publish >>
+      steps:
+        - run:
+            name: Publish verified CLI packages
+            command: <<include(scripts/cli_publish.sh)>>
