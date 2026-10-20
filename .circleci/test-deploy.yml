@@ -47,6 +47,7 @@ jobs:
             python3 tests/test_qctl_native.py
             python3 -m unittest discover -s tests -p test_generate_qctl_workflow.py
             python3 tests/test_rc_finalize_sweep.py
+            python3 tests/test_rc_guard.py
             python3 -m unittest discover -s tests -p test_audit_estate.py
             python3 tests/test_all_profiles.py
             python3 tests/test_mobile_policy_profiles.py
