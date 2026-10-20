@@ -58,7 +58,7 @@ def load_yaml(raw):
         raise StandardError("Invalid YAML declaration") from error
 
 
-def canonical_caller(profile, version, explicit_manifest=False):
+def canonical_caller(profile, version, explicit_manifest=False, release_tag_policy=None):
     if not isinstance(profile, str) or profile not in PROFILE_PARAMETERS:
         raise StandardError("Unsupported CI profile")
     options = {
@@ -67,6 +67,11 @@ def canonical_caller(profile, version, explicit_manifest=False):
     }
     if profile == "frontend-next":
         options["filters"]["branches"] = {"ignore": "/.*/"}
+    if profile == "qbit" and release_tag_policy is not None:
+        tag_filters = {"stable": {"only": r"/^v\d+\.\d+\.\d+$/"}, "v-prefix": {"only": "/v.*/"}, "none": {"ignore": "/.*/"}}
+        if release_tag_policy not in tag_filters:
+            raise StandardError("Unsupported QBit release tag policy")
+        options["filters"]["tags"] = tag_filters[release_tag_policy]
     if explicit_manifest:
         options["manifest"] = ".qqq-ci.yml"
     parameters = PROFILE_PARAMETERS[profile]
@@ -104,8 +109,8 @@ def validate(config_raw, manifest_raw, setup_version):
         raise StandardError("Manifest must pin an explicit orb version")
     if version != setup_version:
         raise StandardError("Manifest and running setup orb versions differ")
-    expected = canonical_caller(manifest.get("profile"), version)
-    explicit = canonical_caller(manifest.get("profile"), version, explicit_manifest=True)
+    expected = canonical_caller(manifest.get("profile"), version, release_tag_policy=manifest.get("release_tag_policy"))
+    explicit = canonical_caller(manifest.get("profile"), version, explicit_manifest=True, release_tag_policy=manifest.get("release_tag_policy"))
     if not exact(config, expected) and not exact(config, explicit):
         raise StandardError("Consumer config must be the canonical setup caller with only its profile's declared and forwarded parameters")
 

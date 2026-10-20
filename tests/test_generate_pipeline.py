@@ -74,6 +74,34 @@ class MarketingContractTests(unittest.TestCase):
 
 
 class RuntimeBooleanTests(unittest.TestCase):
+    def test_qbit_main_and_tag_release_policy_preserves_provenance(self):
+        base = {"profile": "qbit", "orb_version": "0.7.0", "default_branch": "develop"}
+        for policy, tag, expected in (("stable", "v1.2.3", "publish_release"),
+                                      ("stable", "v1.2.3-RC.1", "test_only"),
+                                      ("v-prefix", "v1.2.3-RC.1", "publish_release"),
+                                      ("v-prefix", "vanything", "publish_release"),
+                                      ("none", "v1.2.3", "test_only")):
+            with mock.patch.object(Path, "read_text", return_value=yaml.safe_dump({**base, "release_tag_policy": policy})):
+                config = pipeline.load_manifest("unused", "0.7.0")
+            with mock.patch.object(pipeline, "git", return_value=b"verified-head\n"):
+                self.assertEqual(list(pipeline.qbit_template(config, "", tag)["workflows"]), [expected])
+            with mock.patch.object(pipeline, "git", return_value=None):
+                self.assertEqual(list(pipeline.qbit_template(config, "", tag)["workflows"]), ["test_only"])
+        with mock.patch.object(Path, "read_text", return_value=yaml.safe_dump({**base, "release_on_main": True})):
+            config = pipeline.load_manifest("unused", "0.7.0")
+        self.assertIn("publish_release", pipeline.qbit_template(config, "main", "")["workflows"])
+        config["publish"]["release"] = False
+        self.assertIn("test_only", pipeline.qbit_template(config, "main", "")["workflows"])
+
+    def test_qbit_test_exclusions_are_central_fixed_patterns(self):
+        config = {"orb_version": "0.7.0", "publish": {}, "docs_only": False,
+                  "java_version": "21", "browsers": True, "api_checks": False,
+                  "test_branch_policy": "feature"}
+        result = pipeline.qbit_template(config, "integration-example", "")
+        options = result["workflows"]["test_only"]["jobs"][0]["qqq-orb/mvn_test_only"]
+        self.assertEqual(options["filters"]["branches"]["ignore"],
+                         ["automation/qbit-rc-pending", "/(develop|main|release/.*|integration.*)/"])
+
     def test_all_publication_is_explicit_and_develop_only(self):
         config = {"orb_version": "0.7.0", "publish": {"snapshot": False}, "publish_context": "verified"}
         for branch in ("develop", "main", "feature/example"):
@@ -485,6 +513,19 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(result, pipeline.MARKETING_TEMPLATE)
         if PACKED:
             self.assertEqual(result, self.render(packed=True, CIRCLE_BRANCH="main"))
+
+    def test_qbit_publication_policy_packed_parity(self):
+        self.write_manifest(release_on_main=True, release_tag_policy="v-prefix",
+                            test_branch_policy="feature")
+        self.git("tag", "v1.2.3-RC.1")
+        for environment in ({"CIRCLE_BRANCH": "main"},
+                            {"CIRCLE_TAG": "v1.2.3-RC.1", "CIRCLE_BRANCH": ""},
+                            {"CIRCLE_BRANCH": "integration-example"}):
+            result = self.render(**environment)
+            if environment.get("CIRCLE_BRANCH") != "integration-example":
+                self.assertIn("publish_release", result["workflows"])
+            if PACKED:
+                self.assertEqual(result, self.render(packed=True, **environment))
 
     @unittest.skipUnless(PACKED, "pass --packed to verify the shipped orb resource")
     def test_packed_full_profile(self):

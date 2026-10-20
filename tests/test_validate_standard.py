@@ -21,6 +21,19 @@ CALLER = {
 
 
 class ValidateStandard(unittest.TestCase):
+    def test_declarative_qbit_tag_filters_match_migration_and_manifest(self):
+        spec = importlib.util.spec_from_file_location("migration_policy", ROOT / "tools/standardize_qbit.py")
+        migration = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(migration)
+        for policy in ("stable", "v-prefix", "none"):
+            caller = migration.canonical_caller(VERSION, policy)
+            manifest = {"profile": "qbit", "orb_version": VERSION, "default_branch": "main",
+                        "release_tag_policy": policy}
+            standard.validate(yaml.safe_dump(caller), yaml.safe_dump(manifest), VERSION)
+            caller["workflows"]["setup"]["jobs"][0]["qqq-orb/generate_pipeline"]["filters"]["tags"] = {"only": "/custom.*/"}
+            with self.assertRaises(standard.StandardError):
+                standard.validate(yaml.safe_dump(caller), yaml.safe_dump(manifest), VERSION)
+
     def check(self, config, profile="qbit", version=VERSION):
         standard.validate(yaml.safe_dump(config), yaml.safe_dump({"profile": profile, "orb_version": version, "default_branch": "develop"}), VERSION)
 

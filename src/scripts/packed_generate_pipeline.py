@@ -74,7 +74,7 @@ def load_manifest(path, setup_version):
     if profile in ("qbit", "core"):
         allowed += ("java_version", "browsers", "api_checks")
         if profile == "qbit":
-            allowed += ("release_completion",)
+            allowed += ("release_completion", "release_on_main", "release_tag_policy", "test_branch_policy")
     elif profile == "cli":
         allowed += ("publish_context",)
     elif profile in ("voyage", "frontend-next", "app-starter", "android", "mcp-policy", "marketing"):
@@ -121,10 +121,18 @@ def load_manifest(path, setup_version):
         raise ManifestError("CLI publication requires an explicitly verified context")
     if profile == "cli" and boolean(data, "docs_only", False):
         raise ManifestError("CLI currently requires full generated-client verification")
+    tag_policy = data.get("release_tag_policy", "stable")
+    if tag_policy not in ("stable", "v-prefix", "none"):
+        raise ManifestError("Unsupported QBit release tag policy")
+    test_policy = data.get("test_branch_policy", "all")
+    if test_policy not in ("all", "non-release", "non-release-no-integration", "feature", "non-release-no-main"):
+        raise ManifestError("Unsupported QBit test branch policy")
     return {"profile": profile, "orb_version": version, "default_branch": default_branch,
             "java_version": java, "node_version": node, "browsers": boolean(data, "browsers", True),
             "api_checks": boolean(data, "api_checks", False),
             "release_completion": boolean(data, "release_completion", False),
+            "release_on_main": boolean(data, "release_on_main", False),
+            "release_tag_policy": tag_policy, "test_branch_policy": test_policy,
             "docs_only": boolean(data, "docs_only", False),
             "publish_context": publish_context,
             "publish": {key: boolean(publishing, key, key != "asciidoc" and profile not in ("cli", "all"))
@@ -162,14 +170,16 @@ def proven_docs_only(config, branch, tag):
     return base.decode().strip() if eligible else False
 
 
-def event_kind(branch, tag):
+def event_kind(branch, tag, release_on_main=False, release_tag_policy="stable"):
     if tag:
-        if not re.fullmatch(r"v\d+\.\d+\.\d+", tag):
+        if release_tag_policy == "none" or not re.fullmatch(r"v.*" if release_tag_policy == "v-prefix" else r"v\d+\.\d+\.\d+", tag):
             return "test"
         tagged = git("rev-parse", "--verify", f"refs/tags/{tag}^{{commit}}")
         if not tagged and git("fetch", "--no-tags", "origin", f"refs/tags/{tag}:refs/tags/{tag}") is not None:
             tagged = git("rev-parse", "--verify", f"refs/tags/{tag}^{{commit}}")
         return "release" if tagged and tagged == git("rev-parse", "HEAD") else "test"
+    if branch == "main" and release_on_main:
+        return "release"
     if branch == "develop":
         return "snapshot"
     if re.fullmatch(r"release/.+", branch):
@@ -179,13 +189,21 @@ def event_kind(branch, tag):
 
 def qbit_template(config, branch, tag):
     """Profile-owned template; add future profiles as reviewed renderers, not raw YAML."""
-    kind = event_kind(branch, tag)
+    kind = event_kind(branch, tag, config.get("release_on_main", False), config.get("release_tag_policy", "stable"))
     if kind != "test" and not config["publish"][kind]:
         kind = "test"
     workflow = "test_only" if kind == "test" else "publish_" + kind
     result = {"version": 2.1, "orbs": {"qqq-orb": "kingsrook/qqq-orb@" + config["orb_version"]}}
     filters = ({"branches": {"ignore": "/.*/"}, "tags": {"only": "/.*/"}} if tag else
                {"branches": {"ignore": "automation/qbit-rc-pending"}, "tags": {"ignore": "/.*/"}})
+    if kind == "test" and not tag:
+        ignores = {"all": None, "non-release": "/(develop|release/.*)/",
+                   "non-release-no-integration": "/(develop|release/.*|integration.*)/",
+                   "feature": "/(develop|main|release/.*|integration.*)/",
+                   "non-release-no-main": "/(develop|main|release/.*)/"}
+        ignored = ignores[config.get("test_branch_policy", "all")]
+        if ignored:
+            filters["branches"]["ignore"] = ["automation/qbit-rc-pending", ignored]
     docs_base = proven_docs_only(config, branch, tag) if kind == "test" else False
     if docs_base:
         # Keep the existing workflow/result identity even when Maven is not needed.
