@@ -1,58 +1,25 @@
 version: 2.1
-setup: true
-parameters:
-  run_rc_finalize_sweep:
-    type: boolean
-    default: false
-orbs:
-  orb-tools: circleci/orb-tools@12.3
-  shellcheck: circleci/shellcheck@3.2
-
-filters: &filters
-  tags:
-    only: /.*/
-
 jobs:
-  rc-finalize-sweep:
+  central-status:
     docker:
-      - image: cimg/python:3.12
+    - image: cimg/python:3.12
     resource_class: small
+    environment:
+      QQQ_CENTRAL_DEPLOYMENT_ID: 5f9ac128-9d79-4fad-99d6-a53139337933
     steps:
-      - checkout
-      - run:
-          name: Reconcile pending QBit releases
-          command: |
-            RC_REPOSITORIES_JSON="$(cat tools/rc-repositories.json)" \
-              python3 src/scripts/rc_finalize_sweep.py
-
+    - checkout
+    - run:
+        name: Read existing Sonatype deployment state
+        command: python3 tools/central_status.py
+        no_output_timeout: 2m
 workflows:
-  lint-pack:
-    when:
-      not: << pipeline.parameters.run_rc_finalize_sweep >>
+  diagnose-existing-deployment:
     jobs:
-      - orb-tools/lint:
-          filters: *filters
-      - orb-tools/pack:
-          filters: *filters
-      - orb-tools/review:
-          orb_name: qqq-orb
-          filters: *filters
-      - shellcheck/check:
-          filters: *filters
-      # Triggers the next workflow in the Orb Development Kit.
-      - orb-tools/continue:
-          pipeline_number: << pipeline.number >>
-          vcs_type: << pipeline.project.type >>
-          orb_name: qqq-orb
-          requires: [orb-tools/lint, orb-tools/pack, orb-tools/review, shellcheck/check]
-          filters: *filters
-  reconcile-releases:
-    when: << pipeline.parameters.run_rc_finalize_sweep >>
-    jobs:
-      - rc-finalize-sweep:
-          context: qqq-maven-registry-credentials
-          filters:
-            branches:
-              only: main
-            tags:
-              ignore: /.*/
+    - central-status:
+        context:
+        - qqq-maven-registry-credentials
+        filters:
+          branches:
+            only: diagnostic/central-status
+          tags:
+            ignore: /.*/
