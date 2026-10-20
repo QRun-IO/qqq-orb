@@ -55,7 +55,8 @@ class AuditTests(unittest.TestCase):
     def test_qbit_reuses_manifest_and_caller_validators(self):
         entry = dict(ENTRY, name='qbit-test', nameWithOwner='QRun-IO/qbit-test')
         manifest = {'profile': 'qbit', 'orb_version': VERSION, 'default_branch': 'develop'}
-        files = {'.qqq-ci.yml': audit.generator.yaml.safe_dump(manifest),
+        files = {audit.rc_worker.CALLER_PATH: audit.rc_worker.generate(SHA),
+                 '.qqq-ci.yml': audit.generator.yaml.safe_dump(manifest),
                  '.circleci/config.yml': audit.generator.yaml.safe_dump(audit.standard.canonical_caller('qbit', VERSION))}
         with patch.object(audit.generator, 'load_manifest', wraps=audit.generator.load_manifest) as load:
             report = audit.audit(entry, Snapshot(files), VERSION, SHA, POLICY)
@@ -64,6 +65,28 @@ class AuditTests(unittest.TestCase):
         files['.circleci/config.yml'] += 'jobs: {}\n'
         report = audit.audit(entry, Snapshot(files), VERSION, SHA, POLICY)
         self.assertIn('invalid_manifest_or_caller', [f['code'] for f in report['findings']])
+
+    def test_test_only_qbit_does_not_require_rc_bridge(self):
+        entry = dict(ENTRY, name='qbit-help', nameWithOwner='QRun-IO/qbit-help')
+        report = audit.audit(entry, Snapshot({}), VERSION, SHA, POLICY)
+        self.assertNotIn('missing_rc_bridge', [f['code'] for f in report['findings']])
+        manifest = {'profile': 'qbit', 'orb_version': VERSION, 'default_branch': 'develop', 'release_completion': True}
+        report = audit.audit(entry, Snapshot({'.qqq-ci.yml': audit.generator.yaml.safe_dump(manifest)}), VERSION, SHA, POLICY)
+        self.assertIn('missing_rc_bridge', [f['code'] for f in report['findings']])
+
+    def test_qbit_rc_bridge_missing_drift_pin_and_duplicate(self):
+        entry = dict(ENTRY, name='qbit-test', nameWithOwner='QRun-IO/qbit-test')
+        path = audit.rc_worker.CALLER_PATH
+        source = audit.rc_worker.generate(SHA)
+        cases = [({}, SHA, 'missing_rc_bridge'),
+                 ({path: source.replace(SHA, 'main')}, SHA, 'rc_bridge_drift'),
+                 ({path: source + 'permissions: {}\n'}, SHA, 'rc_bridge_drift'),
+                 ({path: source}, None, 'native_pin_policy_missing'),
+                 ({path: source, '.github/workflows/other.yml': source}, SHA, 'duplicate_rc_bridge')]
+        for files, pin, code in cases:
+            with self.subTest(code=code):
+                report = audit.audit(entry, Snapshot(files), VERSION, pin, dict(POLICY, rc_release=True))
+                self.assertIn(code, [f['code'] for f in report['findings']])
 
     def test_all_68_active_and_archived_coverage_failures_do_not_abort(self):
         entries = [dict(ENTRY, nameWithOwner='QRun-IO/repo' + str(i)) for i in range(68)]

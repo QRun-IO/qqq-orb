@@ -33,6 +33,7 @@ generator = module('generate_pipeline')
 qctl = module('generate_qctl_workflow')
 next_worker = module('generate_next_workflow')
 auxiliary = module('generate_auxiliary_workflow')
+rc_worker = module('generate_rc_workflow')
 PROFILES = {'qqq': 'core', 'qqq-frontend-material-dashboard': 'frontend-material',
             'qqq-frontend-core': 'frontend-core', 'qqq-cli': 'cli', 'Voyage': 'voyage',
             'qqq-frontend-next': 'frontend-next', 'qqq-all': 'all',
@@ -116,6 +117,7 @@ def audit(entry, snapshot, version, worker_sha, policy):
     def finding(code, path=None, detail=None):
         findings.append({k: v for k, v in {'code': code, 'path': path, 'detail': detail}.items() if v is not None})
     native = profile in ('qctl', 'frontend-next')
+    rc_enabled = policy.get('rc_release') is True
     if profile != 'qctl' and profile:
         raw = snapshot.read('.qqq-ci.yml')
         caller = snapshot.read('.circleci/config.yml')
@@ -130,6 +132,7 @@ def audit(entry, snapshot, version, worker_sha, policy):
                     raise standard.StandardError('Manifest must be a mapping')
                 if data.get('profile') != profile:
                     finding('profile_mismatch', '.qqq-ci.yml')
+                rc_enabled = rc_enabled or data.get('release_completion') is True
                 pin = data.get('orb_version')
                 result['orb_version'] = pin
                 if pin != version:
@@ -146,6 +149,22 @@ def audit(entry, snapshot, version, worker_sha, policy):
                 finding('invalid_manifest_or_caller', '.circleci/config.yml')
     workflows = sorted(path for path in snapshot.paths if path.startswith('.github/workflows/') and path.endswith(('.yml', '.yaml')))
     native_paths = set()
+    rc_source = snapshot.read(rc_worker.CALLER_PATH)
+    existing_rc = rc_source is not None and 'qbit-release-rc.yml@' in rc_source
+    if profile == 'qbit' and (rc_enabled or existing_rc):
+        path = rc_worker.CALLER_PATH
+        raw = rc_source
+        if raw is None:
+            finding('missing_rc_bridge', path)
+        elif not re.fullmatch(r'[0-9a-f]{40}', worker_sha or ''):
+            finding('native_pin_policy_missing', path)
+        elif raw != rc_worker.generate(worker_sha):
+            finding('rc_bridge_drift', path)
+        else:
+            native_paths.add(path)
+        for other in workflows:
+            if other != path and 'qbit-release-rc.yml@' in snapshot.read(other):
+                finding('duplicate_rc_bridge', other)
     for kind, definition in auxiliary.BRIDGES.items():
         if definition['repository'] != entry['nameWithOwner']:
             continue
