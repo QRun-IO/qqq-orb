@@ -79,6 +79,12 @@ class AuxiliaryTests(unittest.TestCase):
             with self.subTest(kind=kind):
                 worker = yaml.safe_load((ROOT / '.github/workflows' / (kind + '.yml')).read_text())
                 expected = copy.deepcopy(original['jobs'])
+                if kind == 'core-codeql':
+                    # Cover the additional languages observed in active default setup.
+                    expected['analyze']['strategy']['matrix']['include'].extend([
+                        {'language': 'actions', 'build-mode': 'none'},
+                        {'language': 'python', 'build-mode': 'none'},
+                    ])
                 if kind == 'core-quickstart-lifecycle':
                     for job in expected.values():
                         for step in job.get('steps', []):
@@ -88,6 +94,24 @@ class AuxiliaryTests(unittest.TestCase):
                 self.assertEqual(expected, worker['jobs'])
                 self.assertEqual(original['permissions'], worker.get('permissions'))
                 self.assertEqual({'workflow_call'}, set(worker['on']))
+
+    def test_codeql_union_keeps_original_languages_and_default_queries(self):
+        worker = yaml.safe_load((ROOT / '.github/workflows/core-codeql.yml').read_text())
+        job = worker['jobs']['analyze']
+        matrix = job['strategy']['matrix']['include']
+        original = ORIGINALS['core-codeql']['jobs']['analyze']['strategy']['matrix']['include']
+        self.assertEqual(matrix[:2], original)
+        self.assertEqual(matrix[2:], [
+            {'language': 'actions', 'build-mode': 'none'},
+            {'language': 'python', 'build-mode': 'none'},
+        ])
+        self.assertEqual({cell['language'] for cell in matrix},
+                         {'actions', 'java-kotlin', 'javascript-typescript', 'python'})
+        init = next(step for step in job['steps'] if step.get('uses', '').startswith('github/codeql-action/init@'))
+        self.assertNotIn('queries', init['with'])
+        self.assertNotIn('config-file', init['with'])
+        self.assertNotIn('config', init['with'])
+        self.assertNotIn('packs', init['with'])
 
     def test_callers_preserve_events_and_have_no_local_steps(self):
         for kind, original in ORIGINALS.items():
