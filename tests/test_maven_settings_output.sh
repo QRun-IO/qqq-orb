@@ -49,10 +49,26 @@ release
 -DskipTests
 -Dgpg.keyname=test-key
 -Dgpg.passphrase=test-passphrase
+-DwaitForPublishCompletion=true
 -Dflatten.mode=resolveCiFriendliesOnly
 -DupdatePomFile=true
 org.codehaus.mojo:flatten-maven-plugin:1.7.3:flatten
 deploy
 EOF
 diff -u "$test_dir/expected-args" "$test_dir/mvn-args"
+# A Central validation failure or publication timeout must fail this wrapper.
+cat > "$test_dir/bin/mvn" <<'EOF'
+#!/bin/bash
+exit 42
+EOF
+set +e
+PATH="$test_dir/bin:$PATH" GPG_KEYNAME=test-key GPG_PASSPHRASE=test-passphrase \
+    bash "$test_dir/deploy.sh" > "$test_dir/failure-output" 2>&1
+status=$?
+set -e
+if [ "$status" -ne 42 ]; then
+    echo 'Deploy did not preserve Maven publication failure' >&2
+    exit 1
+fi
+
 echo 'Maven settings setup and deploy output are safe; deploy arguments preserved'
