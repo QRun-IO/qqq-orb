@@ -6,6 +6,7 @@ scratch=$(mktemp -d)
 trap 'rm -rf "$scratch"' EXIT
 mkdir "$scratch/bin"
 export INSTALL_LOG="$scratch/install.log"
+export APT_CONFIG_CAPTURE="$scratch/apt.conf"
 export BASH_ENV="$scratch/bash-env"
 export QQQ_MAVEN_BIN_DIR="$scratch/maven-bin"
 : > "$BASH_ENV"
@@ -14,6 +15,11 @@ cat > "$scratch/bin/sudo" <<'STUB'
 printf '%s\n' "$*" >> "$INSTALL_LOG"
 if [[ "$*" == *apt-get* ]]; then
   [[ "$1" == env && "$2" == DEBIAN_FRONTEND=noninteractive && "$3" == NEEDRESTART_MODE=l ]] || exit 90
+  [[ -f "$APT_CONFIG_CAPTURE" ]] && grep -qx 'Acquire::Retries "3";' "$APT_CONFIG_CAPTURE" || exit 91
+  [[ ${APT_FAIL:-0} == 0 ]] || exit "$APT_FAIL"
+fi
+if [[ "$1" == tee && "$2" == /etc/apt/apt.conf.d/80-qqq-download-retries ]]; then
+  cat > "$APT_CONFIG_CAPTURE"; exit 0
 fi
 if [[ "$1" == tee || "$1" == gpg || "$1" == -E ]]; then cat >/dev/null; fi
 STUB
@@ -32,6 +38,7 @@ grep -q 'tee /etc/needrestart/conf.d/99-qqq-ci.conf' "$INSTALL_LOG"
 grep -q 'export JAVA_HOME=' "$BASH_ENV"
 : > "$INSTALL_LOG"
 : > "$BASH_ENV"
+rm "$APT_CONFIG_CAPTURE"
 PARAM_INSTALL_NODE=true bash "$script_dir/install_java.sh" >/dev/null 2>&1
 [[ $(grep -c 'apt-get' "$INSTALL_LOG") -eq 5 ]]
 grep -q 'apt-get install -y -qq nodejs' "$INSTALL_LOG"
@@ -82,4 +89,9 @@ if PARAM_INSTALL_NODE=false bash "$script_dir/install_java.sh" >/dev/null 2>&1; 
   echo 'invalid native Maven accepted' >&2; exit 1
 fi
 unset -f mvn
+if APT_FAIL=100 PARAM_INSTALL_NODE=false bash "$script_dir/install_java.sh" >/dev/null 2>&1; then
+  echo 'persistent apt failure accepted' >&2; exit 1
+else
+  [[ $? -eq 100 ]]
+fi
 printf 'PASS: unattended installation and native/executable/nonexecutable wrapper selection\n'

@@ -26,6 +26,75 @@ class Snapshot:
 
 
 class AuditTests(unittest.TestCase):
+    def test_all_scanner_and_release_requirements_follow_branch_profile(self):
+        entry = dict(ENTRY, name='qqq-all', nameWithOwner='QRun-IO/qqq-all')
+        scanner = '.github/workflows/codeql.yml'
+        release = audit.auxiliary.BRIDGES['all-release']['path']
+        for profile in ('all', 'repository-policy'):
+            files = {'.qqq-ci.yml': audit.generator.yaml.safe_dump({'profile': profile, 'orb_version': VERSION, 'default_branch': 'develop'}),
+                     '.circleci/config.yml': audit.generator.yaml.safe_dump(audit.standard.canonical_caller(profile, VERSION))}
+            policy = dict(POLICY, profile=profile, codeql_worker_sha=SHA)
+            report = audit.audit(entry, Snapshot(files), VERSION, SHA, policy)
+            missing = {f.get('path') for f in report['findings'] if f['code'] == 'missing_native_maintenance_bridge'}
+            self.assertIn(scanner, missing)
+            self.assertEqual(profile == 'all', release in missing)
+            files[scanner] = audit.generator.yaml.safe_dump(audit.auxiliary.canonical('qbit-codeql', SHA), sort_keys=False)
+            if profile == 'all':
+                files[release] = audit.generator.yaml.safe_dump(audit.auxiliary.canonical('all-release', SHA), sort_keys=False)
+            self.assertEqual([], audit.audit(entry, Snapshot(files), VERSION, SHA, policy)['findings'])
+            files[scanner] = files[scanner].replace(SHA, 'b' * 40)
+            self.assertIn('native_maintenance_bridge_drift', [f['code'] for f in audit.audit(entry, Snapshot(files), VERSION, SHA, policy)['findings']])
+            files[release] = 'jobs: {}'
+            self.assertTrue(any(f['code'] == 'native_maintenance_bridge_drift' and f.get('path') == release for f in audit.audit(entry, Snapshot(files), VERSION, SHA, policy)['findings']))
+
+    def test_schema_drift_bridge_tracks_branch_source_without_exempting_default(self):
+        entry = dict(ENTRY, name='qbit-authentik', nameWithOwner='QRun-IO/qbit-authentik')
+        path = '.github/workflows/schema-drift.yml'
+        cases = [
+            ('main', {}, False),
+            ('main', {'src/test/java/example/SchemaDriftTest.java': 'class SchemaDriftTest {}'}, True),
+            ('develop', {}, True),
+        ]
+        for branch, files, required in cases:
+            with self.subTest(branch=branch, files=files):
+                snapshot = Snapshot(files)
+                snapshot.branch, snapshot.default_branch = branch, 'develop'
+                report = audit.audit(entry, snapshot, VERSION, SHA, POLICY)
+                missing = any(f['code'] == 'missing_native_maintenance_bridge' and f.get('path') == path for f in report['findings'])
+                self.assertEqual(required, missing)
+        snapshot = Snapshot({path: 'jobs: {}'})
+        snapshot.branch, snapshot.default_branch = 'main', 'develop'
+        report = audit.audit(entry, snapshot, VERSION, SHA, POLICY)
+        self.assertIn('native_maintenance_bridge_drift', [f['code'] for f in report['findings']])
+
+    def test_placeholder_can_retain_canonical_release_and_scanner_bridges(self):
+        entry = dict(ENTRY, name='qbit-help', nameWithOwner='QRun-IO/qbit-help')
+        files = {'.qqq-ci.yml': audit.generator.yaml.safe_dump({'profile': 'repository-policy', 'orb_version': VERSION, 'default_branch': 'develop'}),
+                 '.circleci/config.yml': audit.generator.yaml.safe_dump(audit.standard.canonical_caller('repository-policy', VERSION)),
+                 audit.rc_worker.CALLER_PATH: audit.rc_worker.generate(SHA),
+                 '.github/workflows/codeql.yml': audit.generator.yaml.safe_dump(audit.auxiliary.canonical('qbit-codeql', SHA), sort_keys=False)}
+        snapshot = Snapshot(files)
+        snapshot.branch = 'main'
+        snapshot.default_branch = 'develop'
+        policy = dict(POLICY, branch_profiles={'main': 'repository-policy'}, rc_worker_sha=SHA, codeql_worker_sha=SHA)
+        self.assertEqual([], audit.audit(entry, snapshot, VERSION, SHA, policy)['findings'])
+        files['.github/workflows/codeql.yml'] = files['.github/workflows/codeql.yml'].replace(SHA, 'b' * 40)
+        self.assertTrue(any(f['code'] == 'native_maintenance_bridge_drift' for f in audit.audit(entry, snapshot, VERSION, SHA, policy)['findings']))
+
+    def test_placeholder_profile_is_scoped_to_selected_branch(self):
+        entry = dict(ENTRY, name='qbit-help', nameWithOwner='QRun-IO/qbit-help')
+        files = {'.qqq-ci.yml': audit.generator.yaml.safe_dump({'profile': 'repository-policy', 'orb_version': VERSION, 'default_branch': 'develop'}),
+                 '.circleci/config.yml': audit.generator.yaml.safe_dump(audit.standard.canonical_caller('repository-policy', VERSION))}
+        snapshot = Snapshot(files)
+        snapshot.branch = 'main'
+        snapshot.default_branch = 'develop'
+        policy = dict(POLICY, branch_profiles={'main': 'repository-policy'})
+        self.assertEqual([], audit.audit(entry, snapshot, VERSION, SHA, policy)['findings'])
+        snapshot.branch = 'develop'
+        report = audit.audit(entry, snapshot, VERSION, SHA, policy)
+        self.assertEqual('qbit', report['profile'])
+        self.assertTrue(any(f['code'] == 'profile_mismatch' for f in report['findings']))
+
     def test_qbit_scanner_policy_requires_exact_canonical_worker(self):
         entry = dict(ENTRY, name='qbit-help', nameWithOwner='QRun-IO/qbit-help')
         manifest = {'profile': 'qbit', 'orb_version': VERSION, 'default_branch': 'develop',
