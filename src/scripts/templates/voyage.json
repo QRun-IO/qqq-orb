@@ -122,43 +122,39 @@
       "machine": {
         "image": "ubuntu-2204:current"
       },
-      "resource_class": "large",
+      "resource_class": "medium",
       "steps": [
-        "checkout",
         {
-          "qqq-orb/install_java": {
-            "java_version": "21"
+          "attach_workspace": {
+            "at": "."
           }
         },
-        "qqq-orb/mvn_cache_restore",
         {
           "restore_cache": {
             "keys": [
-              "owasp-nvd-v1-{{ .Branch }}",
-              "owasp-nvd-v1-develop",
-              "owasp-nvd-v1-"
+              "voyage-trivy-v0760-"
             ]
           }
         },
         {
           "run": {
-            "name": "OWASP Dependency Check",
-            "no_output_timeout": "20m",
-            "command": "mkdir -p ~/.dependency-check\nfor attempt in 1 2 3; do\n  echo \"=== Attempt $attempt of 3 ===\"\n  if mvn org.owasp:dependency-check-maven:check -B \\\n    -DnvdApiKey=${NVD_API_KEY:-} \\\n    -DfailBuildOnCVSS=7 \\\n    -DsuppressionFile=.config/owasp/suppressions.xml \\\n    -DdataDirectory=${HOME}/.dependency-check \\\n    -DnvdMaxRetryCount=3; then\n    echo \"OWASP check succeeded\"\n    exit 0\n  fi\n  if [ $attempt -lt 3 ]; then\n    echo \"Cleaning corrupted H2 database...\"\n    rm -rf ~/.dependency-check/nvdcve* ~/.dependency-check/*.lock 2>/dev/null || true\n    sleep 10\n  fi\ndone\necho \"OWASP check failed after 3 attempts (non-blocking on develop)\"\nif [ \"${CIRCLE_BRANCH}\" = \"develop\" ]; then\n  echo \"WARNING: Continuing despite OWASP failure on develop branch\"\n  exit 0\nfi\nexit 1\n"
+            "name": "Scan verified application dependencies",
+            "no_output_timeout": "15m",
+            "command": "set -euo pipefail\ntest -s target/voyage.jar\nmkdir -p \"$HOME/.cache/trivy\" target/security-reports\ndocker run --rm \\\n  -v \"$PWD/target/voyage.jar:/scan/voyage.jar:ro\" \\\n  -v \"$PWD/target/security-reports:/reports\" \\\n  -v \"$HOME/.cache/trivy:/root/.cache/\" \\\n  aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222 rootfs \\\n  --scanners vuln --severity HIGH,CRITICAL --exit-code 1 \\\n  --list-all-pkgs --format json --output /reports/dependencies.json /scan\n"
           }
         },
         {
           "save_cache": {
-            "key": "owasp-nvd-v1-{{ .Branch }}-{{ epoch }}",
+            "key": "voyage-trivy-v0760-{{ epoch }}",
             "paths": [
-              "~/.dependency-check"
+              "~/.cache/trivy"
             ]
           }
         },
         {
           "store_artifacts": {
-            "path": "target/dependency-check-report.html",
-            "destination": "owasp-report"
+            "path": "target/security-reports",
+            "destination": "dependency-security"
           }
         }
       ]
@@ -379,9 +375,6 @@
         },
         {
           "security-scan": {
-            "context": [
-              "nvd"
-            ],
             "requires": [
               "build-and-test"
             ],
@@ -430,7 +423,8 @@
             "requires": [
               "build-and-test",
               "secrets-scan",
-              "sast-scan"
+              "sast-scan",
+              "security-scan"
             ],
             "filters": {
               "branches": {
@@ -481,9 +475,6 @@
         },
         {
           "security-scan": {
-            "context": [
-              "nvd"
-            ],
             "requires": [
               "build-and-test"
             ],
@@ -541,7 +532,8 @@
             "requires": [
               "build-and-test",
               "secrets-scan",
-              "sast-scan"
+              "sast-scan",
+              "security-scan"
             ],
             "filters": {
               "branches": {
