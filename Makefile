@@ -220,3 +220,4 @@ publish-release: check-clean check-branch lint clean dev test-all
 # an isolated temporary repository. Never publishes or uses signing credentials.
 test-publication-poms:
 	python3 tests/test_maven_publication_poms.py
+	python3 tests/test_effective_publication_version.py
