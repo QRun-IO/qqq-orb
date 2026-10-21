@@ -38,7 +38,9 @@ class MobilePolicyTests(unittest.TestCase):
         data = json.loads((ROOT / "src/scripts/templates/android.json").read_text())
         steps = data["jobs"]["maven-deploy"]["steps"]
         self.assertEqual(len(steps), 3)
-        command = steps[2]["run"]["command"]
+        raw = steps[2]["run"]["command"]
+        self.assertIn("python3 \\<<'PYTHON'", raw)
+        command = raw.replace("\\<<", "<<")
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             runner = root / "gradlew"
