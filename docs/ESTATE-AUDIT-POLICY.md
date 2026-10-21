@@ -80,6 +80,14 @@ required-check unknown states, and the lint image/tool/command/caller contract.
 
 ## Batch orb-version rollout
 
+For a standard QBit without a manifest, start directly on the managed patch
+track using `python tools/standardize_qbit.py /checkout --orb-version 0.8
+--default-branch main`. Inspect the preview, then repeat with `--write`.
+This preserves the inferred publication and branch-filter policy while writing
+the same track to the manifest and setup caller. Use `rollout_version.py` below
+for repositories that already have a manifest. Neither command configures
+repository protection or automatically enrolls newly created repositories.
+
 Upgrade existing canonical CircleCI consumers with one command:
 
 ```sh
