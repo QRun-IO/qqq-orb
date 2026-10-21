@@ -10,6 +10,11 @@ description: >
   - Collects JUnit XML test results
   - Stores test results and screenshots
   - Saves Maven cache for future builds
+parameters:
+  build_before_test:
+    type: boolean
+    default: true
+    description: "Build the React app first; combined jobs already build it with frontend_build"
 steps:
   # Ensure no stale Chrome/Driver is shadowing the PATH (your base image had Chrome 109)
   - run:
@@ -52,6 +57,8 @@ steps:
   # GPG signing will happen later in mvn_jar_deploy when deploying to Maven Central.
   - run:
       name: Build app, start server, run tests
+      environment:
+        PARAM_BUILD_BEFORE_TEST: << parameters.build_before_test >>
       command: <<include(scripts/frontend_test_run.sh)>>
 
   # Always collect and publish test results & screenshots
