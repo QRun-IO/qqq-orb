@@ -11,7 +11,7 @@
             "name": "build-and-test",
             "node_version": "22",
             "package_manager": "npm",
-            "test_commands": "[ \"npx playwright install chromium --with-deps\", \"npm run test:chromium\", \"npm run lighthouse\" ]",
+            "test_commands": "[\"npm run lint\", \"npm run build\", \"npx playwright install chromium --with-deps\", \"npm run test:chromium\", \"npm run lighthouse\"]",
             "context": [
               "github"
             ],
@@ -137,7 +137,7 @@
             "name": "build-and-test",
             "node_version": "22",
             "package_manager": "npm",
-            "test_commands": "[ \"npx playwright install chromium --with-deps\", \"npm run test:chromium\", \"npm run lighthouse\" ]",
+            "test_commands": "[\"npm run lint\", \"npm run build\", \"npx playwright install chromium --with-deps\", \"npm run test:chromium\", \"npm run lighthouse\"]",
             "context": [
               "github"
             ],
@@ -252,7 +252,7 @@
             "name": "build-and-test",
             "node_version": "22",
             "package_manager": "npm",
-            "test_commands": "[ \"npx playwright install chromium --with-deps\", \"npm run test:chromium\", \"npm run lighthouse\" ]",
+            "test_commands": "[\"npm run lint\", \"npm run build\", \"npx playwright install chromium --with-deps\", \"npm run test:chromium\", \"npm run lighthouse\"]",
             "context": [
               "github"
             ],
@@ -367,7 +367,7 @@
             "name": "build-and-test",
             "node_version": "22",
             "package_manager": "npm",
-            "test_commands": "[ \"npx playwright install chromium --with-deps\", \"npm run test:chromium\", \"npm run lighthouse\" ]",
+            "test_commands": "[\"npm run lint\", \"npm run build\", \"npx playwright install chromium --with-deps\", \"npm run test:chromium\", \"npm run lighthouse\"]",
             "context": [
               "github"
             ],
@@ -514,7 +514,7 @@
             "name": "build-and-test",
             "node_version": "22",
             "package_manager": "npm",
-            "test_commands": "[ \"npx playwright install chromium --with-deps\", \"npm run test:chromium\", \"npm run lighthouse\" ]",
+            "test_commands": "[\"npm run lint\", \"npm run build\", \"npx playwright install chromium --with-deps\", \"npm run test:chromium\", \"npm run lighthouse\"]",
             "context": [
               "github"
             ],
