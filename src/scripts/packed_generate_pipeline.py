@@ -190,7 +190,8 @@ def proven_ci_maintenance(branch, tag):
     changed = git("diff", "--no-ext-diff", "--no-renames", "--name-only", "-z", base, "HEAD")
     if not changed:
         return False
-    allowed = {b".qqq-ci.yml", b".circleci/config.yml", b".github/workflows/codeql.yml"}
+    allowed = {b".qqq-ci.yml", b".circleci/config.yml", b".github/workflows/codeql.yml",
+               b".github/workflows/release-rc.yml"}
     return all(path in allowed for path in changed.rstrip(b"\0").split(b"\0"))
 
 
