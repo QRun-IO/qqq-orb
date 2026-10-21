@@ -23,6 +23,7 @@ ALL_TEMPLATE = json.loads((_TEMPLATE_DIR / "all.json").read_text(encoding="utf-8
 STARTER_TEMPLATE = json.loads((_TEMPLATE_DIR / "app-starter.json").read_text(encoding="utf-8"))
 ANDROID_TEMPLATE = json.loads((_TEMPLATE_DIR / "android.json").read_text(encoding="utf-8"))
 POLICY_TEMPLATE = json.loads((_TEMPLATE_DIR / "mcp-policy.json").read_text(encoding="utf-8"))
+REPOSITORY_POLICY_TEMPLATE = json.loads((_TEMPLATE_DIR / "repository-policy.json").read_text(encoding="utf-8"))
 MARKETING_TEMPLATE = json.loads((_TEMPLATE_DIR / "marketing.json").read_text(encoding="utf-8"))
 # END PROFILE RESOURCES
 
@@ -69,7 +70,7 @@ def load_manifest(path, setup_version):
     if not isinstance(data, dict):
         raise ManifestError("Manifest must be a mapping")
     profile = data.get("profile")
-    if profile not in ("qbit", "core", "frontend-material", "frontend-core", "cli", "voyage", "frontend-next", "all", "app-starter", "android", "mcp-policy", "marketing"):
+    if profile not in ("qbit", "core", "frontend-material", "frontend-core", "cli", "voyage", "frontend-next", "all", "app-starter", "android", "mcp-policy", "repository-policy", "marketing"):
         raise ManifestError("Unsupported profile")
     allowed = ("profile", "orb_version", "default_branch", "docs_only", "publish")
     if profile in ("qbit", "core"):
@@ -78,7 +79,7 @@ def load_manifest(path, setup_version):
             allowed += ("release_completion", "release_on_main", "release_tag_policy", "test_branch_policy")
     elif profile == "cli":
         allowed += ("publish_context",)
-    elif profile in ("voyage", "frontend-next", "app-starter", "android", "mcp-policy", "marketing"):
+    elif profile in ("voyage", "frontend-next", "app-starter", "android", "mcp-policy", "repository-policy", "marketing"):
         allowed = ("profile", "orb_version", "default_branch")
     elif profile == "all":
         allowed = ("profile", "orb_version", "default_branch", "publish", "publish_context")
@@ -139,7 +140,7 @@ def load_manifest(path, setup_version):
             "release_tag_policy": tag_policy, "test_branch_policy": test_policy,
             "docs_only": boolean(data, "docs_only", False),
             "publish_context": publish_context,
-            "publish": {key: boolean(publishing, key, key != "asciidoc" and profile not in ("cli", "all")
+            "publish": {key: boolean(publishing, key, key != "asciidoc" and profile not in ("cli", "all", "repository-policy")
                                       and not (profile == "qbit" and key == "hotfix"))
                         for key in publish_keys}}
 
@@ -416,7 +417,13 @@ def voyage_template(config, branch, tag):
     return json.loads(json.dumps(VOYAGE_TEMPLATE).replace("__ORB_VERSION__", config["orb_version"]))
 
 
+def repository_policy_template(config, branch, tag):
+    del config, branch, tag
+    return copy.deepcopy(REPOSITORY_POLICY_TEMPLATE)
+
+
 PROFILE_TEMPLATES = {"qbit": qbit_template, "core": core_template,
+                     "repository-policy": repository_policy_template,
                      "frontend-material": frontend_template, "frontend-core": frontend_template,
                      "cli": cli_template, "voyage": voyage_template, "frontend-next": next_template, "all": all_template, "app-starter": starter_template, "android": android_template, "mcp-policy": policy_template, "marketing": marketing_template}
 

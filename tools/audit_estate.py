@@ -175,7 +175,7 @@ def owner_gate_errors(snapshot):
 
 def audit(entry, snapshot, version, worker_sha, policy):
     name = entry['name']
-    profile = policy.get('profile') or ('qbit' if name.startswith('qbit-') else PROFILES.get(name))
+    profile = policy.get('branch_profiles', {}).get(snapshot.branch) or policy.get('profile') or ('qbit' if name.startswith('qbit-') else PROFILES.get(name))
     result = {'repository': entry['nameWithOwner'], 'sha': snapshot.sha,
               'default_branch': getattr(snapshot, 'default_branch', snapshot.branch),
               'source_branch': snapshot.branch, 'profile': profile, 'findings': [], 'required_checks': {}}
@@ -217,7 +217,7 @@ def audit(entry, snapshot, version, worker_sha, policy):
     native_paths = set()
     rc_source = snapshot.read(rc_worker.CALLER_PATH)
     existing_rc = rc_source is not None and 'qbit-release-rc.yml@' in rc_source
-    if profile == 'qbit' and (rc_enabled or existing_rc):
+    if profile in ('qbit', 'repository-policy') and (rc_enabled or existing_rc):
         path = rc_worker.CALLER_PATH
         raw = rc_source
         rc_sha = policy.get("rc_worker_sha", worker_sha)
@@ -235,13 +235,21 @@ def audit(entry, snapshot, version, worker_sha, policy):
     for kind, definition in auxiliary.BRIDGES.items():
         bridge_sha = worker_sha
         if kind == 'qbit-codeql':
-            if profile != 'qbit' or 'codeql_worker_sha' not in policy:
+            if profile not in ('qbit', 'repository-policy', 'all') or 'codeql_worker_sha' not in policy:
                 continue
             bridge_sha = policy['codeql_worker_sha']
         elif definition['repository'] != entry['nameWithOwner']:
             continue
         path = definition['path']
         raw = snapshot.read(path)
+        if kind == 'all-release' and profile == 'repository-policy' and raw is None:
+            continue
+        # Older release branches can predate Authentik's schema contract test.
+        # Keep the default branch required, and validate every existing bridge.
+        if (kind == 'qbit-schema-drift' and raw is None
+                and snapshot.branch != result['default_branch']
+                and not any(path.endswith('/SchemaDriftTest.java') for path in snapshot.paths)):
+            continue
         if raw is None:
             finding('missing_native_maintenance_bridge', path)
             continue
