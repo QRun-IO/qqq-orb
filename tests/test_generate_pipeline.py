@@ -260,6 +260,19 @@ class PipelineTests(unittest.TestCase):
             self.write_manifest(publish={"hotfix": "true"})
             self.render(packed=packed, CIRCLE_BRANCH="hotfix/1.2.3", ok=False)
 
+    def test_qbit_feature_tags_source_and_packed_require_opt_in_and_head(self):
+        self.git("tag", "publish-test")
+        for packed in ([False, True] if PACKED else [False]):
+            self.write_manifest()
+            self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="", CIRCLE_TAG="publish-test"))
+            self.write_manifest(publish={"feature": True})
+            self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="", CIRCLE_TAG="publish-test"), "publish_feature")
+            self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="feature/example"))
+            self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="", CIRCLE_TAG="publish-missing"))
+        self.commit()
+        for packed in ([False, True] if PACKED else [False]):
+            self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="", CIRCLE_TAG="publish-test"))
+
     def test_repository_policy_source_and_packed_never_select_publication(self):
         self.write_manifest(profile="repository-policy")
         for packed in ([False, True] if PACKED else [False]):
