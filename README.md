@@ -118,7 +118,8 @@ Maven jobs use machine executors with Docker pre-installed. Tests using Testcont
 
 The QBit profile runs Maven verification without publishing when a single-parent
 `ci: ...` or `ci(scope): ...` commit changes only `.qqq-ci.yml`,
-`.circleci/config.yml`, or `.github/workflows/codeql.yml`. This applies on
+`.circleci/config.yml`, `.github/workflows/codeql.yml`, or
+`.github/workflows/release-rc.yml`. This applies on
 main, develop, release, and hotfix branches. The normal test job still runs,
 including on branches normally excluded from feature tests, and reports through
 the required `verify` workflow.
