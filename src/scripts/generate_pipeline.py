@@ -225,7 +225,7 @@ def qbit_template(config, branch, tag):
         kind = "hotfix"
     if kind != "test" and not config["publish"][kind]:
         kind = "test"
-    maintenance = kind != "test" and proven_ci_maintenance(branch, tag)
+    maintenance = proven_ci_maintenance(branch, tag)
     if maintenance:
         kind = "test"
     workflow = "test_only" if kind == "test" else "publish_" + kind
