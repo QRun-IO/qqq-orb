@@ -1,5 +1,8 @@
 """Voyage's authoritative CI contracts, extracted from source 9f598cc105ef."""
 import json
+import os
+import subprocess
+import tempfile
 from pathlib import Path
 import re
 import unittest
@@ -75,7 +78,29 @@ class VoyageContract(unittest.TestCase):
         main = {n: o for _, n, o in selected("main")}
         self.assertEqual(main["update-cd-repo"]["requires"], ["docker-build"])
         self.assertEqual(main["release-please"]["requires"], ["docker-build"])
-        self.assertEqual(main["docker-build"]["requires"], ["build-and-test", "secrets-scan", "sast-scan"])
+        self.assertEqual(main["docker-build"]["requires"], ["build-and-test", "secrets-scan", "sast-scan", "security-scan"])
+
+    def test_dependency_scan_propagates_findings_and_operational_errors(self):
+        command = next(s["run"]["command"] for s in TEMPLATE["jobs"]["security-scan"]["steps"]
+                       if isinstance(s, dict) and "run" in s)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "bin").mkdir()
+            docker = root / "bin/docker"
+            docker.write_text('#!/bin/sh\nexit "$SCANNER_RESULT"\n')
+            docker.chmod(0o755)
+            (root / "target").mkdir()
+            (root / "target/voyage.jar").write_bytes(b"artifact")
+            env = {**os.environ, "HOME": directory, "PATH": str(root / "bin") + os.pathsep + os.environ["PATH"],
+                   "CIRCLE_BRANCH": "develop"}
+            for code in (0, 1, 2):
+                result = subprocess.run(["bash", "-c", command], cwd=root,
+                                        env={**env, "SCANNER_RESULT": str(code)}, capture_output=True)
+                self.assertEqual(result.returncode, code)
+            (root / "target/voyage.jar").unlink()
+            result = subprocess.run(["bash", "-c", command], cwd=root,
+                                    env={**env, "SCANNER_RESULT": "0"}, capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
 
     def test_security_policies_and_destinations_preserved(self):
         jobs = TEMPLATE["jobs"]
@@ -84,9 +109,18 @@ class VoyageContract(unittest.TestCase):
         self.assertIn('ghcr.io/qrun-io/voyage', json.dumps(jobs["docker-build"]))
         self.assertIn('overlays/production/kustomization.yaml', json.dumps(jobs["update-cd-repo"]))
         owasp = '\n'.join(s["run"]["command"] for s in jobs["security-scan"]["steps"] if isinstance(s, dict) and "run" in s)
-        self.assertIn('-DfailBuildOnCVSS=7', owasp)
-        self.assertIn('"${CIRCLE_BRANCH}" = "develop"', owasp)
-        self.assertIn('exit 1', owasp)
+        self.assertIn('--severity HIGH,CRITICAL --exit-code 1', owasp)
+        self.assertIn('target/voyage.jar:/scan/voyage.jar:ro', owasp)
+        self.assertIn('aquasec/trivy:0.76.0@sha256:', owasp)
+        self.assertNotIn('--ignore-unfixed', owasp)
+        self.assertNotIn('NVD_API_KEY', owasp)
+        self.assertNotIn('mvn ', owasp)
+        self.assertIn('set -euo pipefail', owasp)
+        self.assertEqual(jobs["security-scan"]["resource_class"], "medium")
+        for workflow in TEMPLATE["workflows"].values():
+            for invocation in workflow["jobs"]:
+                if "security-scan" in invocation:
+                    self.assertNotIn("context", invocation["security-scan"])
         self.assertIn('./gitleaks detect', json.dumps(jobs["secrets-scan"]))
         self.assertIn('|| true', json.dumps(jobs["sast-scan"]))
         self.assertIn('makeAggregateBom', json.dumps(jobs["sbom"]))
