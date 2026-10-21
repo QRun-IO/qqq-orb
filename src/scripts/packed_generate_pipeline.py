@@ -24,6 +24,7 @@ ALL_TEMPLATE = json.loads(zlib.decompress(base64.b64decode("eNq1T7EOgjAU3PmKpjNI
 STARTER_TEMPLATE = json.loads(zlib.decompress(base64.b64decode("eNp1UMGKwkAMvc9XlDmKtejR0yJ42MsKCl5EQnUzZbbTiZ0ZqiL9d1OpWqt7y3t5eS/JRUSRrNB5TVZOo8loPGwYcjvP8MI1o7IsY2aYkLm2mXdEedKSXwCL5QzW8+Xqe/EDIHmkvnkcyeXK0LFjFNAHIGvOD4rJP7plbVocPTrd7KSoLHwab2V7Kg7aIOxQkUPgi7RqZCo1Hod9rQ14Ci+ZnbQirdDGDjPtgzvHe4e/aINmI/ki3/ZslTaBH/m2W3N3mn3iuaMzy/s2n01Gg0T2BLX4Dz3re7UVd1SLWlwByepyJQ==")))
 ANDROID_TEMPLATE = json.loads(zlib.decompress(base64.b64decode("eNrtWG1v2zYQ/p5fQWgF6rSW3CXYMDhJ13YNkm5rkrrugKEKDFqiZCYUyZBUbC/wfvuO1LvtpmmBAcUwIYAp3vHuuXcqdzsIebdEaSq4N0R7wfd9uyPUVMPrHazhDfNYCRrDhhdRFTES0UG592Iv+CF45vULxjSSfsRoh7Hce7Ef7AV7HvCtnIYr0daQc2p8Q7Spt2CTLEiUG6Fae7DLcUasghJABcTPcDSjnJRQHKvBqeWMSYJzZrySsKo4PG2ItCA+NkeiGYmuRW7aYipNCvAJRfxU4ZgRPwKFbXUNxvaZnDu7dMeIAh1s+5HIMuC1MINBIXiOLOU1meap1zqxqterLdg0vn0YMAC0CaXy6XuQ4rQjsBVcpltSCvc0cLPrmCrkS/T3wFlSnhhc2VgOQp5QHqMA+WYpCUoQ0FOyQKEXPBlMc8ri7qngySJjoYd8G3QUSXS32i4YheFByNdxzWeEu6Rgc7zUn3VbxyMuqBOralJZveEgic3Myu9C+ho9WBma4OjhSgq7P6GqXF3utBRXObFRTxIriLOBYu9WlF5CIWQ+zXBK1lB5NnoWkzaK8rTj9rquhl0R+qACsP/sIBUiZWC1pPpg8dOP3gb0phq/kXLfWsbaQNx8kuUMA0Iftv2vquxIcE4iQ2JX3i8L6WMbp7WEXouJd3iImvAFbSp6/vzL8vDb6QDgeJnDAdz44f+G8C80hAyCyv2YSCaW/5UBe28WX+RTRvUMzamZIT3DisTorXUCimBJuKGY3ZfZmhhIvFwgSSXYRlnIh5C4j+5O3oxPP7yajM9/Oz4b/nxCzWk+RRc4urZ9D80VNaSlAlENZXSTU9hZhV7Iv0MvczOzxAgD55QkYC40hUxSBu31ALil0BScsEQ4iojWVgR0DFhhtewjLgySSogEwZ8s9JZqC/4g5FBmFNr1cpJroo4e9eTSzATfhzo5PHx88ef49PzscchpJoUy6EoLXr8IXS9zxRidBhY9BCUEnohhgHMmRgSqHnpYr8sSnI7HFxXtFPzIiNodhty6FvIDLCtIk5K/pwlL+tY9fZTIPjghJn2U6bSPZgTH0OXAWjIHJZUU+yhMNUGjHDyYkWOlhOqFXhkG3LgWLrO1Qlgk4Ik49HatGeCYUp6QhBOFjtZsDVxvmhTUXmPvbmNLSkzP1mYHWXF6U9yotDf0ZsZIPRwMYBgGKWRmPg0g9ANock+RFddvpNmndMPRXejZrBGK/uUsCz2bi68IZLVC7rDQAeG3VAn+EbzRStHQu1wTWj8gFBJGmkIalpKVjhvc8riE99Rlh7fabWS4iip8E9ifXmlmH9mIQF0f7T/bRdjmvZaCazLs6lfE5Iq7tAuYwHGv4it12JwFH1oPh559gbAFxRsTKeUuipaRJq4YqKYchjOPSM9y9xFk/i4SyhGdsHJdyHD1NXgHCeS/OR/c3Nz4RW+saqbRJonKqLafRTr0+jB9akKuZ8C2kZR/YJbXKfnWHuUpquSW1Vmjl3CbMg4xbJCFDQQ6dj+gsBRdiH3vRv3xgpom0+uG02o1EebWzLJrQCWUDa9lGUqUyKCCOQl50QdC7tS7ij8fnUxORi9f/348uRid/3r8y3hSZMG7mxsnalRK+gCobaM9gobY6TW2w32psAtoKnOhYiusm7khb65NPtymuBaMHEmGKUey6O9Okuv1ReqOxclWJaO6q8JF4SFzs/5KBWjXCRPz1qeqG8X2Auj6RHuclp+0rWHXfNbef7+sr+qfvzR8YpZXU7GYNl0Y94DZBqNDvFwbkgllGx8QJWmqoAxnZBvN/keBs6W7NEL8vDXyqvO+2pjL3JCF2WbSZgH77QHfteShgd9Z7fwDUg7law==")))
 POLICY_TEMPLATE = json.loads(zlib.decompress(base64.b64decode("eNqdVU1v2zAMvedXCL442Rq3aYEegubQQwYMWLGeBgxVESg2nWqVJU9S1gZB/vtIWXbsdCuw+WKJH4+PlEjtR4wlv8A6aXQyZ5fZ7IwkP8za4XaPa9ILJQvhYVoL78HqowqVhcmfwaLkIUpYpwt6WYkNoDrJZbU5r3f+yej5VTa7TDqrQ1w9nrWgFpzZ2hxWuRKOwiWuEkolnYHzULtB0CR/gvzZbH1ndELEbnWPdxRqUQVyn7XzGIDd777f3n3pQTTQpqqELsiwljWT0Xg6LaQTa4WFkfU0VnEaeESgxeI6u8iukh7c4Zj2/xD9Fs+CxbNgpVTg3iMcKn7FOL+5Yeny66eUa1nVxnq2E5XqNm7nuC6tqQj5Sck1i4p73HLNNVhrrGML9vDIdYy+ys1We5RdkEVpbMBcESesUnAdp1k6yexGmfU4/ZCRPp3MuSaesmRC78a1sD7DklrvXmT0YARGCsLpQDOSuNadvtxoL/UWKD7tvd31tATHTA163EFMmHCs7NnQhxUVmAUZZU6UsFJGFONy0qJGsmnbAOcp0XLe9nBPIC383EoLBRUslUV6xlIvvQJa5HiAG2N3tC7A5VbWHq9OUGE+oH36OESrpHNSbwisDKUpiUAXA7mVTJtQLMrlxBvVEeCEJH3NuWaixjJhzjzZdzkd5uwuBi4lqMLhtYxAB55MhljDK/FxwWZt9eA1h7q5bhl1xZIi0jFAj877NMiNroODxhCJwJFCDLAMPyzkv2Evh4B4ua3UnszaZivYfpDdYdh90Q2r3ASKkRsYnnCul03vlOhczDvadI6hTwZuR1dkwNh0kCl2aQav0o9nKADl4CTWLY6l9pKyMLeDK7Y913+ZQu3wHbW7MJeSF2OfS2Ve/vAO9Md/fCl6c/jta/E2wugw+g3AlOQ8")))
+REPOSITORY_POLICY_TEMPLATE = json.loads(zlib.decompress(base64.b64decode("eNqdVltv2zYUfs+vIPwiGYjotgGGIa0fis7YAnRO0HgtgigwaOnIZkKRGkkl9gL/951DXSK7aDNML+K56ON3bqSeTxgbPYJ10ujROXvH356S5t6sHIrPuCa7UDIXHpLKKJntegOacpM9gEXNbathvS3YZSnWgOZRJsv1pNr5jdHnZ/ztu1HvtW9Xd6cdqAVnapvBMlPCEY+RK4VSo97BeajcwaajbAPZg6l973RExNZ6wLtValEGchfaedyA+Q2wm49/fmaVsA7DOj10z0xZCp3TF00kZywpWSUrJluAJMmlEyuFqZJV0uY1CdzY1Y6gp9Nf+Bt+Nhog719S8X/If22rE9iLqsISCU/bFhaArazQ2eY/RJKmHz5EVzeLPy7nUaplWRnr2b0zOtWFNRim8BslV6y1XKHYu7l6VVmTgXO9alsqDh4Z8JmCErRfEBvh2GzR++xEqVLEJ2jHpgMYHlK2xHpWtY9vo7X00SmLlEsKqcDROvknuhvzHDKTQxzVvkh+jcbcYfg+jtL0TTR+Ab4ltjElbMwKYxmtsGasscsiKO6QF66Mb9TnqaZUWSEdsOsdtlw52xL23DBvBbZ9zpp5YA0n3I9gaL/n6PPFp9n8ekZE55cLFGj16fLq5mL+e7P8bXb5bT77ck0Sx/jkWhsLnSS8t3JVe4q1IRKeiEMuvbGZ0YVck3P5qJ+6N8/KPNqn2tVFIbctE446ArUupJD7bfMWOLphsStV8xbtgooeFliMCqyXSAJRsWFkAc43sJUp+bb5oMJk4JT332XCrg33prXuEOYeMt9r0Fia/CCuENuqlirnaytyFfIwlPmDD1V34L3UazdwO1IFT6RLdaZC9nVuC4o1JpFLt3QYutQP8Zi1vpwKyJV5AotK/LCP+fyF7HcdUUQfX6aOoFpcZuHvWuJhxgQLsTDMBPUKjjLttqeWGVISblkZJ7e493SK+ceaTp4sjjTYSSkeQSetxO+FjQaUsB0wBTX8FC6MlPM7BZOmfUL9BiizBadJd9h5eh0HCAsiX3rY+hg0Dhrqp92ojV/bPgwZjRPmsRkMPHEaU9OgfaJbp65tf57rv7C9Kzo+DufvPXOgsMteyzUFgw38WnSHoRzxRa7x0dyMB6SVdD4mLXeigKUyuAteDjHt1KUN1A+wQ+HDJA0QSeaE4xoQPNmwRpSN7vDP2bMCHYrmxvujA2qCo17TGdx0aDiu3mPWh7dFmzUahHrVKSkPzZWQ6h/cWN3lfdJJ4Q4bPRn7UGBMw78IsLI4+Hlo/zIGt/jxn8b36Cf7k38B2PmvaA==")))
 MARKETING_TEMPLATE = json.loads(zlib.decompress(base64.b64decode("eNrtW89v4ygUvuevQD7MSKsSp5lbD6OR9rRa7W1uk8oiGMc0GFzATbNV/vd9+EeaOHaqVpt6knBpbfh4wHufee9z3ZcRQsET04YrGdyh6fj2xrUoPTdw+wLXcJcVkluloSFYqmQ6DeuGH5Pxt/HtbQCoTTlspfQyEWq1MzbXmKaMLl+boPFBleZ/1fdo27M7XShVzKJ5wUUcERlHlhm7Y6QGS5Ixt7AShwGHS9xNC+VMvW4zmE7biJzQJVmwKCMSfpV7lXnWRjnbEVUZoGK3g+DXzMGQLiQSXNpZcINeW8o1NU3PKBdkvdJ8kVrEpbFECERTrTJeZAjjFbcpjllu9m24Ge8a2H6XcKZSVRg2C+7bK6VKWvZs97xcdy1gpmIe7DXft4YnXFhw14G/oWuuiYSQdvU55kix7pi07AsTRmyh2WwWjv8IWytuMKmyCX+uIQeI+1bLZtR393q9uTnOs1jRJdORoUT284tnQAtcYlquKnuiBpcRvWSWywVesbnhlrXhmi24sdo5KVikVI+5Ch8hnJirQ+hjwTUzXUFs8d0Hsw6mYVQza96IZo3qjOdVeYvAefaGqwDS7SfCRaRklHAZA9/L4zAhwrBrdmiZaKj78VgQwe2637EOhRvUifKVP0E+HELwPjj2WPhqxIlCl3G5u4pgcpjhq87IKiUc4qGj8NmCTAFFi15HObHp7vLD5gLXiPGDUbLXTF37lJluGXONcI6aTvTlC2I0VejryyywCgqcWXAHl1AYMVNd5hRKpLvbyWSz2XxF39H7VuHZ/EE2Q7orNBwzb2fFEtZ53Psj6YRBHO2OrUMaxOyJCZV74XRNwmkb9YusjU+6u3OoZU/pAF97DuVyXyv6WnEo9vna7nOdXr8trMqrvDBpv88rKK52XkI/7dVhyoiw6fYJDvv6lXaVTvBtMpn0QOJ5bzI8Fu4jGQb1HojoaPWB+hM4ahP8KL2OlXjg1t+Ym506ASriBbDG64Sr0glN1C9TJ5xyd2ehE07oAK8ThnK51wleJwzFPq8TPtfpXid4nTAYNzt1gmaCEcMw7DvmMbHMKwb/SVZNCv+JzjCuON/vbwbwlhcuZxEfr3K8yjkLqnpJ9BtHyOsnr58ugshVbR/VM/ezuMLhBvcODhzy/8NhuSgd0qmCc63igtrquPby93r+YJYRLv2LvsES1XuKmGFfvJ2KKEXuXrpFNIZckKt+llQ4TGNc4tq+2Q4P/lbJzxWTdv1zpUIqCgP7xvAsqdy0RzH5xLWSGaDdSHcIdhhOlM5ICViCMXjA/2UdqH2StngXvklasNCw0DJJpDXl2LCGh83UxJ3R4zXJxIEFHsEuIwaBKuUb5T+chfEh62tks9Z/qkigP/+63PR6Mvr6Oub/cvR+XeL+e3q0Gf0Hgnpc+w==")))
 
 
@@ -69,7 +70,7 @@ def load_manifest(path, setup_version):
     if not isinstance(data, dict):
         raise ManifestError("Manifest must be a mapping")
     profile = data.get("profile")
-    if profile not in ("qbit", "core", "frontend-material", "frontend-core", "cli", "voyage", "frontend-next", "all", "app-starter", "android", "mcp-policy", "marketing"):
+    if profile not in ("qbit", "core", "frontend-material", "frontend-core", "cli", "voyage", "frontend-next", "all", "app-starter", "android", "mcp-policy", "repository-policy", "marketing"):
         raise ManifestError("Unsupported profile")
     allowed = ("profile", "orb_version", "default_branch", "docs_only", "publish")
     if profile in ("qbit", "core"):
@@ -78,7 +79,7 @@ def load_manifest(path, setup_version):
             allowed += ("release_completion", "release_on_main", "release_tag_policy", "test_branch_policy")
     elif profile == "cli":
         allowed += ("publish_context",)
-    elif profile in ("voyage", "frontend-next", "app-starter", "android", "mcp-policy", "marketing"):
+    elif profile in ("voyage", "frontend-next", "app-starter", "android", "mcp-policy", "repository-policy", "marketing"):
         allowed = ("profile", "orb_version", "default_branch")
     elif profile == "all":
         allowed = ("profile", "orb_version", "default_branch", "publish", "publish_context")
@@ -139,7 +140,7 @@ def load_manifest(path, setup_version):
             "release_tag_policy": tag_policy, "test_branch_policy": test_policy,
             "docs_only": boolean(data, "docs_only", False),
             "publish_context": publish_context,
-            "publish": {key: boolean(publishing, key, key != "asciidoc" and profile not in ("cli", "all")
+            "publish": {key: boolean(publishing, key, key != "asciidoc" and profile not in ("cli", "all", "repository-policy")
                                       and not (profile == "qbit" and key == "hotfix"))
                         for key in publish_keys}}
 
@@ -416,7 +417,13 @@ def voyage_template(config, branch, tag):
     return json.loads(json.dumps(VOYAGE_TEMPLATE).replace("__ORB_VERSION__", config["orb_version"]))
 
 
+def repository_policy_template(config, branch, tag):
+    del config, branch, tag
+    return copy.deepcopy(REPOSITORY_POLICY_TEMPLATE)
+
+
 PROFILE_TEMPLATES = {"qbit": qbit_template, "core": core_template,
+                     "repository-policy": repository_policy_template,
                      "frontend-material": frontend_template, "frontend-core": frontend_template,
                      "cli": cli_template, "voyage": voyage_template, "frontend-next": next_template, "all": all_template, "app-starter": starter_template, "android": android_template, "mcp-policy": policy_template, "marketing": marketing_template}
 

@@ -239,6 +239,15 @@ class PipelineTests(unittest.TestCase):
             self.write_manifest(publish={"hotfix": "true"})
             self.render(packed=packed, CIRCLE_BRANCH="hotfix/1.2.3", ok=False)
 
+    def test_repository_policy_source_and_packed_never_select_publication(self):
+        self.write_manifest(profile="repository-policy")
+        for packed in ([False, True] if PACKED else [False]):
+            for branch, tag in (("main", ""), ("develop", ""), ("release/1", ""), ("", "v1.0.0")):
+                result = self.render(packed=packed, CIRCLE_BRANCH=branch, CIRCLE_TAG=tag)
+                self.assertEqual({"verify": {"jobs": ["validate-policy"]}}, result["workflows"])
+                self.assertEqual({"validate-policy"}, set(result["jobs"]))
+                self.assertNotIn("orbs", result)
+
     def test_stable_tags_require_ascii_digits_in_source_and_packed_generator(self):
         tag = "v\u0661.\u0662.\u0663"
         self.git("tag", tag)
