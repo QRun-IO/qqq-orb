@@ -17,6 +17,17 @@ if [[ "$*" == *apt-get* ]]; then
   [[ "$1" == env && "$2" == DEBIAN_FRONTEND=noninteractive && "$3" == NEEDRESTART_MODE=l ]] || exit 90
   [[ -f "$APT_CONFIG_CAPTURE" ]] && grep -qx 'Acquire::Retries "3";' "$APT_CONFIG_CAPTURE" || exit 91
   [[ ${APT_FAIL:-0} == 0 ]] || exit "$APT_FAIL"
+  if [[ "$*" == *'apt-get update'* ]]; then
+    updates=$(grep -c 'apt-get update' "$INSTALL_LOG")
+    if [[ $updates -eq 2 ]]; then
+      # Model a PPA outage after the initial base-package installation. Only
+      # the new signed repository may be contacted; existing indexes survive.
+      [[ "$*" == *'Dir::Etc::sourcelist=/etc/apt/sources.list.d/adoptium.list'* ]] || exit 100
+      [[ "$*" == *'Dir::Etc::sourceparts=-'* ]] || exit 100
+      [[ "$*" == *'APT::Get::List-Cleanup=0'* ]] || exit 92
+      [[ ${TEMURIN_UPDATE_FAIL:-0} == 0 ]] || exit "$TEMURIN_UPDATE_FAIL"
+    fi
+  fi
 fi
 if [[ "$1" == tee && "$2" == /etc/apt/apt.conf.d/80-qqq-download-retries ]]; then
   cat > "$APT_CONFIG_CAPTURE"; exit 0
@@ -42,6 +53,16 @@ rm "$APT_CONFIG_CAPTURE"
 PARAM_INSTALL_NODE=true bash "$script_dir/install_java.sh" >/dev/null 2>&1
 [[ $(grep -c 'apt-get' "$INSTALL_LOG") -eq 5 ]]
 grep -q 'apt-get install -y -qq nodejs' "$INSTALL_LOG"
+# An outage of the required repository must still stop before Java installation.
+: > "$INSTALL_LOG"
+if TEMURIN_UPDATE_FAIL=100 PARAM_INSTALL_NODE=false bash "$script_dir/install_java.sh" >/dev/null 2>&1; then
+  echo 'required Temurin repository failure accepted' >&2; exit 1
+else
+  [[ $? -eq 100 ]]
+fi
+if grep -q 'apt-get install -y -qq temurin-' "$INSTALL_LOG"; then
+  echo 'Java installation continued after repository failure' >&2; exit 1
+fi
 # Execute the actual generated selector. Arguments containing spaces stay intact.
 export SELECTOR_LOG="$scratch/selector.log"
 cat > "$scratch/bin/mvn" <<'NATIVE'
