@@ -42,7 +42,7 @@ PROFILES = {'qqq': 'core', 'qqq-frontend-material-dashboard': 'frontend-material
             'qqq-android': 'android', 'qqq-mcp-rag-standard-policies': 'mcp-policy',
             'marketing-website': 'marketing', 'qqq-mcp-rag': 'native-mcp',
             'qqq-business-platform': 'native-business', '.github': 'native-workflow-lint',
-            'qqq-orb': 'owner-bootstrap'}
+            'qqq-orb': 'owner-bootstrap', 'marketing-website-cd': 'native-gitops'}
 NO_CI = json.loads((ROOT / 'tools/no-ci-policy.json').read_text(encoding='utf-8'))
 
 

@@ -151,7 +151,7 @@ class AuditTests(unittest.TestCase):
         self.assertIn('profile_not_assigned', [f['code'] for f in report['findings']])
 
     def test_native_specialists_require_bridges_and_report_remaining_workflows(self):
-        for name, kind in [('qqq-mcp-rag', 'mcp-rag'), ('qqq-business-platform', 'business-db'), ('.github', 'github-workflow-lint')]:
+        for name, kind in [('qqq-mcp-rag', 'mcp-rag'), ('qqq-business-platform', 'business-db'), ('.github', 'github-workflow-lint'), ('marketing-website-cd', 'gitops')]:
             entry = dict(ENTRY, name=name, nameWithOwner='QRun-IO/' + name)
             definition = audit.auxiliary.BRIDGES[kind]
             missing = audit.audit(entry, Snapshot({}), VERSION, SHA, {})
