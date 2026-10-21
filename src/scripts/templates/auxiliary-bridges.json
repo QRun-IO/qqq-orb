@@ -407,5 +407,36 @@
         }
       }
     }
+  },
+  "gitops": {
+    "repository": "QRun-IO/marketing-website-cd",
+    "path": ".github/workflows/validate.yml",
+    "caller": {
+      "name": "GitOps validation",
+      "on": {
+        "push": {
+          "branches": [
+            "main"
+          ]
+        },
+        "pull_request": {
+          "branches": [
+            "main"
+          ]
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "concurrency": {
+        "group": "gitops-${{ github.ref }}",
+        "cancel-in-progress": "${{ github.event_name == 'pull_request' }}"
+      },
+      "jobs": {
+        "gitops": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/gitops.yml@WORKER_SHA"
+        }
+      }
+    }
   }
 }

@@ -1,4 +1,7 @@
 import copy
+import os
+import subprocess
+import tempfile
 import importlib.util
 import json
 from pathlib import Path
@@ -12,6 +15,40 @@ bridge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bridge)
 ORIGINALS = json.loads((ROOT / 'tests/fixtures/auxiliary-original-workflows.json').read_text())
 SHA = 'a' * 40
+
+
+class GitOpsTests(unittest.TestCase):
+    def test_render_all_directories_and_fail_on_invalid_or_missing_configuration(self):
+        worker = yaml.safe_load((ROOT / '.github/workflows/gitops.yml').read_text())
+        command = worker['jobs']['validate']['steps'][-1]['run']
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binary = root / 'bin'
+            binary.mkdir()
+            tool = binary / 'kustomize'
+            tool.write_text("#!/bin/bash\n[[ $1 == build ]] || exit 2\n[[ ! -f \"$2/invalid\" ]] || exit 1\necho sensitive-rendered-fixture\n")
+            tool.chmod(0o755)
+            env = {**os.environ, 'PATH': str(binary) + os.pathsep + os.environ['PATH']}
+            def run():
+                return subprocess.run(['bash', '-c', command], cwd=root, env=env, text=True, capture_output=True)
+            self.assertNotEqual(0, run().returncode)
+            for name in ('base', 'overlays/dev', 'overlays/with space', 'proxy'):
+                folder = root / name
+                folder.mkdir(parents=True)
+                (folder / 'kustomization.yaml').write_text('resources: []')
+            result = run()
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual(4, result.stdout.count('Validated '))
+            self.assertNotIn('sensitive-rendered-fixture', result.stdout)
+            (root / 'proxy/invalid').touch()
+            self.assertNotEqual(0, run().returncode)
+
+    def test_gitops_caller_is_read_only_and_has_no_duplicate_feature_push_build(self):
+        caller = bridge.canonical('gitops', SHA)
+        self.assertEqual({'contents': 'read'}, caller['permissions'])
+        self.assertEqual(['main'], caller['on']['push']['branches'])
+        self.assertNotIn('paths', caller['on']['pull_request'])
+        self.assertNotIn('secrets', caller['jobs']['gitops'])
 
 
 class SpecialistNativeTests(unittest.TestCase):
