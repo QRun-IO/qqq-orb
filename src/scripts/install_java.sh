@@ -20,6 +20,10 @@ sudo install -d /etc/needrestart/conf.d
 # shellcheck disable=SC2016
 printf '%s\n' '$nrconf{restart} = "l";' | sudo tee /etc/needrestart/conf.d/99-qqq-ci.conf >/dev/null
 
+# Retry transient repository downloads within APT, including NodeSource's child process.
+# Exhausted downloads retain APT's nonzero exit status and fail this build step.
+printf '%s\n' 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/80-qqq-download-retries >/dev/null
+
 # Ubuntu archive carries the same signed security suite; avoid the flaky HTTP mirror.
 if [[ -f /etc/apt/sources.list ]]; then
   sudo sed -i 's|http://security.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list
