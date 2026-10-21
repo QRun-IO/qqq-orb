@@ -318,9 +318,11 @@ def audit(entry, snapshot, version, worker_sha, policy):
     branches = policy.get('required_checks', {})
     managed = policy.get('managed_branches', ['main', 'develop'])
     if (not isinstance(managed, list) or not managed
-            or any(branch not in ('main', 'develop') for branch in managed)
+            or any(not isinstance(branch, str) or not re.fullmatch(
+                r'(?:main|develop|(?:release|hotfix)/[0-9]+\.[0-9]+(?:\.[0-9]+)?)', branch)
+                for branch in managed)
             or len(set(managed)) != len(managed)):
-        raise ReadError('managed_branches must be a nonempty unique main/develop list')
+        raise ReadError('managed_branches must be a nonempty unique main/develop or numeric release/hotfix list')
     result['managed_branches'] = managed
     for branch in managed:
         if branch not in branches:
