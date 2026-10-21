@@ -34,6 +34,28 @@ class MaintenanceTests(unittest.TestCase):
                     self.assertEqual(job['filters']['branches'], {'ignore': 'automation/qbit-rc-pending'})
                     self.assertNotIn('branch_type', job)
 
+    def test_nonpublishing_branches_verify_maintenance_but_keep_application_policy(self):
+        manifest = {'profile': 'qbit', 'orb_version': '0.8', 'default_branch': 'main',
+                    'release_on_main': False, 'test_branch_policy': 'feature-no-hotfix',
+                    'publish': {'snapshot': False, 'release_candidate': False, 'hotfix': False}}
+        with mock.patch.object(Path, 'read_text', return_value=yaml.safe_dump(manifest)):
+            config = pipeline.load_manifest('unused', '0.8')
+        maintenance_paths = self.paths
+        with mock.patch.object(pipeline, 'git', side_effect=self.git_result):
+            for branch in ('main', 'develop', 'release/0.1', 'hotfix/1.2.3'):
+                for maintenance in (True, False):
+                    with self.subTest(branch=branch, maintenance=maintenance):
+                        self.paths = maintenance_paths if maintenance else b'src/Main.java\0'
+                        result = pipeline.qbit_template(config, branch, '')
+                        job = result['workflows']['test_only']['jobs'][0]['qqq-orb/mvn_test_only']
+                        ignored = job['filters']['branches']['ignore']
+                        if maintenance:
+                            self.assertEqual(ignored, 'automation/qbit-rc-pending')
+                        else:
+                            self.assertEqual(ignored, ['automation/qbit-rc-pending',
+                                '/(develop|main|release/.*|hotfix/.*|integration.*)/'])
+                        self.assertNotIn('branch_type', job)
+
     def test_application_changes_and_unknown_files_publish_normally(self):
         for paths in (b'pom.xml\0', b'.qqq-ci.yml\0src/Main.java\0', b'.github/workflows/custom-release.yml\0', b'', None):
             self.paths = paths
