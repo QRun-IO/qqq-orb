@@ -63,6 +63,17 @@ class MavenCiContract(unittest.TestCase):
         self.assertIn("-Dgpg.keyname=", deploy)
         self.assertIn("-DskipTests", deploy)
 
+    def test_publication_wait_outlives_central_native_timeout(self):
+        steps = read("src/commands/mvn_jar_deploy.yml")["steps"]
+        publish = next(s["run"] for s in steps if "mvn_jar_deploy.sh" in str(s))
+        # Central 0.8.x waits silently up to 1800 seconds; the default Circle
+        # ten-minute inactivity limit killed an already-uploaded RC in production.
+        timeout = publish["no_output_timeout"]
+        self.assertTrue(timeout.endswith("m"))
+        self.assertGreater(int(timeout[:-1]), 30)
+        self.assertLessEqual(int(timeout[:-1]), 40)
+        self.assertNotIn("max_auto_reruns", publish)
+
 
 if __name__ == "__main__":
     unittest.main()
