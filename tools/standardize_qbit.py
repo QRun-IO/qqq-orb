@@ -11,7 +11,7 @@ import re
 import yaml
 
 
-def canonical_caller(version, release_tag_policy=None):
+def canonical_caller(version, release_tag_policy=None, publish_feature=False):
     caller = {
         "version": 2.1,
         "setup": True,
@@ -28,6 +28,9 @@ def canonical_caller(version, release_tag_policy=None):
         if release_tag_policy not in filters:
             raise ValueError("Unknown tag policy")
         caller["workflows"]["setup"]["jobs"][0]["qqq-orb/generate_pipeline"]["filters"]["tags"] = filters[release_tag_policy]
+        if publish_feature:
+            caller["workflows"]["setup"]["jobs"][0]["qqq-orb/generate_pipeline"]["filters"]["tags"] = {
+                "only": ([filters[release_tag_policy]["only"]] if release_tag_policy != "none" else []) + ["/publish.*/"]}
     return caller
 
 
@@ -43,6 +46,12 @@ def publication_filters(kind, filters):
         raise ValueError("Unknown publication filters")
     branches = filters.get("branches")
     tags = filters.get("tags")
+    if kind == "feature":
+        # Preserve the audited literal branch selector; it is not a regex and
+        # contains a character Git forbids, so only publish* tags can select it.
+        if branches != {"only": ["feature/.*"]} or tags != {"only": ["/publish.*/"]}:
+            raise ValueError("Unknown feature publication filters")
+        return False, "none"
     if kind in ("snapshot", "release_candidate", "hotfix"):
         expected = {"snapshot": "develop", "release_candidate": r"/release\/.*/", "hotfix": r"/hotfix\/.*/"}[kind]
         if not isinstance(branches, dict) or set(branches) != {"only"} or single_filter(branches["only"]) != expected or tags not in (None, {"only": []}):
@@ -123,7 +132,7 @@ def infer_manifest(config, version, default_branch):
                 raise ValueError("Custom pre-steps require review")
             if job.endswith("/mvn_publish"):
                 kind = options.get("branch_type")
-                if kind not in ("snapshot", "release_candidate", "release", "hotfix"):
+                if kind not in ("snapshot", "release_candidate", "release", "hotfix", "feature"):
                     raise ValueError("Custom publication contract requires review")
                 if kind in publications:
                     raise ValueError("Duplicate publication jobs require review")
@@ -148,6 +157,7 @@ def infer_manifest(config, version, default_branch):
         "publish": {**{kind: kind in publications
                       for kind in ("snapshot", "release_candidate", "release")},
                     **({"hotfix": True} if "hotfix" in publications else {}),
+                    **({"feature": True} if "feature" in publications else {}),
                     "asciidoc": False},
     }
 
@@ -165,7 +175,7 @@ def main():
     if manifest_path.exists():
         raise ValueError("Already has a manifest; use tools/rollout_version.py")
     manifest = infer_manifest(config, args.orb_version, args.default_branch)
-    caller = canonical_caller(args.orb_version, manifest["release_tag_policy"])
+    caller = canonical_caller(args.orb_version, manifest["release_tag_policy"], manifest["publish"].get("feature", False))
     if args.write:
         for path, data in ((config_path, caller), (manifest_path, manifest)):
             path.write_bytes(yaml.safe_dump(data, sort_keys=False).encode("utf-8"))

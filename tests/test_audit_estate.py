@@ -387,9 +387,30 @@ class AuditTests(unittest.TestCase):
                 audit.audit(other, Snapshot({}, checks=[]), VERSION, SHA, policy)
 
     def test_invalid_managed_branches_cannot_bypass_policy(self):
-        for managed in [[], ['main', 'main'], ['feature'], 'main', None, [True]]:
+        for managed in [[], ['main', 'main'], ['feature'], 'main', None, [True],
+                        ['release/*'], ['release/1.2/extra'], ['hotfix/1..2'],
+                        ['release/1.2', 'release/1.2']]:
             with self.subTest(managed=managed), self.assertRaises(audit.ReadError):
                 self.native(policy={'managed_branches': managed, 'required_checks': {}})
+
+    def test_release_and_hotfix_enforcement_requires_actual_checks(self):
+        files = {'.github/workflows/build.yml': audit.qctl.generate(SHA)}
+        for branch in ['release/0.1', 'release/4.1.0', 'hotfix/4.0.1']:
+            with self.subTest(branch=branch):
+                snapshot = Snapshot(files)
+                snapshot.branch = branch
+                policy = {'managed_branches': [branch],
+                          'required_checks': {branch: ['native / test']}}
+                with patch.object(snapshot, 'checks', wraps=snapshot.checks) as read:
+                    report = audit.audit(ENTRY, snapshot, VERSION, SHA, policy)
+                    self.assertEqual('pass', report['status'])
+                    read.assert_called_once_with(branch)
+                snapshot.required = []
+                report = audit.audit(ENTRY, snapshot, VERSION, SHA, policy)
+                self.assertEqual('missing', report['required_checks'][branch]['state'])
+                self.assertEqual('findings', report['status'])
+                policy['required_checks'] = {}
+                self.assertEqual('unknown', audit.audit(ENTRY, snapshot, VERSION, SHA, policy)['status'])
 
     def test_gh_is_explicit_get_and_never_changes_settings(self):
         with patch.object(audit, 'command', return_value='{}') as command:
