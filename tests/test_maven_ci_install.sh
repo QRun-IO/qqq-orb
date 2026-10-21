@@ -19,6 +19,13 @@ if [[ "$*" == *apt-get* ]]; then
   [[ ${APT_FAIL:-0} == 0 ]] || exit "$APT_FAIL"
   if [[ "$*" == *'apt-get update'* ]]; then
     updates=$(grep -c 'apt-get update' "$INSTALL_LOG")
+    if [[ $updates -eq 1 ]]; then
+      # An unavailable image PPA must not participate in base-tool setup.
+      [[ "$*" == *'Dir::Etc::sourceparts=-'* ]] || exit 100
+      [[ "$*" == *'Dir::Etc::sourcelist=/etc/apt/sources.list'* || "$*" == *'Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources'* ]] || exit 93
+      [[ "$*" == *'APT::Get::List-Cleanup=0'* ]] || exit 92
+      [[ ${UBUNTU_UPDATE_FAIL:-0} == 0 ]] || exit "$UBUNTU_UPDATE_FAIL"
+    fi
     if [[ $updates -eq 2 ]]; then
       # Model a PPA outage after the initial base-package installation. Only
       # the new signed repository may be contacted; existing indexes survive.
@@ -54,6 +61,15 @@ PARAM_INSTALL_NODE=true bash "$script_dir/install_java.sh" >/dev/null 2>&1
 [[ $(grep -c 'apt-get' "$INSTALL_LOG") -eq 5 ]]
 grep -q 'apt-get install -y -qq nodejs' "$INSTALL_LOG"
 # An outage of the required repository must still stop before Java installation.
+: > "$INSTALL_LOG"
+if UBUNTU_UPDATE_FAIL=100 PARAM_INSTALL_NODE=false bash "$script_dir/install_java.sh" >/dev/null 2>&1; then
+  echo 'required Ubuntu repository failure accepted' >&2; exit 1
+else
+  [[ $? -eq 100 ]]
+fi
+if grep -q 'apt-get install' "$INSTALL_LOG"; then
+  echo 'package installation continued after Ubuntu repository failure' >&2; exit 1
+fi
 : > "$INSTALL_LOG"
 if TEMURIN_UPDATE_FAIL=100 PARAM_INSTALL_NODE=false bash "$script_dir/install_java.sh" >/dev/null 2>&1; then
   echo 'required Temurin repository failure accepted' >&2; exit 1
