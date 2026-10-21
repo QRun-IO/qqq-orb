@@ -233,17 +233,22 @@ def audit(entry, snapshot, version, worker_sha, policy):
             if other != path and 'qbit-release-rc.yml@' in snapshot.read(other):
                 finding('duplicate_rc_bridge', other)
     for kind, definition in auxiliary.BRIDGES.items():
-        if definition['repository'] != entry['nameWithOwner']:
+        bridge_sha = worker_sha
+        if kind == 'qbit-codeql':
+            if profile != 'qbit' or 'codeql_worker_sha' not in policy:
+                continue
+            bridge_sha = policy['codeql_worker_sha']
+        elif definition['repository'] != entry['nameWithOwner']:
             continue
         path = definition['path']
         raw = snapshot.read(path)
         if raw is None:
             finding('missing_native_maintenance_bridge', path)
             continue
-        if not re.fullmatch(r'[0-9a-f]{40}', worker_sha or ''):
+        if not re.fullmatch(r'[0-9a-f]{40}', bridge_sha or ''):
             finding('native_pin_policy_missing', path)
             continue
-        expected = generator.yaml.safe_dump(auxiliary.canonical(kind, worker_sha), sort_keys=False)
+        expected = generator.yaml.safe_dump(auxiliary.canonical(kind, bridge_sha), sort_keys=False)
         if raw != expected:
             finding('native_maintenance_bridge_drift', path)
         else:
