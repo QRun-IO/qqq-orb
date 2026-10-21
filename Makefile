@@ -61,6 +61,7 @@ test-pipelines: pack
 	python3 tests/test_qbit_hotfix_profile.py
 	python3 tests/test_ci_maintenance.py
 	python3 tests/test_rollout_version.py
+	python3 tests/test_enforce_orb_checks.py
 	python3 tests/test_validate_standard.py
 	python3 tests/test_voyage_profile.py
 	python3 tests/test_next_native.py
