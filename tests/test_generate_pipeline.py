@@ -429,9 +429,27 @@ class PipelineTests(unittest.TestCase):
         self.change_docs()
         self.assertIn("docs_only", self.render()["jobs"])
 
+    def test_core_snapshot_publisher_waits_for_all_acceptance_and_analysis(self):
+        self.write_manifest(profile="core")
+        result = self.render(CIRCLE_BRANCH="develop")
+        jobs = {options.get("name", kind): options
+                for entry in result["workflows"]["verify"]["jobs"]
+                for kind, options in entry.items()}
+        def ancestors(name, path=()):
+            self.assertNotIn(name, path, "Workflow dependencies must be acyclic")
+            required = jobs[name].get("requires", [])
+            return set(required).union(*(ancestors(parent, path + (name,)) for parent in required))
+        self.assertEqual(ancestors("qqq-orb/mvn_publish"), set(jobs) - {"qqq-orb/mvn_publish"})
+        if PACKED:
+            self.assertEqual(result, self.render(packed=True, CIRCLE_BRANCH="develop"))
+
     def test_core_workflow_graphs_match_baseline(self):
         self.write_manifest(profile="core")
         baseline = yaml.safe_load((ROOT / "tests/fixtures/core_pipeline_baseline.yml").read_text(encoding="utf-8"))
+        # Snapshot publication must now wait for the existing sample and analysis gates.
+        for entry in baseline["workflows"]["publish_snapshot"]["jobs"]:
+            if "qqq-orb/mvn_publish" in entry:
+                entry["qqq-orb/mvn_publish"]["requires"] += ["snapshot_sample_coverage_gate", "qqq-orb/static_analysis"]
         self.git("tag", "v1.0.0")
         self.git("tag", "publish-fixture")
         events = [("feature/test", "", "test_only"), ("develop", "", "publish_snapshot"),
