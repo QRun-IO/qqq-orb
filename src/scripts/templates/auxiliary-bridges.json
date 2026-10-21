@@ -318,7 +318,7 @@
             "smoke_evidence": {
               "description": "Evidence provider; github preserves the original Smoke workflow validation",
               "type": "choice",
-              "default": "github",
+              "default": "circle",
               "options": [
                 "github",
                 "circle"
