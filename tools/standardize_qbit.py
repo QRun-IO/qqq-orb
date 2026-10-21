@@ -43,8 +43,8 @@ def publication_filters(kind, filters):
         raise ValueError("Unknown publication filters")
     branches = filters.get("branches")
     tags = filters.get("tags")
-    if kind in ("snapshot", "release_candidate"):
-        expected = "develop" if kind == "snapshot" else r"/release\/.*/"
+    if kind in ("snapshot", "release_candidate", "hotfix"):
+        expected = {"snapshot": "develop", "release_candidate": r"/release\/.*/", "hotfix": r"/hotfix\/.*/"}[kind]
         if not isinstance(branches, dict) or set(branches) != {"only"} or single_filter(branches["only"]) != expected or tags not in (None, {"only": []}):
             raise ValueError("Unknown snapshot/RC filters")
         return False, "none"
@@ -58,7 +58,8 @@ def publication_filters(kind, filters):
     tag_filter = single_filter(tags["only"])
     if not isinstance(tag_filter, str):
         raise ValueError("Unknown release tag filter")
-    policy = {r"/^v\d+\.\d+\.\d+$/": "stable", "/v.*/": "v-prefix"}.get(tag_filter)
+    policy = {r"/^v\d+\.\d+\.\d+$/": "stable", r"/^v[0-9]+\.[0-9]+\.[0-9]+$/": "stable",
+              "/v.*/": "v-prefix"}.get(tag_filter)
     if policy is None:
         raise ValueError("Unknown release tag filter")
     return main, policy
@@ -80,6 +81,9 @@ def test_filters(filters):
         "/(develop|release/.*|integration.*)/": "non-release-no-integration",
         "/(develop|main|release/.*|integration.*)/": "feature",
         "/(develop|main|release/.*)/": "non-release-no-main",
+        "/(develop|release/.*|hotfix/.*)/": "non-release-no-hotfix",
+        "/(develop|main|release/.*|hotfix/.*)/": "non-release-no-main-hotfix",
+        "/(develop|main|release/.*|hotfix/.*|integration.*)/": "feature-no-hotfix",
     }.get(pattern.replace(r"\/", "/"))
     if policy is None:
         raise ValueError("Unknown test branch filters")
@@ -119,7 +123,7 @@ def infer_manifest(config, version, default_branch):
                 raise ValueError("Custom pre-steps require review")
             if job.endswith("/mvn_publish"):
                 kind = options.get("branch_type")
-                if kind not in ("snapshot", "release_candidate", "release"):
+                if kind not in ("snapshot", "release_candidate", "release", "hotfix"):
                     raise ValueError("Custom publication contract requires review")
                 if kind in publications:
                     raise ValueError("Duplicate publication jobs require review")
@@ -143,6 +147,7 @@ def infer_manifest(config, version, default_branch):
         "test_branch_policy": test_policy or "all",
         "publish": {**{kind: kind in publications
                       for kind in ("snapshot", "release_candidate", "release")},
+                    **({"hotfix": True} if "hotfix" in publications else {}),
                     "asciidoc": False},
     }
 
