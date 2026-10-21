@@ -623,6 +623,21 @@ class PipelineTests(unittest.TestCase):
         if PACKED:
             self.assertEqual(result, self.render(packed=True, CIRCLE_BRANCH="main"))
 
+    def test_frontend_ci_only_commits_verify_with_packed_parity(self):
+        for profile, job_name in (("frontend-core", "qqq-orb/node_test_only"),
+                                  ("frontend-material", "qqq-orb/mvn_frontend_test_only")):
+            self.write_manifest(profile=profile)
+            self.git("add", ".qqq-ci.yml")
+            self.git("-c", "commit.gpgsign=false", "commit", "-qm", "ci: adopt managed orb")
+            for branch in ("main", "develop"):
+                with self.subTest(profile=profile, branch=branch):
+                    result = self.render(CIRCLE_BRANCH=branch)
+                    job = result["workflows"]["verify"]["jobs"][0][job_name]
+                    self.assertNotIn("branch_type", job)
+                    self.assertEqual(job["filters"]["branches"], {"ignore": "automation/qbit-rc-pending"})
+                    if PACKED:
+                        self.assertEqual(result, self.render(packed=True, CIRCLE_BRANCH=branch))
+
     def test_nonpublishing_main_ci_change_runs_verification_with_packed_parity(self):
         self.write_manifest(default_branch="main", release_on_main=False,
                             test_branch_policy="feature")

@@ -56,6 +56,27 @@ class MaintenanceTests(unittest.TestCase):
                                 '/(develop|main|release/.*|hotfix/.*|integration.*)/'])
                         self.assertNotIn('branch_type', job)
 
+    def test_frontend_maintenance_verifies_without_publishing(self):
+        for profile, prefix in (('frontend-core', 'node_'), ('frontend-material', 'mvn_frontend_')):
+            manifest = {'profile': profile, 'orb_version': '0.8', 'default_branch': 'develop'}
+            with mock.patch.object(Path, 'read_text', return_value=yaml.safe_dump(manifest)):
+                config = pipeline.load_manifest('unused', '0.8')
+            for branch in ('main', 'develop', 'release/1.0', 'hotfix/1.0.1'):
+                with self.subTest(profile=profile, branch=branch), mock.patch.object(pipeline, 'git', side_effect=self.git_result):
+                    result = pipeline.frontend_template(config, branch, '')
+                    job = result['workflows']['test_only']['jobs'][0]['qqq-orb/' + prefix + 'test_only']
+                    self.assertNotIn('branch_type', job)
+                    self.assertEqual(job['filters']['branches'], {'ignore': 'automation/qbit-rc-pending'})
+            self.paths = b'package.json\0'
+            with mock.patch.object(pipeline, 'git', side_effect=self.git_result):
+                result = pipeline.frontend_template(config, 'develop', '')
+                self.assertIn('qqq-orb/' + prefix + 'publish', result['workflows']['publish_snapshot']['jobs'][0])
+            self.paths = b'.qqq-ci.yml\0'
+            with mock.patch.object(pipeline, 'git', return_value=b'verified-head\n'):
+                result = pipeline.frontend_template(config, 'main', 'v1.2.3')
+                job = result['workflows']['publish_release']['jobs'][0]['qqq-orb/' + prefix + 'publish']
+                self.assertEqual(job['branch_type'], 'release')
+
     def test_application_changes_and_unknown_files_publish_normally(self):
         for paths in (b'pom.xml\0', b'.qqq-ci.yml\0src/Main.java\0', b'.github/workflows/custom-release.yml\0', b'', None):
             self.paths = paths
