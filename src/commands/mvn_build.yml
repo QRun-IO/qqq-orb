@@ -21,7 +21,7 @@ steps:
   - when:
       condition: << parameters.install_browsers >>
       steps:
-        - browser-tools/install-chrome
+        - install_chrome
         - browser-tools/install-chromedriver
   - when:
       condition: << parameters.compile_before_verify >>
