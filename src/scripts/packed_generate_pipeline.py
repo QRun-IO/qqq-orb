@@ -342,7 +342,10 @@ def frontend_template(config, branch, tag):
         kind = "release"
     if kind != "test" and not config["publish"][kind]:
         kind = "test"
-    if kind == "test" and proven_docs_only(config, branch, tag):
+    maintenance = proven_ci_maintenance(branch, tag)
+    if maintenance:
+        kind = "test"
+    if kind == "test" and not maintenance and proven_docs_only(config, branch, tag):
         result = qbit_template(config, branch, tag)
         result["workflows"]["test_only"]["jobs"][0]["docs_only"]["name"] = (
             "qqq-orb/mvn_frontend_test_only" if material else "qqq-orb/node_test_only")
