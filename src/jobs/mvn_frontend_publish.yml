@@ -27,7 +27,8 @@ steps:
   - git_full_checkout
   - mvn_manage_version
   - frontend_build
-  - frontend_test
+  - frontend_test:
+      build_before_test: false
   - frontend_package
   - mvn_jar_deploy
   - git_operations:

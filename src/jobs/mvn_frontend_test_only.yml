@@ -23,4 +23,5 @@ steps:
       node_version: << parameters.node_version >>
   - git_full_checkout
   - frontend_build
-  - frontend_test
+  - frontend_test:
+      build_before_test: false

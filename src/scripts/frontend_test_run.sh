@@ -15,7 +15,9 @@ set -e
 
 echo "Building app, starting server, running tests"
 echo "HTTPS=true" >> ./.env
-npm run build
+if [[ "${PARAM_BUILD_BEFORE_TEST:-true}" == true ]]; then
+  npm run build
+fi
 export REACT_APP_PROXY_LOCALHOST_PORT=8001
 export PORT=3001
 npm run start &
