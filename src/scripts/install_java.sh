@@ -29,8 +29,21 @@ if [[ -f /etc/apt/sources.list ]]; then
   sudo sed -i 's|http://security.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list
 fi
 
-# Add Eclipse Temurin repository
-sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l apt-get update -qq
+# Base tools come from Ubuntu, not the unrelated PPAs bundled in machine images.
+# Support both the 22.04 list and the newer deb822 Ubuntu source file. Preserve
+# other indexes for later jobs without contacting their repositories here.
+ubuntu_sources=/etc/apt/sources.list
+if [[ ! -s "$ubuntu_sources" ]]; then
+  ubuntu_sources=/etc/apt/sources.list.d/ubuntu.sources
+fi
+if [[ ! -s "$ubuntu_sources" ]]; then
+  echo 'Cannot locate Ubuntu package sources' >&2
+  exit 1
+fi
+sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l apt-get update -qq \
+  -o "Dir::Etc::sourcelist=$ubuntu_sources" \
+  -o Dir::Etc::sourceparts=- \
+  -o APT::Get::List-Cleanup=0
 sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l apt-get install -y -qq wget apt-transport-https gpg maven curl
 
 # Add Temurin GPG key
