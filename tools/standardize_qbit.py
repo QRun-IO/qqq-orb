@@ -100,8 +100,8 @@ def test_filters(filters):
 
 
 def infer_manifest(config, version, default_branch):
-    if not re.fullmatch(r"(?:\d+\.\d+\.\d+|dev:[A-Za-z0-9_-]+)", version):
-        raise ValueError("An explicit published orb version is required")
+    if not isinstance(version, str) or not re.fullmatch(r"(?:\d+\.\d+(?:\.\d+)?|dev:[A-Za-z0-9_-]+)", version):
+        raise ValueError("A minor track, exact patch or explicit development orb version is required")
     if default_branch not in ("main", "develop"):
         raise ValueError("Unsupported default branch")
     if set(config) - {"version", "orbs", "commands", "workflows"}:

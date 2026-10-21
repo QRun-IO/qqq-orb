@@ -76,6 +76,24 @@ class MigrationTests(unittest.TestCase):
         manifest = migration.infer_manifest(self.config(), "0.7.0", "main")
         self.assertFalse(any(manifest["publish"].values()))
 
+    def test_managed_track_preserves_policy_and_caller_pins(self):
+        fixtures = json.loads((Path(__file__).parent / "fixtures/qbit-publication-policies.json").read_text(encoding="utf-8"))
+        for fixture in fixtures:
+            with self.subTest(repository=fixture["name"]):
+                expected = migration.infer_manifest(fixture["config"], "0.8.1", fixture["default_branch"])
+                expected["orb_version"] = "0.8"
+                actual = migration.infer_manifest(fixture["config"], "0.8", fixture["default_branch"])
+                self.assertEqual(actual, expected)
+                caller = migration.canonical_caller("0.8", actual["release_tag_policy"], actual["publish"].get("feature", False))
+                self.assertEqual(caller["orbs"]["qqq-orb"], "kingsrook/qqq-orb@0.8")
+                self.assertEqual(caller["workflows"]["setup"]["jobs"][0]["qqq-orb/generate_pipeline"]["orb_version"], "0.8")
+                self.assertEqual(yaml.safe_load(yaml.safe_dump(actual))["orb_version"], "0.8")
+
+    def test_reject_ambiguous_or_invalid_versions(self):
+        for version in (0.8, None, "0", "latest", "volatile", "0.8.*", "0.8.1.2", ""):
+            with self.subTest(version=version), self.assertRaises(ValueError):
+                migration.infer_manifest(self.config(), version, "main")
+
     def test_snapshot_does_not_enable_rc_or_release(self):
         manifest = migration.infer_manifest(
             self.config("qqq-orb/mvn_publish", branch_type="snapshot",
