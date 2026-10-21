@@ -18,7 +18,7 @@ class MaintenanceTests(unittest.TestCase):
     def setUp(self):
         self.subject = b'ci: use central pipeline\n'
         self.parents = b'a'*40 + b' ' + b'b'*40 + b'\n'
-        self.paths = b'.qqq-ci.yml\0.circleci/config.yml\0.github/workflows/codeql.yml\0'
+        self.paths = b'.qqq-ci.yml\0.circleci/config.yml\0.github/workflows/codeql.yml\0.github/workflows/release-rc.yml\0'
 
     def test_publishing_branches_keep_unfiltered_maven_tests(self):
         manifest = {'profile': 'qbit', 'orb_version': '0.7.14', 'default_branch': 'develop',
@@ -35,7 +35,7 @@ class MaintenanceTests(unittest.TestCase):
                     self.assertNotIn('branch_type', job)
 
     def test_application_changes_and_unknown_files_publish_normally(self):
-        for paths in (b'pom.xml\0', b'.qqq-ci.yml\0src/Main.java\0', b'.github/workflows/release-rc.yml\0', b'', None):
+        for paths in (b'pom.xml\0', b'.qqq-ci.yml\0src/Main.java\0', b'.github/workflows/custom-release.yml\0', b'', None):
             self.paths = paths
             with mock.patch.object(pipeline, 'git', side_effect=self.git_result):
                 self.assertFalse(pipeline.proven_ci_maintenance('release/0.1', ''))

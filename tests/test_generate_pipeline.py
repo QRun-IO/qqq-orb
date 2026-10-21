@@ -204,7 +204,10 @@ class PipelineTests(unittest.TestCase):
 
     def test_ci_maintenance_source_and_packed_keep_verification(self):
         self.write_manifest(test_branch_policy="feature-no-hotfix", publish={"hotfix": True})
-        self.git("add", ".qqq-ci.yml")
+        workflow = self.repo / ".github/workflows/release-rc.yml"
+        workflow.parent.mkdir(parents=True)
+        workflow.write_text("# central RC caller migration\n", encoding="utf-8")
+        self.git("add", ".qqq-ci.yml", ".github/workflows/release-rc.yml")
         self.git("-c", "commit.gpgsign=false", "commit", "-qm", "ci: adopt central pipeline")
         for branch in ("develop", "release/0.1", "hotfix/0.1.1"):
             result = self.render(CIRCLE_BRANCH=branch)
