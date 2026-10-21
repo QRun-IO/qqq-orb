@@ -68,6 +68,30 @@ class RolloutTests(unittest.TestCase):
         self.assertFalse(rollout.rollout([root], '0.7.11', write=True)[0]['changed'])
         self.assertEqual(applied, self.contents(root))
 
+    def test_managed_patch_track_and_exact_pin_rollback_preserve_every_profile(self):
+        roots = [self.checkout(profile, profile=profile, default_branch='main')
+                 for profile in rollout.standard.PROFILE_PARAMETERS]
+        originals = [yaml.safe_load((root / '.qqq-ci.yml').read_text()) for root in roots]
+        rollout.rollout(roots, '0.7', write=True)
+        for root, original in zip(roots, originals):
+            self.assertEqual({**original, 'orb_version': '0.7'},
+                             yaml.safe_load((root / '.qqq-ci.yml').read_text()))
+            rollout.standard.validate(*(data.decode() for data in self.contents(root)), '0.7')
+            rollout.pipeline.load_manifest(root / '.qqq-ci.yml', '0.7')
+            with self.assertRaises(ValueError):
+                rollout.pipeline.load_manifest(root / '.qqq-ci.yml', '0.8')
+        self.assertTrue(all(not r['changed'] for r in rollout.rollout(roots, '0.7', write=True)))
+        rollout.rollout(roots, '0.7.4', write=True)
+        for root, original in zip(roots, originals):
+            self.assertEqual(original, yaml.safe_load((root / '.qqq-ci.yml').read_text()))
+
+    def test_unquoted_track_is_rejected_as_numeric_yaml(self):
+        root = self.checkout('numeric')
+        manifest = root / '.qqq-ci.yml'
+        manifest.write_text(manifest.read_text().replace('0.7.4', '0.7'))
+        with self.assertRaises(ValueError):
+            rollout.pipeline.load_manifest(manifest, '0.7')
+
     def test_one_custom_caller_rejects_entire_batch_before_any_write(self):
         good = self.checkout('good')
         bad = self.checkout('bad')
@@ -97,7 +121,7 @@ class RolloutTests(unittest.TestCase):
     def test_invalid_target_and_duplicate_checkout_are_rejected(self):
         root = self.checkout('qbit')
         before = self.contents(root)
-        for version in ['latest', 'dev:test', '0.7', '0.7.11\n']:
+        for version in ['latest', 'volatile', 'dev:test', '0', '0.7.*', '0.7.11\n']:
             with self.assertRaises(ValueError):
                 rollout.rollout([root], version, write=True)
         with self.assertRaises(ValueError):
