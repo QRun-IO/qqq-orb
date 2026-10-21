@@ -35,7 +35,8 @@ class AllReleaseCallerTests(unittest.TestCase):
         for name in inputs:
             self.assertEqual('${{ inputs.' + name + ' }}', passed[name])
             self.assertEqual('string', self.contract['inputs'][name]['type'])
-        self.assertEqual('github', inputs['smoke_evidence']['default'])
+        # Migrated consumers no longer own a separate GitHub Smoke workflow.
+        self.assertEqual('circle', inputs['smoke_evidence']['default'])
         self.assertEqual(['github', 'circle'], inputs['smoke_evidence']['options'])
         self.assertFalse(inputs['smoke_run_id']['required'])
         self.assertFalse(inputs['circle_workflow_id']['required'])
