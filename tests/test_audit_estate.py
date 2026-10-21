@@ -26,6 +26,79 @@ class Snapshot:
 
 
 class AuditTests(unittest.TestCase):
+    def test_qbit_scanner_policy_requires_exact_canonical_worker(self):
+        entry = dict(ENTRY, name='qbit-help', nameWithOwner='QRun-IO/qbit-help')
+        manifest = {'profile': 'qbit', 'orb_version': VERSION, 'default_branch': 'develop',
+                    'publish': {'snapshot': False, 'release_candidate': False, 'release': False}}
+        files = {'.qqq-ci.yml': audit.generator.yaml.safe_dump(manifest),
+                 '.circleci/config.yml': audit.generator.yaml.safe_dump(audit.standard.canonical_caller('qbit', VERSION))}
+        policy = dict(POLICY, codeql_worker_sha='b' * 40)
+        report = audit.audit(entry, Snapshot(files), VERSION, SHA, policy)
+        self.assertTrue(any(f['code'] == 'missing_native_maintenance_bridge' for f in report['findings']))
+        files['.github/workflows/codeql.yml'] = audit.generator.yaml.safe_dump(audit.auxiliary.canonical('qbit-codeql', 'b' * 40), sort_keys=False)
+        self.assertEqual([], audit.audit(entry, Snapshot(files), VERSION, SHA, policy)['findings'])
+        files['.github/workflows/codeql.yml'] = files['.github/workflows/codeql.yml'].replace('b' * 40, 'a' * 40)
+        report = audit.audit(entry, Snapshot(files), VERSION, SHA, policy)
+        self.assertTrue(any(f['code'] == 'native_maintenance_bridge_drift' for f in report['findings']))
+
+    def test_live_snapshot_reads_requested_branch_and_keeps_default_identity(self):
+        entry = dict(ENTRY, sourceBranch='release/1.2')
+        replies = [{'default_branch': 'develop', 'archived': False}, {'sha': SHA},
+                   {'truncated': False, 'tree': []}]
+        with patch.object(audit, 'gh', side_effect=replies) as gh:
+            snapshot = audit.Snapshot(entry, live=True)
+        self.assertEqual('develop', snapshot.default_branch)
+        self.assertEqual('release/1.2', snapshot.branch)
+        self.assertEqual('repos/QRun-IO/qctl/commits/release%2F1.2', gh.call_args_list[1].args[0])
+
+    def test_other_source_branch_does_not_change_manifest_default_branch(self):
+        entry = dict(ENTRY, name='qbit-help', nameWithOwner='QRun-IO/qbit-help')
+        manifest = {'profile': 'qbit', 'orb_version': VERSION, 'default_branch': 'develop',
+                    'publish': {'snapshot': False, 'release_candidate': False, 'release': False}}
+        files = {'.qqq-ci.yml': audit.generator.yaml.safe_dump(manifest),
+                 '.circleci/config.yml': audit.generator.yaml.safe_dump(audit.standard.canonical_caller('qbit', VERSION))}
+        snapshot = Snapshot(files)
+        snapshot.branch = 'main'
+        snapshot.default_branch = 'develop'
+        report = audit.audit(entry, snapshot, VERSION, SHA, POLICY)
+        self.assertEqual([], report['findings'])
+        self.assertEqual('main', report['source_branch'])
+        self.assertEqual('develop', report['default_branch'])
+
+    def test_selected_branch_read_failure_is_unknown_not_default_fallback(self):
+        captured = []
+        def factory(entry, live):
+            captured.append(entry)
+            raise audit.ReadError('branch unavailable')
+        report = audit.run([ENTRY], VERSION, SHA, {}, live=True,
+                           snapshot_factory=factory, source_branch='main')
+        self.assertEqual('main', captured[0]['sourceBranch'])
+        self.assertEqual('unknown', report['results'][0]['status'])
+        self.assertEqual('main', report['results'][0]['source_branch'])
+        self.assertNotIn('sourceBranch', ENTRY)
+
+    def test_omitted_source_branch_still_reads_repository_default(self):
+        replies = [{'default_branch': 'develop', 'archived': False}, {'sha': SHA},
+                   {'truncated': False, 'tree': []}]
+        with patch.object(audit, 'gh', side_effect=replies) as gh:
+            snapshot = audit.Snapshot(ENTRY, live=True)
+        self.assertEqual('develop', snapshot.branch)
+        self.assertEqual('develop', snapshot.default_branch)
+        self.assertEqual('repos/QRun-IO/qctl/commits/develop', gh.call_args_list[1].args[0])
+
+    def test_explicit_source_branch_cannot_relabel_offline_snapshot(self):
+        with self.assertRaises(ValueError):
+            audit.run([ENTRY], VERSION, SHA, {}, source_branch='main')
+        with self.assertRaises(audit.ReadError):
+            audit.Snapshot(dict(ENTRY, sourceBranch='main'), live=False)
+
+    def test_invalid_source_branch_is_rejected_before_api_calls(self):
+        for branch in ('', 'main?ref=develop', 'main\n', 123):
+            with self.subTest(branch=branch), patch.object(audit, 'gh') as gh:
+                with self.assertRaises(audit.ReadError):
+                    audit.Snapshot(dict(ENTRY, sourceBranch=branch), live=True)
+                gh.assert_not_called()
+
     def native(self, files=None, checks=None, policy=POLICY):
         files = files if files is not None else {'.github/workflows/build.yml': audit.qctl.generate(SHA)}
         return audit.audit(ENTRY, Snapshot(files, checks), VERSION, SHA, policy)

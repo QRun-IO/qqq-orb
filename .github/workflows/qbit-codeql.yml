@@ -1,0 +1,58 @@
+name: QBit CodeQL
+'on':
+  workflow_call:
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+  packages: read
+jobs:
+  analyze:
+    name: Analyze branch source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select languages present in this checkout
+        id: languages
+        run: |
+          python3 <<'PY'
+          import os
+          from pathlib import PurePosixPath
+          import subprocess
+          import sys
+
+          files = subprocess.check_output(['git', 'ls-files', '-z']).decode('utf-8').split('\0')
+          extensions = {PurePosixPath(name).suffix.lower() for name in files if name}
+          languages = []
+          if extensions & {'.java', '.kt', '.kts'}:
+              languages.append('java-kotlin')
+          if extensions & {'.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts'}:
+              languages.append('javascript-typescript')
+          if '.py' in extensions:
+              languages.append('python')
+          if any((name.startswith('.github/workflows/') and PurePosixPath(name).suffix in {'.yml', '.yaml'})
+                 or PurePosixPath(name).name in {'action.yml', 'action.yaml'} for name in files if name):
+              languages.append('actions')
+          if not languages:
+              sys.exit('No supported source in this branch; classify placeholders before enabling QBit scanning')
+          build_mode = 'autobuild' if extensions & {'.kt', '.kts'} else 'none'
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write('languages=' + ','.join(languages) + '\n')
+              output.write('build-mode=' + build_mode + '\n')
+          PY
+      - uses: actions/setup-java@v4
+        if: steps.languages.outputs.build-mode == 'autobuild'
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ steps.languages.outputs.languages }}
+          build-mode: ${{ steps.languages.outputs.build-mode }}
+      - name: Build Kotlin sources
+        if: steps.languages.outputs.build-mode == 'autobuild'
+        uses: github/codeql-action/autobuild@v4
+      - name: Analyze source
+        uses: github/codeql-action/analyze@v4

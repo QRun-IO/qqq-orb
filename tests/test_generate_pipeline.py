@@ -227,6 +227,24 @@ class PipelineTests(unittest.TestCase):
         self.write_manifest(publish={"asciidoc": True})
         self.assertTrue(self.assert_full(self.render(CIRCLE_BRANCH="develop"), "publish_snapshot")["publish_asciidoc"])
 
+    def test_qbit_hotfix_is_opt_in_in_source_and_packed_generator(self):
+        for packed in ([False, True] if PACKED else [False]):
+            self.write_manifest()
+            self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="hotfix/1.2.3"))
+            self.write_manifest(publish={"hotfix": True})
+            options = self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="hotfix/1.2.3"), "publish_hotfix")
+            self.assertNotIn("notify_rc_published", options)
+            self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="main"))
+            self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="hotfix/"))
+            self.write_manifest(publish={"hotfix": "true"})
+            self.render(packed=packed, CIRCLE_BRANCH="hotfix/1.2.3", ok=False)
+
+    def test_stable_tags_require_ascii_digits_in_source_and_packed_generator(self):
+        tag = "v\u0661.\u0662.\u0663"
+        self.git("tag", tag)
+        for packed in ([False, True] if PACKED else [False]):
+            self.assert_full(self.render(packed=packed, CIRCLE_TAG=tag))
+
     def test_qbit_rc_completion_is_explicit_and_rc_only(self):
         options = self.assert_full(self.render(CIRCLE_BRANCH="release/1"), "publish_release_candidate")
         self.assertFalse(options["notify_rc_published"])

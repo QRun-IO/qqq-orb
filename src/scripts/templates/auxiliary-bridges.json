@@ -263,7 +263,7 @@
       },
       "concurrency": {
         "group": "e2e-${{ github.ref }}",
-          "cancel-in-progress": "${{ github.event_name == 'pull_request' }}"
+        "cancel-in-progress": "${{ github.event_name == 'pull_request' }}"
       },
       "jobs": {
         "validate": {
@@ -424,6 +424,46 @@
       "jobs": {
         "gitops": {
           "uses": "QRun-IO/qqq-orb/.github/workflows/gitops.yml@WORKER_SHA"
+        }
+      }
+    }
+  },
+  "qbit-codeql": {
+    "repository": null,
+    "profile": "qbit",
+    "path": ".github/workflows/codeql.yml",
+    "caller": {
+      "name": "CodeQL",
+      "on": {
+        "push": {
+          "branches": [
+            "main",
+            "develop",
+            "release/**",
+            "hotfix/**"
+          ]
+        },
+        "pull_request": {},
+        "schedule": [
+          {
+            "cron": "41 16 * * 0"
+          }
+        ],
+        "workflow_dispatch": {}
+      },
+      "permissions": {
+        "contents": "read",
+        "actions": "read",
+        "security-events": "write",
+        "packages": "read"
+      },
+      "concurrency": {
+        "group": "codeql-${{ github.event.pull_request.number || github.ref }}",
+        "cancel-in-progress": "${{ github.event_name == 'pull_request' }}"
+      },
+      "jobs": {
+        "analyze": {
+          "uses": "QRun-IO/qqq-orb/.github/workflows/qbit-codeql.yml@WORKER_SHA"
         }
       }
     }

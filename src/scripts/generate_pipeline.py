@@ -110,6 +110,8 @@ def load_manifest(path, setup_version):
         publish_keys = ("release",)
     if profile in ("qbit", "core"):
         publish_keys += ("asciidoc",)
+    if profile == "qbit":
+        publish_keys += ("hotfix",)
     if profile not in ("qbit", "cli", "all", "app-starter", "voyage", "frontend-next"):
         publish_keys += ("feature", "hotfix")
     publishing = mapping(data.get("publish", {}), publish_keys, "publish")
@@ -126,7 +128,8 @@ def load_manifest(path, setup_version):
     if tag_policy not in ("stable", "v-prefix", "none"):
         raise ManifestError("Unsupported QBit release tag policy")
     test_policy = data.get("test_branch_policy", "all")
-    if test_policy not in ("all", "non-release", "non-release-no-integration", "feature", "non-release-no-main"):
+    if test_policy not in ("all", "non-release", "non-release-no-integration", "feature", "non-release-no-main",
+                           "non-release-no-hotfix", "non-release-no-main-hotfix", "feature-no-hotfix"):
         raise ManifestError("Unsupported QBit test branch policy")
     return {"profile": profile, "orb_version": version, "default_branch": default_branch,
             "java_version": java, "node_version": node, "browsers": boolean(data, "browsers", True),
@@ -136,7 +139,8 @@ def load_manifest(path, setup_version):
             "release_tag_policy": tag_policy, "test_branch_policy": test_policy,
             "docs_only": boolean(data, "docs_only", False),
             "publish_context": publish_context,
-            "publish": {key: boolean(publishing, key, key != "asciidoc" and profile not in ("cli", "all"))
+            "publish": {key: boolean(publishing, key, key != "asciidoc" and profile not in ("cli", "all")
+                                      and not (profile == "qbit" and key == "hotfix"))
                         for key in publish_keys}}
 
 
@@ -173,7 +177,7 @@ def proven_docs_only(config, branch, tag):
 
 def event_kind(branch, tag, release_on_main=False, release_tag_policy="stable"):
     if tag:
-        if release_tag_policy == "none" or not re.fullmatch(r"v.*" if release_tag_policy == "v-prefix" else r"v\d+\.\d+\.\d+", tag):
+        if release_tag_policy == "none" or not re.fullmatch(r"v.*" if release_tag_policy == "v-prefix" else r"v\d+\.\d+\.\d+", tag, flags=re.ASCII):
             return "test"
         tagged = git("rev-parse", "--verify", f"refs/tags/{tag}^{{commit}}")
         if not tagged and git("fetch", "--no-tags", "origin", f"refs/tags/{tag}:refs/tags/{tag}") is not None:
@@ -191,6 +195,8 @@ def event_kind(branch, tag, release_on_main=False, release_tag_policy="stable"):
 def qbit_template(config, branch, tag):
     """Profile-owned template; add future profiles as reviewed renderers, not raw YAML."""
     kind = event_kind(branch, tag, config.get("release_on_main", False), config.get("release_tag_policy", "stable"))
+    if not tag and re.fullmatch(r"hotfix/.+", branch) and config["publish"].get("hotfix", False):
+        kind = "hotfix"
     if kind != "test" and not config["publish"][kind]:
         kind = "test"
     workflow = "test_only" if kind == "test" else "publish_" + kind
@@ -201,7 +207,10 @@ def qbit_template(config, branch, tag):
         ignores = {"all": None, "non-release": "/(develop|release/.*)/",
                    "non-release-no-integration": "/(develop|release/.*|integration.*)/",
                    "feature": "/(develop|main|release/.*|integration.*)/",
-                   "non-release-no-main": "/(develop|main|release/.*)/"}
+                   "non-release-no-main": "/(develop|main|release/.*)/",
+                   "non-release-no-hotfix": "/(develop|release/.*|hotfix/.*)/",
+                   "non-release-no-main-hotfix": "/(develop|main|release/.*|hotfix/.*)/",
+                   "feature-no-hotfix": "/(develop|main|release/.*|hotfix/.*|integration.*)/"}
         ignored = ignores[config.get("test_branch_policy", "all")]
         if ignored:
             filters["branches"]["ignore"] = ["automation/qbit-rc-pending", ignored]
