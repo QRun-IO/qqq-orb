@@ -176,10 +176,12 @@ jobs:
           trap 'rm -rf "$workdir"' EXIT
           # BEGIN RC REF LOOKUP
           read_ref() {
-            local body
+            local body sha
             if body=$(gh api "repos/$REPO/git/ref/$1" 2>"$workdir/ref-error"); then
-              jq -er '.object.sha | select(type == "string" and test("^[0-9a-f]{40}$"))' <<< "$body"
-            elif jq -e '.status == "404"' >/dev/null 2>&1 <<< "$body"; then
+              sha=$(jq -er '.object.sha' <<< "$body") || return 1
+              [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || return 1
+              printf '%s\n' "$sha"
+            elif jq -se 'length == 1 and .[0].status == "404"' >/dev/null 2>&1 <<< "$body"; then
               # gh prints HTTP error JSON on stdout even when --jq was requested.
               return 0
             else

@@ -30,7 +30,7 @@ class RefLookupTests(unittest.TestCase):
         self.assertEqual('a' * 40, result.stdout)
 
     def test_permission_network_and_server_errors_are_not_missing_refs(self):
-        for body in ('{"status":"403"}', '{"status":"500"}', '', 'not json'):
+        for body in ('{"status":"403"}', '{"status":"500"}', '', '   ', '\n', 'not json'):
             with self.subTest(body=body):
                 self.assertNotEqual(0, self.lookup(body, 1).returncode)
 
