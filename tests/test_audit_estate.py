@@ -1,4 +1,6 @@
 import importlib.util
+import json
+import io
 import pathlib
 import unittest
 from unittest.mock import patch
@@ -23,6 +25,54 @@ class Snapshot:
         return self.files.get(path)
     def checks(self, branch):
         return self.required
+
+
+class InventoryTests(unittest.TestCase):
+    def repo(self, name, archived=False):
+        return {'name': name, 'full_name': 'QRun-IO/' + name,
+                'archived': archived, 'default_branch': 'main'}
+
+    def test_all_pages_include_new_private_and_archived_repositories(self):
+        new = dict(self.repo('new-product'), private=True)
+        pages = [[self.repo('qbit-existing')], [new, self.repo('retired', True)]]
+        with patch.object(audit, 'command', return_value=json.dumps(pages)) as command:
+            entries = audit.discover_inventory('QRun-IO')
+        self.assertEqual([e['name'] for e in entries], ['new-product', 'qbit-existing', 'retired'])
+        self.assertTrue(entries[-1]['isArchived'])
+        self.assertEqual(command.call_args.args[0], ['gh', 'api', '--method', 'GET',
+            '--paginate', '--slurp', 'orgs/QRun-IO/repos?type=all&per_page=100'])
+
+    def test_empty_duplicate_foreign_and_malformed_inventories_fail_closed(self):
+        repo = self.repo('qbit-example')
+        for pages in ([], [[]], {}, [repo], [[repo], [repo]],
+                      [[dict(repo, full_name='Other/qbit-example')]],
+                      [[dict(repo, archived='false')]], [[dict(repo, default_branch=None)]]):
+            with self.subTest(pages=pages), patch.object(audit, 'command', return_value=json.dumps(pages)):
+                with self.assertRaises(audit.ReadError):
+                    audit.discover_inventory('QRun-IO')
+        with patch.object(audit, 'command') as command:
+            with self.assertRaises(audit.ReadError):
+                audit.discover_inventory('QRun-IO/../../other')
+            command.assert_not_called()
+
+    def test_live_cli_count_is_dynamic_but_explicit_expectation_is_enforced(self):
+        for expected, status in ((None, 0), ('1', 0), ('68', 1)):
+            args = ['audit', '--organization', 'QRun-IO', '--live', '--orb-version', '0.8']
+            if expected:
+                args += ['--expected-active', expected]
+            report = {'active_count': 1, 'unique_repository_count': 1,
+                      'inventory_count': 1, 'results': [{'status': 'pass'}]}
+            output = io.StringIO()
+            with patch.object(audit.sys, 'argv', args), patch.object(audit.sys, 'stdout', output), \
+                    patch.object(audit, 'discover_inventory', return_value=[ENTRY]), \
+                    patch.object(audit, 'run', return_value=report):
+                self.assertEqual(audit.main(), status)
+            self.assertEqual(json.loads(output.getvalue())['inventory_source'], 'organization-api')
+
+    def test_discovery_api_failure_never_falls_back_to_old_inventory(self):
+        with patch.object(audit, 'command', side_effect=audit.ReadError('unavailable')):
+            with self.assertRaises(audit.ReadError):
+                audit.discover_inventory('QRun-IO')
 
 
 class AuditTests(unittest.TestCase):
