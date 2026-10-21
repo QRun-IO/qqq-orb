@@ -85,6 +85,7 @@ jobs:
             bash tests/test_maven_ci_cache.sh
             bash tests/test_maven_test_results.sh
             bash tests/test_maven_ci_install.sh
+            bash tests/test_browser_install.sh
             bash tests/test_snapshot_refresh.sh
             bash tests/test_maven_settings_output.sh
   # Create jobs to test the commands of your orbs.
