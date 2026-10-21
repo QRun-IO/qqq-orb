@@ -30,6 +30,15 @@ def validate(job, publisher):
 
 
 class TimeoutRecoveryTests(unittest.TestCase):
+    def test_stable_gate_must_match_the_actual_publishing_workflow(self):
+        job, publisher = evidence()
+        job['workflows']['workflow_name'] = 'verify'
+        publisher['name'] = 'verify'
+        validate(job, publisher)
+        publisher['name'] = 'publish_release_candidate'
+        with self.assertRaises(Failure):
+            validate(job, publisher)
+
     def test_exact_upload_timeout_after_successful_verify(self):
         self.assertEqual((124, 0), validate(*evidence()))
 

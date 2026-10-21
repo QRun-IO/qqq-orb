@@ -135,7 +135,7 @@ jobs:
             echo "merge_sha=$merge_sha"
             echo "merged_at=$merged_at"
           } >> "$GITHUB_OUTPUT"
-          echo "Pushed $branch; CircleCI publish_release_candidate cuts the RC." >> "$GITHUB_STEP_SUMMARY"
+          echo "Pushed $branch; the CircleCI publisher cuts the RC." >> "$GITHUB_STEP_SUMMARY"
           echo "Release line: $branch. Waiting without a runner for qbit-rc-published." >> "$GITHUB_STEP_SUMMARY"
       - name: Persist trusted release intent
         if: steps.merge.outputs.merge_sha != ''
@@ -203,7 +203,7 @@ jobs:
                   raise ReleaseFailure("Status response does not identify the exact release merge")
               # Circle's workflow Check Run is stable even when job statuses receive -1/-2 suffixes.
               publishers = [x for x in status.get("check_runs", [])
-                            if x.get("name") == "publish_release_candidate" and x.get("app", {}).get("id") == 18001]
+                            if x.get("name") in ("publish_release_candidate", "verify") and x.get("app", {}).get("id") == 18001]
               if not publishers:
                   return ""
               publisher = max(publishers, key=lambda x: x["id"])
@@ -265,10 +265,10 @@ jobs:
                       job.get('branch'), str(job.get('build_num'))) != (repo, merge, branch, build):
                   raise ReleaseFailure('Timeout job does not identify the exact cut')
               workflow = job.get('workflows', {})
-              if workflow.get('workflow_name') != 'publish_release_candidate' or workflow.get('job_name') != 'qqq-orb/mvn_publish':
+              if workflow.get('workflow_name') not in ('publish_release_candidate', 'verify') or workflow.get('job_name') != 'qqq-orb/mvn_publish':
                   raise ReleaseFailure('Unexpected Circle publication workflow/job')
               if (publisher.get('head_sha') != merge or publisher.get('app', {}).get('id') != 18001
-                      or publisher.get('name') != 'publish_release_candidate'
+                      or publisher.get('name') != workflow.get('workflow_name')
                       or publisher.get('status') != 'completed' or publisher.get('conclusion') != 'failure'):
                   raise ReleaseFailure('Recovery requires the failed exact Circle publisher')
               from urllib.parse import urlsplit
@@ -335,7 +335,7 @@ jobs:
               directory = pathlib.Path(directory)
               status = json.loads((directory / 'status.json').read_text())
               intent = json.loads((directory / 'intent.json').read_text())
-              publishers = [p for p in status['check_runs'] if p.get('name') == 'publish_release_candidate' and p.get('app', {}).get('id') == 18001]
+              publishers = [p for p in status['check_runs'] if p.get('name') in ('publish_release_candidate', 'verify') and p.get('app', {}).get('id') == 18001]
               if status.get('sha') != merge or not publishers:
                   raise ReleaseFailure('Exact publisher evidence missing')
               class NoRedirect(urllib.request.HTTPRedirectHandler):

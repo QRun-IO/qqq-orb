@@ -192,10 +192,12 @@ class PipelineTests(unittest.TestCase):
         return result
 
     def assert_full(self, result, workflow="test_only"):
-        self.assertEqual(list(result["workflows"]), [workflow])
+        self.assertEqual(list(result["workflows"]), ["verify"])
         self.assertNotIn("docs_only", result.get("jobs", {}))
-        job, options = next(iter(result["workflows"][workflow]["jobs"][0].items()))
+        job, options = next(iter(result["workflows"]["verify"]["jobs"][0].items()))
         self.assertEqual(job, "qqq-orb/mvn_test_only" if workflow == "test_only" else "qqq-orb/mvn_publish")
+        if workflow != "test_only":
+            self.assertEqual(options["branch_type"], workflow.removeprefix("publish_"))
         self.assertEqual(options["context"], ["qqq-maven-registry-credentials"])
         self.assertFalse(options["compile_before_verify"])
         return options
@@ -298,8 +300,8 @@ class PipelineTests(unittest.TestCase):
         self.change_docs()
         for packed in ([False, True] if PACKED else [False]):
             result = self.render(packed=packed)
-            self.assertEqual(list(result["workflows"]), ["test_only"])
-            options = result["workflows"]["test_only"]["jobs"][0]["docs_only"]
+            self.assertEqual(list(result["workflows"]), ["verify"])
+            options = result["workflows"]["verify"]["jobs"][0]["docs_only"]
             self.assertEqual(options["name"], "qqq-orb/mvn_test_only")
             self.assertIn("git diff --check", result["jobs"]["docs_only"]["steps"][1]["run"]["command"])
         (self.repo / "App.java").write_text("changed\n", encoding="utf-8")
@@ -360,8 +362,8 @@ class PipelineTests(unittest.TestCase):
         for branch, tag, workflow in events:
             with self.subTest(workflow=workflow):
                 result = self.render(CIRCLE_BRANCH=branch, CIRCLE_TAG=tag)
-                self.assertEqual(list(result["workflows"]), [workflow])
-                actual = result["workflows"][workflow]["jobs"]
+                self.assertEqual(list(result["workflows"]), ["verify"])
+                actual = result["workflows"]["verify"]["jobs"]
                 expected = baseline["workflows"][workflow]["jobs"]
                 self.assertEqual(len(actual), len(expected))
                 for before, after in zip(expected, actual):
@@ -422,8 +424,8 @@ class PipelineTests(unittest.TestCase):
                 with self.subTest(branch=branch, enabled=enabled):
                     result = self.render(CIRCLE_BRANCH=branch, QQQ_CI_RUN_PLAYWRIGHT=str(enabled).lower())
                     workflow = base + ("_with_playwright" if enabled else "")
-                    self.assertEqual(list(result["workflows"]), [workflow])
-                    jobs = result["workflows"][workflow]["jobs"]
+                    self.assertEqual(list(result["workflows"]), ["verify"])
+                    jobs = result["workflows"]["verify"]["jobs"]
                     self.assertEqual(len(jobs), 2 if enabled else 1)
                     maven = [j for j in jobs if next(iter(j)).startswith("qqq-orb/mvn_frontend_")]
                     self.assertEqual(len(maven), 1)
@@ -454,8 +456,10 @@ class PipelineTests(unittest.TestCase):
                                           ("hotfix/fix", "", "publish_hotfix_release"), ("", "publish-fixture", "publish_feature"),
                                           ("", "v1.0.0", "publish_release")]:
                 result = self.render(CIRCLE_BRANCH=branch, CIRCLE_TAG=tag)
-                self.assertEqual(list(result["workflows"]), [workflow])
-                options = next(iter(result["workflows"][workflow]["jobs"][0].values()))
+                self.assertEqual(list(result["workflows"]), ["verify"])
+                options = next(iter(result["workflows"]["verify"]["jobs"][0].values()))
+                expected_kind = {"publish_hotfix_release": "hotfix"}.get(workflow, workflow.removeprefix("publish_"))
+                self.assertEqual(options["branch_type"], expected_kind)
                 if profile == "frontend-core":
                     self.assertTrue(options["npm_trusted_publishing"])
                     self.assertEqual(options["node_version"], "24.21")
@@ -463,9 +467,9 @@ class PipelineTests(unittest.TestCase):
                 else:
                     self.assertEqual(options["context"], ["qqq-maven-registry-credentials"])
             main = self.render(CIRCLE_BRANCH="main")
-            self.assertEqual(list(main["workflows"]), ["publish_release" if profile == "frontend-core" else "test_only"])
+            self.assertEqual(list(main["workflows"]), ["verify"])
             rc_tag = self.render(CIRCLE_BRANCH="", CIRCLE_TAG="v1.0.0-RC.1")
-            self.assertEqual(list(rc_tag["workflows"]), ["publish_release" if profile == "frontend-core" else "test_only"])
+            self.assertEqual(list(rc_tag["workflows"]), ["verify"])
 
     def test_profile_specific_options_rejected(self):
         for profile, options in [("qbit", {"node_version": "22"}), ("frontend-core", {"browsers": False}),
@@ -532,7 +536,8 @@ class PipelineTests(unittest.TestCase):
                             {"CIRCLE_BRANCH": "integration-example"}):
             result = self.render(**environment)
             if environment.get("CIRCLE_BRANCH") != "integration-example":
-                self.assertIn("publish_release", result["workflows"])
+                self.assertEqual(list(result["workflows"]), ["verify"])
+                self.assertEqual(result["workflows"]["verify"]["jobs"][0]["qqq-orb/mvn_publish"]["branch_type"], "release")
             if PACKED:
                 self.assertEqual(result, self.render(packed=True, **environment))
 
