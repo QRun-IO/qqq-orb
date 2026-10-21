@@ -202,6 +202,24 @@ class PipelineTests(unittest.TestCase):
         self.assertFalse(options["compile_before_verify"])
         return options
 
+    def test_ci_maintenance_source_and_packed_keep_verification(self):
+        self.write_manifest(test_branch_policy="feature-no-hotfix", publish={"hotfix": True})
+        self.git("add", ".qqq-ci.yml")
+        self.git("-c", "commit.gpgsign=false", "commit", "-qm", "ci: adopt central pipeline")
+        for branch in ("develop", "release/0.1", "hotfix/0.1.1"):
+            result = self.render(CIRCLE_BRANCH=branch)
+            options = self.assert_full(result)
+            self.assertEqual(options["filters"]["branches"], {"ignore": "automation/qbit-rc-pending"})
+            if PACKED:
+                self.assertEqual(result, self.render(packed=True, CIRCLE_BRANCH=branch))
+        (self.repo / "App.java").write_text("application change\n", encoding="utf-8")
+        self.git("add", "App.java")
+        self.git("-c", "commit.gpgsign=false", "commit", "-qm", "ci: misleading title")
+        result = self.render(CIRCLE_BRANCH="release/0.1")
+        self.assert_full(result, "publish_release_candidate")
+        if PACKED:
+            self.assertEqual(result, self.render(packed=True, CIRCLE_BRANCH="release/0.1"))
+
     def test_defaults_and_options(self):
         options = self.assert_full(self.render())
         self.assertTrue(options["install_browsers"])

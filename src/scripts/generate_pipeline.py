@@ -176,6 +176,24 @@ def proven_docs_only(config, branch, tag):
     return base.decode().strip() if eligible else False
 
 
+def proven_ci_maintenance(branch, tag):
+    """Keep application tests, but do not publish for isolated CI declarations."""
+    if tag or not (branch == "main" or branch == "develop" or branch.startswith(("release/", "hotfix/"))):
+        return False
+    subject = git("log", "-1", "--format=%s")
+    if not subject or not re.match(rb"ci(?:\([^\r\n()]+\))?: ", subject):
+        return False
+    parents = git("rev-list", "--parents", "-n", "1", "HEAD")
+    if not parents or not re.fullmatch(rb"[0-9a-f]{40} [0-9a-f]{40}\n", parents):
+        return False
+    base = parents.split()[1].decode("ascii")
+    changed = git("diff", "--no-ext-diff", "--no-renames", "--name-only", "-z", base, "HEAD")
+    if not changed:
+        return False
+    allowed = {b".qqq-ci.yml", b".circleci/config.yml", b".github/workflows/codeql.yml"}
+    return all(path in allowed for path in changed.rstrip(b"\0").split(b"\0"))
+
+
 def event_kind(branch, tag, release_on_main=False, release_tag_policy="stable"):
     if tag:
         if release_tag_policy == "none" or not re.fullmatch(r"v.*" if release_tag_policy == "v-prefix" else r"v\d+\.\d+\.\d+", tag, flags=re.ASCII):
@@ -200,11 +218,14 @@ def qbit_template(config, branch, tag):
         kind = "hotfix"
     if kind != "test" and not config["publish"][kind]:
         kind = "test"
+    maintenance = kind != "test" and proven_ci_maintenance(branch, tag)
+    if maintenance:
+        kind = "test"
     workflow = "test_only" if kind == "test" else "publish_" + kind
     result = {"version": 2.1, "orbs": {"qqq-orb": "kingsrook/qqq-orb@" + config["orb_version"]}}
     filters = ({"branches": {"ignore": "/.*/"}, "tags": {"only": "/.*/"}} if tag else
                {"branches": {"ignore": "automation/qbit-rc-pending"}, "tags": {"ignore": "/.*/"}})
-    if kind == "test" and not tag:
+    if kind == "test" and not tag and not maintenance:
         ignores = {"all": None, "non-release": "/(develop|release/.*)/",
                    "non-release-no-integration": "/(develop|release/.*|integration.*)/",
                    "feature": "/(develop|main|release/.*|integration.*)/",
@@ -215,7 +236,7 @@ def qbit_template(config, branch, tag):
         ignored = ignores[config.get("test_branch_policy", "all")]
         if ignored:
             filters["branches"]["ignore"] = ["automation/qbit-rc-pending", ignored]
-    docs_base = proven_docs_only(config, branch, tag) if kind == "test" else False
+    docs_base = proven_docs_only(config, branch, tag) if kind == "test" and not maintenance else False
     if docs_base:
         # Keep the existing workflow/result identity even when Maven is not needed.
         result["jobs"] = {"docs_only": {"resource_class": "small", "docker": [{"image": "cimg/base:2026.03"}],
