@@ -17,7 +17,7 @@ steps:
       command: <<include(scripts/frontend_test_cleanup.sh)>>
 
   # Install current Chrome; DO NOT install chromedriver (let Selenium 4 auto-manage it)
-  - browser-tools/install-chrome
+  - install_chrome
 
   # System libs Chrome needs in headless CI
   - run:
