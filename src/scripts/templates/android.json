@@ -86,14 +86,8 @@
         "android/restore-gradle-cache",
         {
           "run": {
-            "name": "Write credentials to gradle.properties",
-            "command": "echo \"\" >> gradle.properties\necho \"githubQqqMavenRegistryUsername=${QQQ_ANDROID_MAVEN_REGISTRY_USERNAME}\" >> gradle.properties\necho \"githubQqqMavenRegistryPassword=${QQQ_ANDROID_MAVEN_REGISTRY_PASSWORD}\" >> gradle.properties\n"
-          }
-        },
-        {
-          "run": {
-            "name": "Publish (Deploy) to Maven",
-            "command": "./gradlew publishMavenPublicationToGithubQqqMavenRegistryRepository\n"
+            "name": "Publish with shared Maven credentials",
+            "command": "set -euo pipefail\nexport ORG_GRADLE_PROJECT_githubQqqMavenRegistryUsername=\"${QQQ_MAVEN_REGISTRY_USERNAME:?Shared Maven username is required}\"\nexport ORG_GRADLE_PROJECT_githubQqqMavenRegistryPassword=\"${QQQ_MAVEN_REGISTRY_PASSWORD:?Shared Maven password is required}\"\n./gradlew publishMavenPublicationToGithubQqqMavenRegistryRepository\n"
           }
         }
       ]
@@ -116,7 +110,10 @@
               "branches": {
                 "only": "main"
               }
-            }
+            },
+            "context": [
+              "qqq-maven-registry-credentials"
+            ]
           }
         }
       ]
