@@ -1,0 +1,38 @@
+name: GitOps validation
+'on':
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install verified Kustomize
+        shell: bash
+        run: |
+          set -euo pipefail
+          tool_dir="$RUNNER_TEMP/qqq-kustomize"
+          mkdir -p "$tool_dir"
+          curl --fail --silent --show-error --location --retry 2 --max-time 60 \
+            https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v5.7.1/kustomize_v5.7.1_linux_amd64.tar.gz \
+            --output "$tool_dir/kustomize.tar.gz"
+          echo "ea375e7372f9aa029129d4b2d16c66b7750b7f1213c4f66f910d981c895818d8  $tool_dir/kustomize.tar.gz" | sha256sum --check --status
+          tar -xzf "$tool_dir/kustomize.tar.gz" -C "$tool_dir" kustomize
+          echo "$tool_dir" >> "$GITHUB_PATH"
+      - name: Render every Kustomization
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' manifests < <(find . -path './.git' -prune -o -type f \( -name kustomization.yaml -o -name kustomization.yml -o -name Kustomization \) -print0)
+          if (( ${#manifests[@]} == 0 )); then
+            echo 'No Kustomization found' >&2
+            exit 1
+          fi
+          for manifest in "${manifests[@]}"; do
+            directory=$(dirname "$manifest")
+            # Rendered Secrets must never enter logs or uploaded artifacts.
+            kustomize build "$directory" >/dev/null
+            printf 'Validated %s\n' "$directory"
+          done
