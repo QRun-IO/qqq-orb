@@ -649,7 +649,9 @@
           "qqq-orb/mvn_publish": {
             "requires": [
               "sample_bootstrap_source",
-              "snapshot_esb_broker_conformance"
+              "snapshot_esb_broker_conformance",
+              "snapshot_sample_coverage_gate",
+              "qqq-orb/static_analysis"
             ],
             "pre-steps": [
               "configure-package-install"
