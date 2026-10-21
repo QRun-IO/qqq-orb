@@ -114,6 +114,20 @@ Maven jobs use machine executors with Docker pre-installed. Tests using Testcont
 
 ## Orb Publishing
 
+### QBit CI maintenance
+
+The QBit profile runs Maven verification without publishing when a single-parent
+`ci: ...` or `ci(scope): ...` commit changes only `.qqq-ci.yml`,
+`.circleci/config.yml`, or `.github/workflows/codeql.yml`. This applies on
+main, develop, release, and hotfix branches. The normal test job still runs,
+including on branches normally excluded from feature tests, and reports through
+the required `verify` workflow.
+
+Tags, merge commits (including release automation), application changes, other
+files, empty diffs, and unavailable history retain normal publishing behavior.
+This lets central configuration updates avoid unnecessary application versions
+without introducing per-repository maintenance workflows.
+
 The orb auto-publishes via CircleCI:
 
 | Branch | Action |

@@ -59,6 +59,7 @@ test-pipelines: pack
 	python3 tests/test_cli_ci_contract.py
 	python3 tests/test_standardize_qbit.py
 	python3 tests/test_qbit_hotfix_profile.py
+	python3 tests/test_ci_maintenance.py
 	python3 tests/test_rollout_version.py
 	python3 tests/test_validate_standard.py
 	python3 tests/test_voyage_profile.py
