@@ -1,7 +1,11 @@
 import copy
 import importlib.util
+import io
+import os
 from pathlib import Path
 import unittest
+from unittest import mock
+import urllib.error
 import yaml
 
 ROOT = Path(__file__).parents[1]
@@ -25,6 +29,27 @@ def fixture():
 
 
 class EvidenceTests(unittest.TestCase):
+    def test_public_evidence_needs_no_credential_and_optional_token_stays_on_circle(self):
+        for token in ('', 'fixture-token'):
+            opener = mock.Mock()
+            opener.open.return_value = io.BytesIO(b'{"status":"success"}')
+            with mock.patch.dict(os.environ, {'CIRCLECI_TOKEN': token}), \
+                    mock.patch.object(v.urllib.request, 'build_opener', return_value=opener):
+                self.assertEqual(v.circle('workflow/' + W), {'status': 'success'})
+            request = opener.open.call_args.args[0]
+            self.assertEqual(request.full_url, 'https://circleci.com/api/v2/workflow/' + W)
+            self.assertEqual(request.get_header('Circle-token'), token or None)
+
+    def test_unavailable_public_evidence_is_not_a_success(self):
+        opener = mock.Mock()
+        opener.open.side_effect = urllib.error.HTTPError('https://circleci.com', 403, 'Forbidden', {}, None)
+        with mock.patch.dict(os.environ, {'CIRCLECI_TOKEN': ''}), \
+                mock.patch.object(v.urllib.request, 'build_opener', return_value=opener), \
+                self.assertRaises(OSError):
+            v.circle('workflow/' + W)
+        with self.assertRaises(v.EvidenceError):
+            v.NoRedirect().redirect_request(None, None, 302, '', {}, 'https://other.example/')
+
     def test_success_returns_real_circle_evidence_not_fake_github_run(self):
         evidence = v.validate(SHA, W, *fixture())
         self.assertEqual('qqq-all-circle-smoke/v1', evidence['schema'])

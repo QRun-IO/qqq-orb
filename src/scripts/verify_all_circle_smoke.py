@@ -86,9 +86,12 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 def circle(path):
     token = os.environ.get('CIRCLECI_TOKEN')
-    require(token, 'CIRCLECI_TOKEN is required for Circle evidence mode')
+    # Public projects expose these records without authentication.
+    headers = {'Accept': 'application/json'}
+    if token:
+        headers['Circle-Token'] = token
     request = urllib.request.Request('https://circleci.com/api/v2/' + path,
-                                     headers={'Circle-Token': token, 'Accept': 'application/json'})
+                                     headers=headers)
     with urllib.request.build_opener(NoRedirect).open(request, timeout=30) as response:
         raw = response.read(2_000_001)
     require(len(raw) <= 2_000_000, 'Evidence response exceeds bound')
