@@ -26,7 +26,8 @@ https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-t
 - Finalization retrieves the unique unexpired intent artifact and verifies its
   originating successful `release-rc.yml` run, repository, trigger and attempt.
   Callback fields must match that immutable intent.
-- The exact merge SHA must have a successful `publish_release_candidate` Check Run
+- The exact merge SHA must have a successful `verify` (or legacy
+  `publish_release_candidate`) Check Run
   from CircleCI app ID `18001`; unrelated job statuses cannot authorize release.
   Terminal publisher failure stops finalization immediately. Pending/absent publication cannot authorize a tag.
   The RC bump must have exactly that one parent and the release branch must still
