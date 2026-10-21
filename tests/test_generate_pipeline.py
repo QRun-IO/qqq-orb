@@ -29,8 +29,17 @@ MANIFEST = {"profile": "qbit", "orb_version": "0.7.0", "default_branch": "develo
 
 
 class MarketingContractTests(unittest.TestCase):
-    def test_exact_munitor_render_and_single_continuation(self):
+    def test_munitor_render_with_explicit_build_and_single_continuation(self):
         baseline = yaml.safe_load((ROOT / "tests/fixtures/marketing-munitor-0311-rendered.yml").read_text(encoding="utf-8"))
+        # The original delegated job never builds: require the shared profile
+        # to prepare the standalone artifact before browser/Lighthouse checks.
+        for workflow in baseline["workflows"].values():
+            for entry in workflow["jobs"]:
+                if "munitor/node_build_and_test" in entry:
+                    build = entry["munitor/node_build_and_test"]
+                    build["test_commands"] = json.dumps([
+                        "npm run lint", "npm run build",
+                        *json.loads(build["test_commands"])])
         for branch in ("feature/example", "main", "develop", "staging", "release/1"):
             result = pipeline.marketing_template({}, branch, "")
             self.assertEqual(result, baseline)
@@ -46,6 +55,7 @@ class MarketingContractTests(unittest.TestCase):
             build = jobs["munitor/node_build_and_test"]
             self.assertEqual(build["node_version"], "22")
             self.assertEqual(json.loads(build["test_commands"]), [
+                "npm run lint", "npm run build",
                 "npx playwright install chromium --with-deps",
                 "npm run test:chromium", "npm run lighthouse"])
             if name == "production":
