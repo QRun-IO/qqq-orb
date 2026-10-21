@@ -81,6 +81,7 @@ test-pipelines: pack
 	bash tests/test_maven_ci_push.sh
 	bash tests/test_create_github_release.sh
 	bash tests/test_maven_ci_cache.sh
+	bash tests/test_maven_test_results.sh
 	bash tests/test_maven_ci_install.sh
 	bash tests/test_snapshot_refresh.sh
 	bash tests/test_maven_settings_output.sh
