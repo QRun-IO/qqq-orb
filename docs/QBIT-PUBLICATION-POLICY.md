@@ -59,3 +59,5 @@ CMS's original YAML is retained with its immutable source SHA: its unquoted
 stable-tag regex is invalid YAML. The fixture repairs only that quoting. Both
 audited spellings of the stable regex map to the same ASCII-digit tag policy;
 arbitrary regexes remain rejected.
+
+CI-only commits on publishing branches retain Maven verification without publishing when their changes are limited to the manifest, CircleCI caller, shared scanner caller, RC caller, or schema-drift caller. The commit must have one parent and a conventional ci title. Tags, application POMs, schema resources, tests, and other application inputs retain normal publication behavior. Canonical caller enforcement separately verifies the shared workflow definition and immutable worker pin.
