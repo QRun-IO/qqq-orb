@@ -34,6 +34,7 @@ class MobilePolicyTests(unittest.TestCase):
         self.assertEqual(job["resource_class"], "small")
         self.assertIn("PyYAML==6.0.3", job["steps"][1]["run"]["command"])
         command = job["steps"][2]["run"]["command"]
+        self.assertTrue(command.startswith("python3 \\<< 'EOF'\n"), "CircleCI requires escaped heredoc interpolation markers")
         script = command.split("\n", 1)[1].rsplit("\nEOF", 1)[0]
         valid = "id: example\ntitle: Example\ncategory: test\ndescription: test\ncontent: test\n"
         for text, expected in ((valid, 0), ("id: incomplete\n", 1), ("[invalid", 1)):
