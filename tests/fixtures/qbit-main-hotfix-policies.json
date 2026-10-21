@@ -1,0 +1,1835 @@
+[
+  {
+    "repository": "QRun-IO/qbit-wms",
+    "sha": "1923a662ebdd39df273ab4c05a179ec7be00695c",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.3.8"
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|main|release/.*|hotfix/.*|integration.*)/"
+                  },
+                  "tags": {
+                    "only": []
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "main"
+                    ]
+                  },
+                  "tags": {
+                    "only": [
+                      "/v.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "repository": "QRun-IO/qbit-sftp-data-integration",
+    "sha": "7fd2506728883e39fa4a84ac7364d521c9a3f21f",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.5.0"
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|main|release/.*|hotfix/.*|integration.*)/"
+                  },
+                  "tags": {
+                    "only": []
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "main"
+                    ]
+                  },
+                  "tags": {
+                    "only": [
+                      "/v.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "repository": "QRun-IO/qbit-user-role-permissions",
+    "sha": "490e131ea56cdda0ab9c49ec0f3c75fedeea38d9",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.5.0"
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|main|release/.*|hotfix/.*|integration.*)/"
+                  },
+                  "tags": {
+                    "only": []
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "main"
+                    ]
+                  },
+                  "tags": {
+                    "only": [
+                      "/v.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "repository": "QRun-IO/qbit-standard-process-trace",
+    "sha": "c86512d238a23f7e08896db69ed8a50875234f34",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.5.0"
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|main|release/.*|hotfix/.*|integration.*)/"
+                  },
+                  "tags": {
+                    "only": []
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "main"
+                    ]
+                  },
+                  "tags": {
+                    "only": [
+                      "/v.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "repository": "QRun-IO/qbit-crm",
+    "sha": "387d4839d092d3b3cdfcc1adea6a9a6da3b34b2c",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.3.8"
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|main|release/.*|hotfix/.*|integration.*)/"
+                  },
+                  "tags": {
+                    "only": []
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "main"
+                    ]
+                  },
+                  "tags": {
+                    "only": [
+                      "/v.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "repository": "QRun-IO/qbit-customizable-table-views",
+    "sha": "523fd3409510315f5cbb4658deeea29ce71abe2f",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.5.0"
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|main|release/.*|hotfix/.*|integration.*)/"
+                  },
+                  "tags": {
+                    "only": []
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "main"
+                    ]
+                  },
+                  "tags": {
+                    "only": [
+                      "/v.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "repository": "QRun-IO/qbit-webhooks",
+    "sha": "0e61d75f8286748dc7b045e0f573357caa5ec7ea",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.5.0"
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|main|release/.*|hotfix/.*|integration.*)/"
+                  },
+                  "tags": {
+                    "only": []
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "main"
+                    ]
+                  },
+                  "tags": {
+                    "only": [
+                      "/v.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "repository": "QRun-IO/qbit-marketing",
+    "sha": "b4a301b026a9a71848980787190dc7640ec864f6",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.6.8"
+      },
+      "commands": {
+        "configure-package-install": {
+          "steps": [
+            {
+              "run": {
+                "name": "Keep package installation unattended",
+                "command": "# These build machines are discarded after the job.\nsudo install -d /etc/needrestart/conf.d\nprintf '%s\\n' '$nrconf{restart} = \"l\";' | sudo tee /etc/needrestart/conf.d/99-qqq-ci.conf >/dev/null\n"
+              }
+            }
+          ]
+        }
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|release\\/.*|hotfix\\/.*)/"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "ignore": "/.*/"
+                  },
+                  "tags": {
+                    "only": [
+                      "/v.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "repository": "QRun-IO/qbit-web-performance",
+    "sha": "2c18a63a4711cb12409cad9e6cef4ebbee74111f",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.6.8"
+      },
+      "commands": {
+        "configure-package-install": {
+          "steps": [
+            {
+              "run": {
+                "name": "Keep package installation unattended",
+                "command": "# These build machines are discarded after the job.\nsudo install -d /etc/needrestart/conf.d\nprintf '%s\\n' '$nrconf{restart} = \"l\";' | sudo tee /etc/needrestart/conf.d/99-qqq-ci.conf >/dev/null\n"
+              }
+            }
+          ]
+        }
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|release\\/.*|hotfix\\/.*)/"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "ignore": "/.*/"
+                  },
+                  "tags": {
+                    "only": [
+                      "/v.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "repository": "QRun-IO/qbit-cdn",
+    "sha": "ba23ccebbe11121311a03bd4eeff2e301ffe2f26",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.6.8"
+      },
+      "commands": {
+        "configure-package-install": {
+          "steps": [
+            {
+              "run": {
+                "name": "Keep package installation unattended",
+                "command": "# These build machines are discarded after the job.\nsudo install -d /etc/needrestart/conf.d\nprintf '%s\\n' '$nrconf{restart} = \"l\";' | sudo tee /etc/needrestart/conf.d/99-qqq-ci.conf >/dev/null\n"
+              }
+            }
+          ]
+        }
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|release\\/.*|hotfix\\/.*)/"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "ignore": "/.*/"
+                  },
+                  "tags": {
+                    "only": [
+                      "/^v\\d+\\.\\d+\\.\\d+$/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "repository": "QRun-IO/qbit-backups",
+    "sha": "c80e116794a11fa7703f442ac68d0abd30779785",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.6.8"
+      },
+      "commands": {
+        "configure-package-install": {
+          "steps": [
+            {
+              "run": {
+                "name": "Keep package installation unattended",
+                "command": "# These build machines are discarded after the job.\nsudo install -d /etc/needrestart/conf.d\nprintf '%s\\n' '$nrconf{restart} = \"l\";' | sudo tee /etc/needrestart/conf.d/99-qqq-ci.conf >/dev/null\n"
+              }
+            }
+          ]
+        }
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|release\\/.*|hotfix\\/.*)/"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "ignore": "/.*/"
+                  },
+                  "tags": {
+                    "only": [
+                      "/v.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "repository": "QRun-IO/qbit-object-storage",
+    "sha": "f89c8351670b31f3dbd1d687ceb22bfa7cac4723",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.6.8"
+      },
+      "commands": {
+        "configure-package-install": {
+          "steps": [
+            {
+              "run": {
+                "name": "Keep package installation unattended",
+                "command": "# These build machines are discarded after the job.\nsudo install -d /etc/needrestart/conf.d\nprintf '%s\\n' '$nrconf{restart} = \"l\";' | sudo tee /etc/needrestart/conf.d/99-qqq-ci.conf >/dev/null\n"
+              }
+            }
+          ]
+        }
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|release\\/.*|hotfix\\/.*)/"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "ignore": "/.*/"
+                  },
+                  "tags": {
+                    "only": [
+                      "/v.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "repository": "QRun-IO/qbit-quick-search",
+    "sha": "c888b771e73260e37a0bc1b405a97c8078614955",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.5.2"
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|main|release\\/.*|hotfix\\/.*)/"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "main"
+                    ]
+                  },
+                  "tags": {
+                    "only": [
+                      "/v.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "repository": "QRun-IO/qbit-alerts",
+    "sha": "c67e39c2471fb10cd0bd25c1a57bd4443b3ad116",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.6.8"
+      },
+      "commands": {
+        "configure-package-install": {
+          "steps": [
+            {
+              "run": {
+                "name": "Keep package installation unattended",
+                "command": "# These build machines are discarded after the job.\nsudo install -d /etc/needrestart/conf.d\nprintf '%s\\n' '$nrconf{restart} = \"l\";' | sudo tee /etc/needrestart/conf.d/99-qqq-ci.conf >/dev/null\n"
+              }
+            }
+          ]
+        }
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|release\\/.*|hotfix\\/.*)/"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "ignore": "/.*/"
+                  },
+                  "tags": {
+                    "only": [
+                      "/v.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "repository": "QRun-IO/qbit-cms",
+    "sha": "f4a68511a3b9d4e1bbdfa77d00b4142e957f1517",
+    "original_yaml": "version: 2.1\n\norbs:\n   qqq-orb: kingsrook/qqq-orb@0.6.8\n\ncommands:\n   configure-package-install:\n      steps:\n         - run:\n              name: Keep package installation unattended\n              command: |\n                 # These build machines are discarded after the job.\n                 sudo install -d /etc/needrestart/conf.d\n                 printf '%s\\n' '$nrconf{restart} = \"l\";' | sudo tee /etc/needrestart/conf.d/99-qqq-ci.conf >/dev/null\n\nworkflows:\n   test_only:\n      jobs:\n         - qqq-orb/mvn_test_only:\n              pre-steps:\n                 - configure-package-install\n              context: [qqq-maven-registry-credentials]\n              filters:\n                 branches:\n                    ignore: /(develop|release\\/.*|hotfix\\/.*)/\n\n   publish_snapshot:\n      jobs:\n         - qqq-orb/mvn_publish:\n              pre-steps:\n                 - configure-package-install\n              context: [qqq-maven-registry-credentials]\n              branch_type: snapshot\n              filters:\n                 branches:\n                    only: [develop]\n\n   publish_release_candidate:\n      jobs:\n         - qqq-orb/mvn_publish:\n              pre-steps:\n                 - configure-package-install\n              context: [qqq-maven-registry-credentials]\n              branch_type: release_candidate\n              filters:\n                 branches:\n                    only: [/release\\/.*/]\n\n   publish_release:\n      jobs:\n         - qqq-orb/mvn_publish:\n              pre-steps:\n                 - configure-package-install\n              context: [qqq-maven-registry-credentials]\n              branch_type: release\n              filters:\n                 branches:\n                    ignore: /.*/\n                 tags:\n                    only: [/^v[0-9]+\\.[0-9]+\\.[0-9]+$/]\n\n   publish_hotfix_release:\n      jobs:\n         - qqq-orb/mvn_publish:\n              pre-steps:\n                 - configure-package-install\n              context: [qqq-maven-registry-credentials]\n              branch_type: hotfix\n              filters:\n                 branches:\n                    only: [/hotfix\\/.*/]\n",
+    "normalization": "Quote the existing stable tag regex so its character classes are YAML string content.",
+    "config": {
+      "version": 2.1,
+      "orbs": {
+        "qqq-orb": "kingsrook/qqq-orb@0.6.8"
+      },
+      "commands": {
+        "configure-package-install": {
+          "steps": [
+            {
+              "run": {
+                "name": "Keep package installation unattended",
+                "command": "# These build machines are discarded after the job.\nsudo install -d /etc/needrestart/conf.d\nprintf '%s\\n' '$nrconf{restart} = \"l\";' | sudo tee /etc/needrestart/conf.d/99-qqq-ci.conf >/dev/null\n"
+              }
+            }
+          ]
+        }
+      },
+      "workflows": {
+        "test_only": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_test_only": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "filters": {
+                  "branches": {
+                    "ignore": "/(develop|release\\/.*|hotfix\\/.*)/"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_snapshot": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "snapshot",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "develop"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release_candidate": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release_candidate",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/release\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "release",
+                "filters": {
+                  "branches": {
+                    "ignore": "/.*/"
+                  },
+                  "tags": {
+                    "only": [
+                      "/^v[0-9]+\\.[0-9]+\\.[0-9]+$/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "publish_hotfix_release": {
+          "jobs": [
+            {
+              "qqq-orb/mvn_publish": {
+                "pre-steps": [
+                  "configure-package-install"
+                ],
+                "context": [
+                  "qqq-maven-registry-credentials"
+                ],
+                "branch_type": "hotfix",
+                "filters": {
+                  "branches": {
+                    "only": [
+                      "/hotfix\\/.*/"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+]

@@ -58,11 +58,13 @@ test-pipelines: pack
 	bash tests/test_cli_ci_behavior.sh
 	python3 tests/test_cli_ci_contract.py
 	python3 tests/test_standardize_qbit.py
+	python3 tests/test_qbit_hotfix_profile.py
 	python3 tests/test_rollout_version.py
 	python3 tests/test_validate_standard.py
 	python3 tests/test_voyage_profile.py
 	python3 tests/test_next_native.py
 	python3 tests/test_auxiliary_workflows.py
+	python3 tests/test_qbit_codeql.py
 	python3 tests/test_intellij_plugin.py
 	python3 tests/test_workflow_lint.py
 	python3 tests/test_business_e2e.py
