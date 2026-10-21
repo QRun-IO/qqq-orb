@@ -161,7 +161,7 @@ set_version() {
     ##############################################
     ## Use Maven versions plugin to set version ##
     ##############################################
-    mvn versions:set-property -Dproperty=revision -DnewVersion="$new_version" -DgenerateBackupPoms=false
+    mvn -f "$POM_FILE" versions:set-property -Dproperty=revision -DnewVersion="$new_version" -DgenerateBackupPoms=false
     
     #######################
     ## Verify the change ##
@@ -173,6 +173,26 @@ set_version() {
         echo "❌ Version update failed. Expected: $new_version, Got: $ACTUAL_VERSION"
         exit 1
     fi
+}
+
+ensure_project_version() {
+    local expected=$1 actual
+    # A revision property can exist without being used by project.version.
+    # Ask Maven for the effective coordinate, including inherited configuration.
+    actual=$(mvn -f "$POM_FILE" -q -Dstyle.color=never \
+        org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate \
+        -Dexpression=project.version -DforceStdout)
+    if [[ "$actual" != "$expected" ]]; then
+        mvn -f "$POM_FILE" -B versions:set -DnewVersion="$expected" -DgenerateBackupPoms=false
+        actual=$(mvn -f "$POM_FILE" -q -Dstyle.color=never \
+            org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate \
+            -Dexpression=project.version -DforceStdout)
+    fi
+    if [[ "$actual" != "$expected" ]]; then
+        echo "ERROR: Effective project version is $actual; expected $expected" >&2
+        exit 1
+    fi
+    echo "Verified effective project version: $actual"
 }
 
 #############################################
@@ -434,6 +454,9 @@ main() {
     fi
     
     echo ""
+    if [[ "$DRY_RUN" != "true" ]]; then
+        ensure_project_version "$NEW_VERSION"
+    fi
     echo "=== Version calculation complete ==="
 }
 

@@ -87,6 +87,11 @@ real publication, not a dry run, verifies the trust relationship.
 | `hotfix/1.5.1` | `1.5.1` |
 | `feature/*` | `1.5.0-feature-abc1234-SNAPSHOT` |
 
+The Maven version step verifies the effective `project.version`, not only the
+`revision` property. For older POMs with a literal project version, it uses
+Maven's version plugin to align project and reactor coordinates with the
+calculated version. A mismatch after updating fails before publication.
+
 ### Java Version
 
 Maven jobs run on Ubuntu machine executors with Temurin JDK. Default is Java 21. To use Java 17:
