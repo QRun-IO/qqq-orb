@@ -4,6 +4,8 @@ CircleCI orb for QQQ framework projects.
 
 For centralized pipeline ownership, see [standardized manifest-driven pipelines](docs/GENERATED-PIPELINES.md).
 The initial QBit profile uses a small `.qqq-ci.yml` and a setup entry point; existing direct job callers remain supported.
+For centrally managed patch adoption and exact-version rollback, see
+[managed patch updates](docs/managed-patch-updates.md).
 
 **For:** Teams using CircleCI to build, test, and publish QQQ applications
 **Status:** Stable (v0.6.x)

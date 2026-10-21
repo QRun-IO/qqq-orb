@@ -109,8 +109,8 @@ def validate(config_raw, manifest_raw, setup_version):
     if not isinstance(manifest, dict):
         raise StandardError("Manifest must be a mapping")
     version = manifest.get("orb_version")
-    if not isinstance(version, str) or not re.fullmatch(r"(?:\d+\.\d+\.\d+|dev:[A-Za-z0-9_-]+)", version):
-        raise StandardError("Manifest must pin an explicit orb version")
+    if not isinstance(version, str) or not re.fullmatch(r"(?:\d+\.\d+(?:\.\d+)?|dev:[A-Za-z0-9_-]+)", version):
+        raise StandardError("Manifest must select a quoted minor track, exact stable pin, or development version")
     if version != setup_version:
         raise StandardError("Manifest and running setup orb versions differ")
     publishing = manifest.get("publish", {})
