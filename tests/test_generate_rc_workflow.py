@@ -35,13 +35,16 @@ class RcBridgeTests(unittest.TestCase):
         data = rc.canonical(SHA)
         inputs = data["on"]["workflow_dispatch"]["inputs"]
         passed = data["jobs"]["release-rc"]["with"]
-        self.assertEqual({"dry_run", "finalize", "merge_sha", "bump_sha", "branch", "version"}, set(inputs))
+        self.assertEqual({"dry_run", "finalize", "recover", "circle_build", "merge_sha", "bump_sha", "branch", "version"}, set(inputs))
         self.assertEqual(set(inputs), set(passed))
-        for name in ("dry_run", "finalize"):
+        for name in ("dry_run", "finalize", "recover"):
             self.assertEqual("boolean", inputs[name]["type"])
             self.assertIs(False, inputs[name]["default"])
         self.assertEqual("${{ github.event_name == 'repository_dispatch' || (github.event_name == 'workflow_dispatch' && inputs.finalize) }}", passed["finalize"])
         self.assertEqual("${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}", passed["dry_run"])
+        self.assertEqual("${{ github.event_name == 'workflow_dispatch' && inputs.recover || false }}", passed['recover'])
+        self.assertEqual("${{ github.event_name == 'workflow_dispatch' && inputs.circle_build || '' }}", passed['circle_build'])
+        self.assertEqual({'description': 'Original Circle publisher build number (recovery only)', 'type': 'string', 'default': ''}, inputs['circle_build'])
         for name in ("merge_sha", "bump_sha", "branch", "version"):
             self.assertEqual("string", inputs[name]["type"])
             self.assertEqual("", inputs[name]["default"])

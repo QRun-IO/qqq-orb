@@ -19,6 +19,14 @@ on:
         description: Finalize an existing cut from repository_dispatch or an explicit retry
         type: boolean
         default: false
+      recover:
+        description: Verify an already-published upload after a Circle deployment timeout
+        type: boolean
+        default: false
+      circle_build:
+        description: Original Circle publisher build number (recovery only)
+        type: string
+        default: ''
       merge_sha:
         type: string
         default: ''
@@ -32,6 +40,10 @@ on:
         type: string
         default: ''
     secrets:
+      CENTRAL_USERNAME:
+        required: false
+      CENTRAL_PASSWORD:
+        required: false
       QRUN_TAG_SIGNING_KEY:
         description: SSH private key that signs release tags
         required: false
@@ -48,7 +60,7 @@ concurrency:
 
 jobs:
   cut-rc:
-    if: ${{ !inputs.finalize }}
+    if: ${{ !inputs.finalize && !inputs.recover }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -135,7 +147,7 @@ jobs:
           retention-days: 90
 
   tag-and-release:
-    if: inputs.finalize
+    if: inputs.finalize || inputs.recover
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -147,6 +159,12 @@ jobs:
           MERGE_SHA: ${{ inputs.merge_sha }}
           BUMP_SHA: ${{ inputs.bump_sha }}
           VERSION: ${{ inputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          RECOVER: ${{ inputs.recover }}
+          CIRCLE_BUILD: ${{ inputs.circle_build }}
+          RECOVERY_EVENT: ${{ github.event_name }}
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
           SIGNING_KEY: ${{ secrets.QRUN_TAG_SIGNING_KEY }}
         run: |
           set -euo pipefail
@@ -164,7 +182,7 @@ jobs:
           class ReleaseFailure(ValueError):
               pass
 
-          def evaluate(merge_sha, status, commit):
+          def evaluate(merge_sha, status, commit, recovered_version=""):
               if status.get("sha") != merge_sha:
                   raise ReleaseFailure("Status response does not identify the exact release merge")
               # Circle's workflow Check Run is stable even when job statuses receive -1/-2 suffixes.
@@ -177,7 +195,7 @@ jobs:
                   raise ReleaseFailure("Publisher Check Run identifies a different source")
               if publisher.get("status") != "completed":
                   return ""
-              if publisher.get("conclusion") != "success":
+              if publisher.get("conclusion") != "success" and not recovered_version:
                   raise ReleaseFailure("CircleCI failed for release merge: " + str(publisher.get("conclusion")))
               message = commit.get("commit", {}).get("message", "").split("\n")[0]
               match = re.fullmatch(r"Bump version to (\d+\.\d+\.\d+-RC\.\d+) \[skip ci\]", message)
@@ -185,6 +203,8 @@ jobs:
                   return ""
               if [x.get("sha") for x in commit.get("parents", [])] != [merge_sha]:
                   raise ReleaseFailure("RC bump is not the direct child of the published merge")
+              if recovered_version and recovered_version != match.group(1):
+                  raise ReleaseFailure("Recovery receipt and bump version differ")
               return match.group(1)
 
           def validate_intent(run, intent, repo, merge, branch, run_id):
@@ -223,24 +243,168 @@ jobs:
                   raise ReleaseFailure("Central POM does not match the expected artifact/version")
               if parsedate_to_datetime(modified).timestamp() <= datetime.fromisoformat(merged.replace("Z", "+00:00")).timestamp():
                   raise ReleaseFailure("Central artifact predates the exact release merge")
+          def validate_timeout(job, publisher, repo, merge, branch, build, merged_at):
+              from datetime import datetime
+              if (job.get('username') + '/' + job.get('reponame'), job.get('vcs_revision'),
+                      job.get('branch'), str(job.get('build_num'))) != (repo, merge, branch, build):
+                  raise ReleaseFailure('Timeout job does not identify the exact cut')
+              workflow = job.get('workflows', {})
+              if workflow.get('workflow_name') != 'publish_release_candidate' or workflow.get('job_name') != 'qqq-orb/mvn_publish':
+                  raise ReleaseFailure('Unexpected Circle publication workflow/job')
+              if (publisher.get('head_sha') != merge or publisher.get('app', {}).get('id') != 18001
+                      or publisher.get('name') != 'publish_release_candidate'
+                      or publisher.get('status') != 'completed' or publisher.get('conclusion') != 'failure'):
+                  raise ReleaseFailure('Recovery requires the failed exact Circle publisher')
+              from urllib.parse import urlsplit
+              link = urlsplit(publisher.get('details_url', ''))
+              if link.scheme != 'https' or link.netloc != 'app.circleci.com' or link.path != '/workflow/' + workflow.get('workflow_id', ''):
+                  raise ReleaseFailure('Circle check does not identify the timeout workflow')
+              if job.get('status') != 'failed' or job.get('outcome') != 'failed':
+                  raise ReleaseFailure('Recovery requires a terminal failed job')
+              actions = [action for step in job.get('steps', []) for action in step.get('actions', [])]
+              if not actions or actions[-1].get('name') != 'Publish to Sonatype Central (releases and SNAPSHOTs)':
+                  raise ReleaseFailure('Deployment must be the last executed action')
+              deploy = actions[-1]
+              if deploy.get('status') != 'timedout' or deploy.get('timedout') is not True:
+                  raise ReleaseFailure('Only a deployment timeout can be recovered')
+              if any(action.get('status') != 'success' for action in actions[:-1]):
+                  raise ReleaseFailure('Every pre-publication action must have passed')
+              if not any(action.get('name') == 'Run Maven Verify' for action in actions[:-1]):
+                  raise ReleaseFailure('Successful Maven verification is missing')
+              if datetime.fromisoformat(job['start_time'].replace('Z', '+00:00')) < datetime.fromisoformat(merged_at.replace('Z', '+00:00')):
+                  raise ReleaseFailure('Publisher predates the trusted cut')
+              if any(type(deploy.get(key)) is not int or deploy[key] < 0 for key in ('step', 'index')):
+                  raise ReleaseFailure('Invalid deployment log coordinates')
+              return deploy['step'], deploy['index']
+
+
+          def upload_receipt(log, artifact, version):
+              # Only the successful-upload receipt and actual Central staging paths count.
+              deployments = re.findall(r'Uploaded bundle successfully,[^\n]*deploymentId: ([0-9a-f-]{36})\.', log)
+              if len(deployments) != 1 or not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}', deployments[0]):
+                  raise ReleaseFailure('Expected exactly one successful Central upload receipt')
+              paths = re.findall(r'/target/central-staging/(com/kingsrook/qbits)/(qbit-[a-z0-9-]+)/(\d+\.\d+\.\d+-RC\.\d+)/', log)
+              coordinates = {(group.replace('/', '.'), name, revision) for group, name, revision in paths}
+              if not coordinates or ('com.kingsrook.qbits', artifact, version) not in coordinates:
+                  raise ReleaseFailure('Receipt does not include the expected root artifact')
+              if any(revision != version for _, _, revision in coordinates):
+                  raise ReleaseFailure('Mixed candidate versions in the uploaded bundle')
+              return deployments[0], sorted('pkg:maven/' + group + '/' + name + '@' + revision for group, name, revision in coordinates)
+
+
+          def validate_deployment(deployment, deployment_id, purls):
+              if deployment.get('deploymentId') != deployment_id or deployment.get('deploymentState') != 'PUBLISHED':
+                  raise ReleaseFailure('The original Central deployment is not PUBLISHED')
+              if sorted(deployment.get('purls', [])) != purls:
+                  raise ReleaseFailure('Central deployment coordinates differ from the original upload')
+
+
+          def validate_recovery_bump(commit, source, actual, version, merge):
+              if [p.get('sha') for p in commit.get('parents', [])] != [merge]:
+                  raise ReleaseFailure('Recovery bump must be a direct child of the cut')
+              files = commit.get('files', [])
+              if len(files) != 1 or files[0].get('filename') != 'pom.xml' or files[0].get('status') != 'modified':
+                  raise ReleaseFailure('Recovery bump may change only the root POM')
+              revisions = re.findall(r'<revision>([^<]+)</revision>', source)
+              if len(revisions) != 1 or not re.fullmatch(re.escape(version.split('-RC.')[0]) + r'-(SNAPSHOT|RC\.\d+)', revisions[0]):
+                  raise ReleaseFailure('Unexpected source POM revision')
+              expected = source.replace('<revision>' + revisions[0] + '</revision>', '<revision>' + version + '</revision>')
+              if actual != expected:
+                  raise ReleaseFailure('Recovery bump changed content beyond the verified version')
+
+          def verify_recovery(directory, repo, merge, branch, build, version):
+              import base64, json, os, pathlib, urllib.request, xml.etree.ElementTree as ET
+              if not re.fullmatch(r'QRun-IO/qbit-[a-z0-9-]+', repo) or not re.fullmatch(r'[1-9][0-9]*', build):
+                  raise ReleaseFailure('Invalid recovery repository or Circle build')
+              directory = pathlib.Path(directory)
+              status = json.loads((directory / 'status.json').read_text())
+              intent = json.loads((directory / 'intent.json').read_text())
+              publishers = [p for p in status['check_runs'] if p.get('name') == 'publish_release_candidate' and p.get('app', {}).get('id') == 18001]
+              if status.get('sha') != merge or not publishers:
+                  raise ReleaseFailure('Exact publisher evidence missing')
+              class NoRedirect(urllib.request.HTTPRedirectHandler):
+                  def redirect_request(self, *args, **kwargs):
+                      raise ReleaseFailure('Unexpected evidence redirect')
+              opener = urllib.request.build_opener(NoRedirect())
+              def request(url, token=None, post=False):
+                  headers = {'Accept': 'application/json'}
+                  if token:
+                      headers['Authorization'] = 'Bearer ' + token
+                  req = urllib.request.Request(url, headers=headers, data=b'' if post else None)
+                  with opener.open(req, timeout=30) as response:
+                      data = response.read(8_000_001)
+                      if len(data) > 8_000_000:
+                          raise ReleaseFailure('Oversized recovery evidence')
+                      return data, response.headers
+              circle = 'https://circleci.com/api/v1.1/project/github/' + repo + '/' + build
+              job = json.loads(request(circle)[0])
+              step, index = validate_timeout(job, max(publishers, key=lambda p: p['id']), repo, merge, branch, build, intent['merged_at'])
+              log = request(circle + '/output/' + str(step) + '/' + str(index) + '?file=true')[0].decode()
+              # file=true can return either a raw log or JSON-encoded output.
+              try:
+                  value = json.loads(log)
+              except json.JSONDecodeError:
+                  value = log
+              log = value if isinstance(value, str) else ''.join(part['message'] for part in value)
+              token = os.environ.get('GH_TOKEN', '')
+              source = json.loads(request('https://api.github.com/repos/' + repo + '/contents/pom.xml?ref=' + merge, token)[0])
+              source_pom = base64.b64decode(source['content']).decode()
+              pom = ET.fromstring(source_pom)
+              ns = {'m': 'http://maven.apache.org/POM/4.0.0'}
+              artifact = pom.findtext('m:artifactId', namespaces=ns)
+              deployment_id, purls = upload_receipt(log, artifact, version)
+              username, password = os.environ.get('CENTRAL_USERNAME'), os.environ.get('CENTRAL_PASSWORD')
+              if not username or not password:
+                  raise ReleaseFailure('Existing Central publisher credentials are required for receipt verification')
+              authorization = base64.b64encode((username + ':' + password).encode()).decode()
+              deployment = json.loads(request('https://central.sonatype.com/api/v1/publisher/status?id=' + deployment_id, authorization, post=True)[0])
+              validate_deployment(deployment, deployment_id, purls)
+              for purl in purls:
+                  coordinate, revision = purl.removeprefix('pkg:maven/').split('@')
+                  group, name = coordinate.split('/')
+                  url = 'https://repo1.maven.org/maven2/' + group.replace('.', '/') + '/' + name + '/' + revision + '/' + name + '-' + revision + '.pom'
+                  xml, headers = request(url)
+                  validate_central(revision, name, xml, headers.get('Last-Modified', ''), intent['merged_at'])
+              (directory / 'source-pom.xml').write_text(source_pom)
+              # This receipt is written only after all remote evidence has been verified.
+              (directory / 'recovery.json').write_text(json.dumps({'merge_sha': merge, 'version': version,
+                  'circle_build': build, 'deployment_id': deployment_id, 'purls': purls}))
+
           # END RC GUARD
           if __name__ == "__main__":
               import json, sys
               try:
-                  if sys.argv[1] == "lock":
+                  if sys.argv[1] == "recover":
+                      verify_recovery(*sys.argv[2:])
+                  elif sys.argv[1] == "lock":
                       validate_lock(sys.argv[2], sys.argv[3])
                   elif sys.argv[1] == "tag":
                       print(tag_action(sys.argv[2], sys.argv[3], sys.argv[4] == "true", sys.argv[5]))
                   elif sys.argv[1] == "central":
                       validate_central(*sys.argv[2:4], open(sys.argv[4]).read(), *sys.argv[5:7])
                   else:
-                      print(evaluate(sys.argv[1], json.load(open(sys.argv[2])), json.load(open(sys.argv[3]))))
+                      recovered = ""
+                      if len(sys.argv) == 5:
+                          receipt = json.load(open(sys.argv[4]))
+                          if receipt["merge_sha"] != sys.argv[1]:
+                              raise ReleaseFailure("Recovery receipt source mismatch")
+                          recovered = receipt["version"]
+                          import pathlib
+                          directory = pathlib.Path(sys.argv[4]).parent
+                          validate_recovery_bump(json.load(open(sys.argv[3])), (directory / 'source-pom.xml').read_text(),
+                                                 (directory / 'bump-pom.xml').read_text(), recovered, sys.argv[1])
+                      print(evaluate(sys.argv[1], json.load(open(sys.argv[2])), json.load(open(sys.argv[3])), recovered))
               except (ValueError, KeyError) as error:
                   sys.exit(str(error))
           PY
 
           # Dispatch payload is only a hint. Bind it to immutable successful cut-run evidence.
-          [[ "$MERGE_SHA" =~ ^[0-9a-f]{40}$ && "$BUMP_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$MERGE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          if [[ "$RECOVER" == true ]]; then
+            [[ "$RECOVERY_EVENT" == workflow_dispatch && "$CIRCLE_BUILD" =~ ^[1-9][0-9]*$ ]]
+          else
+            [[ "$BUMP_SHA" =~ ^[0-9a-f]{40}$ ]]
+          fi
           [[ "$BRANCH" =~ ^release/[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-RC\.[0-9]+$ ]]
           artifact_name="qbit-rc-intent-$MERGE_SHA"
@@ -283,8 +447,48 @@ jobs:
           [[ -z "$current_lock" || "$current_lock" == "$MERGE_SHA" ]] || { echo "::error::Different release owns pending lock"; exit 1; }
           gh api "repos/$REPO/commits/$MERGE_SHA/check-runs?filter=latest&per_page=100" \
             | jq --arg sha "$MERGE_SHA" '{sha:$sha,check_runs:.check_runs}' > "$workdir/status.json"
+          recovered_args=()
+          if [[ "$RECOVER" == true ]]; then
+            python3 "$workdir/rc_guard.py" lock "$current_lock" "$MERGE_SHA"
+            python3 "$workdir/rc_guard.py" recover "$workdir" "$REPO" "$MERGE_SHA" "$BRANCH" "$CIRCLE_BUILD" "$VERSION"
+            if [[ "$DRY_RUN" == true ]]; then
+              echo "Recovery evidence verified; dry run leaves branch, tag, release and lock unchanged." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            head=$(gh api "repos/$REPO/branches/$BRANCH" -q .commit.sha)
+            if [[ "$head" == "$MERGE_SHA" ]]; then
+              key="$workdir/recovery_key"
+              install -m 600 /dev/null "$key"
+              printf '%s\n' "$SIGNING_KEY" > "$key"
+              git init -q "$workdir/recovery-repo"
+              git -C "$workdir/recovery-repo" fetch -q --depth=1 "https://x-access-token:$GH_TOKEN@github.com/$REPO.git" "$MERGE_SHA"
+              git -C "$workdir/recovery-repo" checkout -q -b "$BRANCH" FETCH_HEAD
+              python3 - "$workdir/recovery-repo/pom.xml" "$VERSION" <<'PY'
+          import pathlib, re, sys
+          path, version = pathlib.Path(sys.argv[1]), sys.argv[2]
+          source = path.read_text()
+          revisions = re.findall(r'<revision>([^<]+)</revision>', source)
+          assert len(revisions) == 1 and re.fullmatch(re.escape(version.split('-RC.')[0]) + r'-(SNAPSHOT|RC\.\d+)', revisions[0]), 'Unexpected source revision'
+          path.write_text(source.replace('<revision>' + revisions[0] + '</revision>', '<revision>' + version + '</revision>'))
+          PY
+              git -C "$workdir/recovery-repo" add pom.xml
+              git -C "$workdir/recovery-repo" -c user.name="James Maes" -c user.email=james@kof22.com -c gpg.format=ssh -c user.signingkey="$key" commit -q -S -m "Bump version to $VERSION [skip ci]"
+              python3 "$workdir/rc_guard.py" lock "$(gh api "repos/$REPO/git/ref/heads/$lock" -q .object.sha)" "$MERGE_SHA"
+              # A normal fast-forward push refuses a competing release-branch change.
+              git -C "$workdir/recovery-repo" push -q "https://x-access-token:$GH_TOKEN@github.com/$REPO.git" "HEAD:$BRANCH"
+              BUMP_SHA=$(git -C "$workdir/recovery-repo" rev-parse HEAD)
+              rm -f "$key"
+            else
+              BUMP_SHA=$head
+            fi
+            recovered_args=("$workdir/recovery.json")
+            echo "Verified original Central upload after Circle timeout; no artifact was uploaded again." >> "$GITHUB_STEP_SUMMARY"
+          fi
           gh api "repos/$REPO/commits/$BUMP_SHA" > "$workdir/commit.json"
-          version=$(python3 "$workdir/rc_guard.py" "$MERGE_SHA" "$workdir/status.json" "$workdir/commit.json")
+          if [[ "$RECOVER" == true ]]; then
+            gh api "repos/$REPO/contents/pom.xml?ref=$BUMP_SHA" -q .content | base64 -d > "$workdir/bump-pom.xml"
+          fi
+          version=$(python3 "$workdir/rc_guard.py" "$MERGE_SHA" "$workdir/status.json" "$workdir/commit.json" "${recovered_args[@]}")
           [[ -n "$version" && "$version" == "$VERSION" ]] || { echo "::error::Publisher not successful or callback version mismatch"; exit 1; }
           bump_sha=$BUMP_SHA
           [[ "$(gh api "repos/$REPO/branches/$BRANCH" -q .commit.sha)" == "$bump_sha" ]] || { echo "::error::Release branch moved away from exact bump"; exit 1; }
