@@ -1,0 +1,5 @@
+description: Install stable Chrome using only its signed repository and existing Ubuntu dependency indexes.
+steps:
+  - run:
+      name: Install Google Chrome
+      command: <<include(scripts/install_chrome.sh)>>
