@@ -107,3 +107,13 @@ is gone, the completed release needs no recovery dispatch. Ordinary callbacks an
 scheduled reconciliation retain the requirement for a successful Circle publisher.
 
 Central status API: https://central.sonatype.org/publish/publish-portal-api/
+
+### Auditing independent worker revisions
+
+The estate audit accepts `rc_worker_sha` in a profile or repository policy. For
+example, set `profiles.qbit.rc_worker_sha` to the approved immutable RC worker
+commit and keep `--worker-sha` at the approved revision for unchanged native
+workers. The audit still compares every caller to its exact canonical template
+and rejects mutable or mismatched pins. This avoids a fleet-wide native caller
+update when only RC release behavior changes. Required-check policy is separate;
+omitting it continues to report enforcement as unknown.
