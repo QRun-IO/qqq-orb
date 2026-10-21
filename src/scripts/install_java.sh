@@ -39,8 +39,13 @@ wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | sudo g
 # Add repository
 echo "deb [signed-by=/usr/share/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/adoptium.list
 
-# Install Java
-sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l apt-get update -qq
+# Refresh only the repository just added. Re-fetching unrelated image PPAs here
+# caused otherwise successful setup to fail on Launchpad 503 responses. Keep
+# Ubuntu indexes from the first refresh so Java dependencies remain resolvable.
+sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l apt-get update -qq \
+  -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/adoptium.list \
+  -o Dir::Etc::sourceparts=- \
+  -o APT::Get::List-Cleanup=0
 sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l apt-get install -y -qq "temurin-${JAVA_VERSION}-jdk"
 
 # Set JAVA_HOME
