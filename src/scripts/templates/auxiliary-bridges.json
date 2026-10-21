@@ -256,11 +256,6 @@
             "main"
           ]
         },
-        "schedule": [
-          {
-            "cron": "17 6 * * *"
-          }
-        ],
         "workflow_dispatch": null
       },
       "permissions": {
@@ -268,7 +263,7 @@
       },
       "concurrency": {
         "group": "e2e-${{ github.ref }}",
-        "cancel-in-progress": true
+          "cancel-in-progress": "${{ github.event_name == 'pull_request' }}"
       },
       "jobs": {
         "validate": {
