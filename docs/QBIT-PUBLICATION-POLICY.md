@@ -37,8 +37,16 @@ fail migration rather than silently changing release behavior.
 
 Use `tools/standardize_qbit.py --write` for the two-file migration. API callers
 must pass the inferred policy to
-`canonical_caller(version, manifest["release_tag_policy"])`; the legacy one-argument
+`canonical_caller(version, manifest["release_tag_policy"], manifest["publish"].get("feature", False))`; the legacy one-argument
 form is only for manifests without an explicit policy.
+
+`publish.feature` is false by default. Opting in enables the audited `publish*`
+tag contract, with the tag required to resolve to the checked-out commit. The
+canonical setup admits those tags alongside the declared release tag policy.
+Feature branch pushes remain test-only. Migration accepts Workflows' exact legacy
+literal `feature/.*` branch selector (not a regular expression); Git forbids `*`
+in branch names, so that selector cannot publish a branch. Unknown feature
+filters require a central profile change rather than silently broadening triggers.
 
 Focused tests cover the immutable inventory, unknown-filter rejection, canonical
 caller agreement, main opt-in, broad/stable tag selection, HEAD provenance,
@@ -51,3 +59,5 @@ CMS's original YAML is retained with its immutable source SHA: its unquoted
 stable-tag regex is invalid YAML. The fixture repairs only that quoting. Both
 audited spellings of the stable regex map to the same ASCII-digit tag policy;
 arbitrary regexes remain rejected.
+
+CI-only commits on publishing branches retain Maven verification without publishing when their changes are limited to the manifest, CircleCI caller, shared scanner caller, RC caller, or schema-drift caller. The commit must have one parent and a conventional ci title. Tags, application POMs, schema resources, tests, and other application inputs retain normal publication behavior. Canonical caller enforcement separately verifies the shared workflow definition and immutable worker pin.

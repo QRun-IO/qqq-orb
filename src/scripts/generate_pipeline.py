@@ -112,7 +112,7 @@ def load_manifest(path, setup_version):
     if profile in ("qbit", "core"):
         publish_keys += ("asciidoc",)
     if profile == "qbit":
-        publish_keys += ("hotfix",)
+        publish_keys += ("hotfix", "feature")
     if profile not in ("qbit", "cli", "all", "app-starter", "voyage", "frontend-next"):
         publish_keys += ("feature", "hotfix")
     publishing = mapping(data.get("publish", {}), publish_keys, "publish")
@@ -141,7 +141,7 @@ def load_manifest(path, setup_version):
             "docs_only": boolean(data, "docs_only", False),
             "publish_context": publish_context,
             "publish": {key: boolean(publishing, key, key != "asciidoc" and profile not in ("cli", "all", "repository-policy")
-                                      and not (profile == "qbit" and key == "hotfix"))
+                                      and not (profile == "qbit" and key in ("hotfix", "feature")))
                         for key in publish_keys}}
 
 
@@ -191,7 +191,7 @@ def proven_ci_maintenance(branch, tag):
     if not changed:
         return False
     allowed = {b".qqq-ci.yml", b".circleci/config.yml", b".github/workflows/codeql.yml",
-               b".github/workflows/release-rc.yml"}
+               b".github/workflows/release-rc.yml", b".github/workflows/schema-drift.yml"}
     return all(path in allowed for path in changed.rstrip(b"\0").split(b"\0"))
 
 
@@ -215,6 +215,12 @@ def event_kind(branch, tag, release_on_main=False, release_tag_policy="stable"):
 def qbit_template(config, branch, tag):
     """Profile-owned template; add future profiles as reviewed renderers, not raw YAML."""
     kind = event_kind(branch, tag, config.get("release_on_main", False), config.get("release_tag_policy", "stable"))
+    if tag.startswith("publish") and config["publish"].get("feature", False):
+        tagged = git("rev-parse", "--verify", f"refs/tags/{tag}^{{commit}}")
+        if not tagged and git("fetch", "--no-tags", "origin", f"refs/tags/{tag}:refs/tags/{tag}") is not None:
+            tagged = git("rev-parse", "--verify", f"refs/tags/{tag}^{{commit}}")
+        if tagged and tagged == git("rev-parse", "HEAD"):
+            kind = "feature"
     if not tag and re.fullmatch(r"hotfix/.+", branch) and config["publish"].get("hotfix", False):
         kind = "hotfix"
     if kind != "test" and not config["publish"][kind]:

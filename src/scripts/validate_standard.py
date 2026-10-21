@@ -59,7 +59,7 @@ def load_yaml(raw):
         raise StandardError("Invalid YAML declaration") from error
 
 
-def canonical_caller(profile, version, explicit_manifest=False, release_tag_policy=None):
+def canonical_caller(profile, version, explicit_manifest=False, release_tag_policy=None, publish_feature=False):
     if not isinstance(profile, str) or profile not in PROFILE_PARAMETERS:
         raise StandardError("Unsupported CI profile")
     options = {
@@ -73,6 +73,9 @@ def canonical_caller(profile, version, explicit_manifest=False, release_tag_poli
         if release_tag_policy not in tag_filters:
             raise StandardError("Unsupported QBit release tag policy")
         options["filters"]["tags"] = tag_filters[release_tag_policy]
+        if publish_feature:
+            options["filters"]["tags"] = {"only": ([tag_filters[release_tag_policy]["only"]]
+                if release_tag_policy != "none" else []) + ["/publish.*/"]}
     if explicit_manifest:
         options["manifest"] = ".qqq-ci.yml"
     parameters = PROFILE_PARAMETERS[profile]
@@ -110,8 +113,11 @@ def validate(config_raw, manifest_raw, setup_version):
         raise StandardError("Manifest must pin an explicit orb version")
     if version != setup_version:
         raise StandardError("Manifest and running setup orb versions differ")
-    expected = canonical_caller(manifest.get("profile"), version, release_tag_policy=manifest.get("release_tag_policy"))
-    explicit = canonical_caller(manifest.get("profile"), version, explicit_manifest=True, release_tag_policy=manifest.get("release_tag_policy"))
+    publishing = manifest.get("publish", {})
+    if not isinstance(publishing, dict) or type(publishing.get("feature", False)) is not bool:
+        raise StandardError("Feature publication must be an explicit boolean")
+    expected = canonical_caller(manifest.get("profile"), version, release_tag_policy=manifest.get("release_tag_policy"), publish_feature=publishing.get("feature", False))
+    explicit = canonical_caller(manifest.get("profile"), version, explicit_manifest=True, release_tag_policy=manifest.get("release_tag_policy"), publish_feature=publishing.get("feature", False))
     if not exact(config, expected) and not exact(config, explicit):
         raise StandardError("Consumer config must be the canonical setup caller with only its profile's declared and forwarded parameters")
 

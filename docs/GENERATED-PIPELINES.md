@@ -111,8 +111,10 @@ The independent baseline fixture pins job sets, dependency edges, contexts,
 coverage requirements and actual verification commands across all six workflows.
 
 Core additionally supports `publish.feature` and `publish.hotfix` (both true by
-default), preserving `publish*` tag and hotfix branch publication. QBit does not
-accept these keys. Snapshot, RC and GA behavior remains distinct; RC/GA/hotfix
+default), preserving `publish*` tag and hotfix branch publication. QBit supports
+both keys as explicit opt-ins (false by default). QBit feature publishing requires
+a `publish*` tag resolving to the checked-out commit; feature branch pushes remain
+test-only. Snapshot, RC and GA behavior remains distinct; RC/GA/hotfix
 publication still requires the complete source coverage gate. Cold bootstrap and
 fresh consumer Maven repositories remain uncached. Shared installer policy replaces
 local package preparation; preliminary compilation is disabled before clean

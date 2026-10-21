@@ -215,6 +215,14 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(options["filters"]["branches"], {"ignore": "automation/qbit-rc-pending"})
             if PACKED:
                 self.assertEqual(result, self.render(packed=True, CIRCLE_BRANCH=branch))
+        schema = self.repo / ".github/workflows/schema-drift.yml"
+        schema.write_text("# central schema drift caller migration\n", encoding="utf-8")
+        self.git("add", ".github/workflows/schema-drift.yml")
+        self.git("-c", "commit.gpgsign=false", "commit", "-qm", "ci: centralize schema drift")
+        result = self.render(CIRCLE_BRANCH="release/0.1")
+        self.assert_full(result)
+        if PACKED:
+            self.assertEqual(result, self.render(packed=True, CIRCLE_BRANCH="release/0.1"))
         (self.repo / "App.java").write_text("application change\n", encoding="utf-8")
         self.git("add", "App.java")
         self.git("-c", "commit.gpgsign=false", "commit", "-qm", "ci: misleading title")
@@ -259,6 +267,19 @@ class PipelineTests(unittest.TestCase):
             self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="hotfix/"))
             self.write_manifest(publish={"hotfix": "true"})
             self.render(packed=packed, CIRCLE_BRANCH="hotfix/1.2.3", ok=False)
+
+    def test_qbit_feature_tags_source_and_packed_require_opt_in_and_head(self):
+        self.git("tag", "publish-test")
+        for packed in ([False, True] if PACKED else [False]):
+            self.write_manifest()
+            self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="", CIRCLE_TAG="publish-test"))
+            self.write_manifest(publish={"feature": True})
+            self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="", CIRCLE_TAG="publish-test"), "publish_feature")
+            self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="feature/example"))
+            self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="", CIRCLE_TAG="publish-missing"))
+        self.commit()
+        for packed in ([False, True] if PACKED else [False]):
+            self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="", CIRCLE_TAG="publish-test"))
 
     def test_repository_policy_source_and_packed_never_select_publication(self):
         self.write_manifest(profile="repository-policy")

@@ -40,6 +40,14 @@ class MaintenanceTests(unittest.TestCase):
             with mock.patch.object(pipeline, 'git', side_effect=self.git_result):
                 self.assertFalse(pipeline.proven_ci_maintenance('release/0.1', ''))
 
+    def test_schema_caller_migration_is_maintenance_but_schema_inputs_are_not(self):
+        self.paths = b'.github/workflows/schema-drift.yml\0'
+        with mock.patch.object(pipeline, 'git', side_effect=self.git_result):
+            self.assertTrue(pipeline.proven_ci_maintenance('release/0.1', ''))
+            for path in (b'pom.xml\0', b'src/test/resources/schema.yml\0', b'src/test/java/SchemaDriftTest.java\0'):
+                self.paths = b'.github/workflows/schema-drift.yml\0' + path
+                self.assertFalse(pipeline.proven_ci_maintenance('release/0.1', ''))
+
     def test_merge_root_and_unavailable_history_do_not_suppress_release(self):
         for parents in (None, b'a'*40+b'\n', self.parents.rstrip()+b' '+b'c'*40+b'\n'):
             self.parents = parents
