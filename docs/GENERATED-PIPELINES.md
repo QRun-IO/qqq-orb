@@ -61,11 +61,23 @@ parser is pinned to PyYAML 6.0.3 and uses its safe loader.
 
 | Event | Workflow | Job contract |
 | --- | --- | --- |
-| develop | publish_snapshot | existing mvn_publish, snapshot |
-| release/* | publish_release_candidate | existing mvn_publish, release_candidate |
-| vX.Y.Z tag resolving to the checkout | publish_release | existing mvn_publish, release |
-| main, feature/*, hotfix/*, other/unknown branch | test_only | existing mvn_test_only |
-| Disabled publication or unrecognized/unproven tag | test_only | full verification, no publication |
+| develop | verify | existing mvn_publish, snapshot |
+| release/* | verify | existing mvn_publish, release_candidate |
+| vX.Y.Z tag resolving to the checkout | verify | existing mvn_publish, release |
+| main, feature/*, hotfix/*, other/unknown branch | verify | existing mvn_test_only |
+| Disabled publication or unrecognized/unproven tag | verify | full verification, no publication |
+
+Generated `qbit`, `core`, `frontend-core`, and `frontend-material` pipelines use
+the stable workflow name `verify`. All selected jobs, dependencies and filters
+remain intact; this adds no executor or duplicate build. Other profiles retain
+their existing workflow names and native checks.
+
+When upgrading from legacy workflow names, upgrade the immutable RC worker pin
+alongside the orb so finalization recognizes both names. Confirm the CircleCI
+app's successful `verify` check on the exact migration commit before replacing
+legacy required contexts. Require `setup` and `verify` on managed branches,
+preserving other required checks and controls. Human approval is not required;
+automated checks authorize the migration.
 
 The pipeline SHA must match the checkout when Circle supplies it. A tagged release
 must resolve to that checkout; missing local tags are fetched individually. A main
@@ -182,7 +194,7 @@ manifest validation already ran in setup. It adds no new security scanner and
 makes no security-scanning claim. Keep docs-only disabled if those paths are build
 inputs or packaged application content.
 
-The light route keeps workflow `test_only` and names its job
+The light route keeps workflow `verify` and names its job
 `qqq-orb/mvn_test_only`. Verify actual CircleCI/GitHub status contexts on the canary
 before changing any protection rule; workflow/job identity alone is not proof of
 the hosted context name. Current protections must not be removed speculatively.

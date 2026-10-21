@@ -23,6 +23,17 @@ def bump(parent=SHA, version='1.2.3-RC.4'):
 
 
 class ReleaseGuardTests(unittest.TestCase):
+    def test_stable_workflow_preserves_exact_source_and_latest_attempt_checks(self):
+        result = status()
+        result['check_runs'][0]['name'] = 'verify'
+        self.assertEqual('1.2.3-RC.4', evaluate(SHA, result, bump()))
+        result['check_runs'].append(dict(result['check_runs'][0], id=10, conclusion='failure'))
+        with self.assertRaisesRegex(Failure, 'CircleCI failed'):
+            evaluate(SHA, result, bump())
+        result['check_runs'] = [dict(result['check_runs'][0], head_sha=OTHER)]
+        with self.assertRaises(Failure):
+            evaluate(SHA, result, bump())
+
     def test_success_exact_built_source(self):
         self.assertEqual('1.2.3-RC.4', evaluate(SHA, status(), bump()))
 

@@ -6,6 +6,8 @@ Example: python tools/audit_estate.py --inventory inventory.json --orb-version 0
 Policy: {"profiles":{"qbit":{"required_checks":{"main":["observed context"],
 "develop":["observed context"]}}},"repositories":{"QRun-IO/example":{...}}}.
 Only use contexts verified on hosted canaries. Absent policy is unknown, not pass.
+A profile/repository policy may set rc_worker_sha independently of --worker-sha
+so an RC-only worker change does not require updating unchanged native workers.
 """
 import argparse
 import base64
@@ -209,11 +211,12 @@ def audit(entry, snapshot, version, worker_sha, policy):
     if profile == 'qbit' and (rc_enabled or existing_rc):
         path = rc_worker.CALLER_PATH
         raw = rc_source
+        rc_sha = policy.get("rc_worker_sha", worker_sha)
         if raw is None:
             finding('missing_rc_bridge', path)
-        elif not re.fullmatch(r'[0-9a-f]{40}', worker_sha or ''):
+        elif not re.fullmatch(r'[0-9a-f]{40}', rc_sha or ''):
             finding('native_pin_policy_missing', path)
-        elif raw != rc_worker.generate(worker_sha):
+        elif raw != rc_worker.generate(rc_sha):
             finding('rc_bridge_drift', path)
         else:
             native_paths.add(path)

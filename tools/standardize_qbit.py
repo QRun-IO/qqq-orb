@@ -2,7 +2,7 @@
 """Replace audited standard QBit pipelines with the canonical orb caller.
 
 Only modifies the two CI declarations in a supplied checkout. Git operations and
-publication remain separate. Unknown jobs/options fail closed for human review.
+publication remain separate. Unknown jobs/options fail closed for central profile resolution.
 """
 import argparse
 from pathlib import Path
@@ -158,7 +158,7 @@ def main():
     manifest_path = args.checkout / ".qqq-ci.yml"
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     if manifest_path.exists():
-        raise ValueError("Already has a manifest; use the version rollout operation")
+        raise ValueError("Already has a manifest; use tools/rollout_version.py")
     manifest = infer_manifest(config, args.orb_version, args.default_branch)
     caller = canonical_caller(args.orb_version, manifest["release_tag_policy"])
     if args.write:

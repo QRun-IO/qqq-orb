@@ -58,6 +58,17 @@ class FixtureAPI:
 
 
 class SweepTests(unittest.TestCase):
+    def test_stable_gate_and_mixed_name_latest_failure(self):
+        api = FixtureAPI()
+        api.status['check_runs'][0]['name'] = 'verify'
+        self.assertEqual('dispatched', sweep.reconcile(api, REPO))
+        api.sent.clear()
+        api.status['check_runs'].append(dict(api.status['check_runs'][0],
+                                            id=10, name='publish_release_candidate', conclusion='failure'))
+        with self.assertRaises(sweep.InvalidIntent):
+            sweep.reconcile(api, REPO)
+        self.assertEqual([], api.sent)
+
     def test_idle_never_dispatches_or_reads_artifacts(self):
         api = FixtureAPI(); api.lock = None
         self.assertEqual('idle', sweep.reconcile(api, REPO))

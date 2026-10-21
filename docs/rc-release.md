@@ -26,7 +26,8 @@ https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-t
 - Finalization retrieves the unique unexpired intent artifact and verifies its
   originating successful `release-rc.yml` run, repository, trigger and attempt.
   Callback fields must match that immutable intent.
-- The exact merge SHA must have a successful `publish_release_candidate` Check Run
+- The exact merge SHA must have a successful `verify` (or legacy
+  `publish_release_candidate`) Check Run
   from CircleCI app ID `18001`; unrelated job statuses cannot authorize release.
   Terminal publisher failure stops finalization immediately. Pending/absent publication cannot authorize a tag.
   The RC bump must have exactly that one parent and the release branch must still
@@ -80,3 +81,40 @@ release-captain reconciliation; the sweep does not invent provenance.
 syntax. Full actionlint with Windows native ShellCheck hung locally and was
 stopped; Linux actionlint/ShellCheck and end-to-end credential/callback rollout
 verification remain required. The orb has separate sweep/dispatch fixture tests.
+
+### Published upload timeout recovery
+
+A Circle deployment step can time out after Central has accepted and published its
+bundle. Use the canonical caller's explicit manual `recover` input with the existing
+`merge_sha`, `branch`, `version` and original `circle_build`. Run with `dry_run: true`
+first to verify evidence without changing the branch, tag, release or pending lock.
+This mode never builds, uploads, cuts a new candidate, or changes the failed Circle check.
+
+The pinned orb worker requires the original successful cut intent and unchanged lock,
+the exact failed Circle workflow/check, a final deployment timeout after all preceding
+actions (including Maven Verify) succeeded, exactly one successful upload receipt,
+and an authenticated Central `PUBLISHED` response matching every staged coordinate.
+It also checks public POM coordinates and publication timestamps after the cut.
+Existing organization `CENTRAL_USERNAME` and `CENTRAL_PASSWORD` secrets authenticate
+only the Central status request; Circle evidence uses its public API. Redirects are
+rejected and credentials are never included in the recovery receipt.
+
+After verification, recovery creates only the missing signed version bump as a direct
+child of the original release merge, using a normal fast-forward push. An existing
+bump must pass the same parent/version checks. The existing signed-tag/prerelease
+finalizer then completes the candidate and compares lock ownership before cleanup.
+A later explicit recovery retry verifies the original receipt again. Once the lock
+is gone, the completed release needs no recovery dispatch. Ordinary callbacks and
+scheduled reconciliation retain the requirement for a successful Circle publisher.
+
+Central status API: https://central.sonatype.org/publish/publish-portal-api/
+
+### Auditing independent worker revisions
+
+The estate audit accepts `rc_worker_sha` in a profile or repository policy. For
+example, set `profiles.qbit.rc_worker_sha` to the approved immutable RC worker
+commit and keep `--worker-sha` at the approved revision for unchanged native
+workers. The audit still compares every caller to its exact canonical template
+and rejects mutable or mismatched pins. This avoids a fleet-wide native caller
+update when only RC release behavior changes. Required-check policy is separate;
+omitting it continues to report enforcement as unknown.

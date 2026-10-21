@@ -29,11 +29,14 @@ class BusinessE2ETests(unittest.TestCase):
         self.assertEqual('always()', self.worker['jobs']['e2e']['steps'][-1]['if'])
         self.assertEqual('docker compose -f deploy/compose/docker-compose.yml down -v', self.worker['jobs']['e2e']['steps'][-1]['run'])
 
-    def test_events_permissions_path_and_single_concurrency_owner_preserved(self):
-        self.assertEqual(self.original['events'], self.caller['on'])
+    def test_code_changes_and_manual_runs_keep_full_gate_without_nightly_duplicates(self):
+        expected_events = copy.deepcopy(self.original['events'])
+        del expected_events['schedule']
+        self.assertEqual(expected_events, self.caller['on'])
         self.assertEqual(self.original['workflow']['permissions'], self.caller['permissions'])
         self.assertEqual(self.caller['permissions'], self.worker['permissions'])
-        self.assertEqual(self.original['workflow']['concurrency'], self.caller['concurrency'])
+        self.assertEqual(self.original['workflow']['concurrency']['group'], self.caller['concurrency']['group'])
+        self.assertEqual("${{ github.event_name == 'pull_request' }}", self.caller['concurrency']['cancel-in-progress'])
         self.assertNotIn('concurrency', self.worker)
         self.assertEqual('.github/workflows/e2e.yml', aux.BRIDGES['business-e2e']['path'])
         self.assertEqual({'workflow_call': {'secrets': {'E2E_ALERT_WEBHOOK_URL': {'required': False}}}}, self.worker['on'])

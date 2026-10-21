@@ -17,12 +17,16 @@ def canonical(worker_sha):
         "dry_run": {"description": "Plan a cut without changing release state", "type": "boolean", "default": False},
         "finalize": {"description": "Retry finalization of an existing cut; do not cut another RC", "type": "boolean", "default": False},
     }
+    inputs['recover'] = {'description': 'Recover the same published RC after a deployment timeout; never reupload', 'type': 'boolean', 'default': False}
+    inputs['circle_build'] = {'description': 'Original Circle publisher build number (recovery only)', 'type': 'string', 'default': ''}
     for field in ("merge_sha", "bump_sha", "branch", "version"):
         inputs[field] = {"description": "Existing cut " + field + " (finalize retry only)", "type": "string", "default": ""}
     forwarded = {
         "dry_run": "${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}",
         "finalize": "${{ github.event_name == 'repository_dispatch' || (github.event_name == 'workflow_dispatch' && inputs.finalize) }}",
     }
+    forwarded['recover'] = "${{ github.event_name == 'workflow_dispatch' && inputs.recover || false }}"
+    forwarded['circle_build'] = "${{ github.event_name == 'workflow_dispatch' && inputs.circle_build || '' }}"
     for field in ("merge_sha", "bump_sha", "branch", "version"):
         forwarded[field] = "${{ github.event_name == 'repository_dispatch' && github.event.client_payload." + field + " || inputs." + field + " || '' }}"
     return {
