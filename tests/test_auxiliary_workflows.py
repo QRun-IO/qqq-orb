@@ -51,7 +51,8 @@ class SpecialistNativeTests(unittest.TestCase):
         self.assertEqual(steps[3], original['jobs']['build-and-test']['steps'][3])
         self.assertEqual(steps[4]['if'], 'always()')
         caller = bridge.canonical('mcp-rag', SHA)
-        self.assertEqual(caller['on']['push'], {'branches': ['**']})
+        # Feature branches run once through the PR event, not also on push.
+        self.assertEqual(caller['on']['push'], {'branches': ['main']})
         self.assertEqual(caller['on']['pull_request'], {'branches': ['main']})
         self.assertEqual(caller['jobs']['validate']['secrets'], {
             'QQQ_MCP_VOYAGE_API_KEY': '${{ secrets.QQQ_MCP_VOYAGE_API_KEY }}'})
