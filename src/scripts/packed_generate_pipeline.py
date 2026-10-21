@@ -89,8 +89,8 @@ def load_manifest(path, setup_version):
             allowed += ("java_version",)
     mapping(data, allowed, "manifest")
     version = data.get("orb_version")
-    if not isinstance(version, str) or not re.fullmatch(r"(?:\d+\.\d+\.\d+|dev:[A-Za-z0-9_-]+)", version):
-        raise ManifestError("orb_version must be an explicit stable or development version")
+    if not isinstance(version, str) or not re.fullmatch(r"(?:\d+\.\d+(?:\.\d+)?|dev:[A-Za-z0-9_-]+)", version):
+        raise ManifestError("orb_version must be a quoted minor track, exact stable pin, or development version")
     if version != setup_version:
         raise ManifestError("Manifest orb_version must match the setup job orb_version")
     default_branch = data.get("default_branch")

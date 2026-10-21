@@ -56,8 +56,8 @@ def plan(checkout, version):
 
 
 def rollout(checkouts, version, write=False):
-    if not re.fullmatch(r'\d+\.\d+\.\d+', version):
-        raise ValueError('Fleet upgrades require an explicit stable orb version')
+    if not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', version):
+        raise ValueError('Fleet upgrades require a stable minor track or exact patch version')
     # Validate the entire batch before writing any repository.
     plans = [plan(path, version) for path in checkouts]
     if len({item['checkout'] for item in plans}) != len(plans):

@@ -241,6 +241,15 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(options["check_middleware_api_versions"])
         self.assertEqual(options["java_version"], "17")
 
+    def test_minor_track_reaches_continuation_without_changing_jobs(self):
+        expected = self.render()
+        expected['orbs']['qqq-orb'] = 'kingsrook/qqq-orb@0.7'
+        self.write_manifest(orb_version='0.7')
+        self.assertEqual(expected, self.render(QQQ_CI_ORB_VERSION='0.7'))
+        if PACKED:
+            self.assertEqual(expected, self.render(packed=True, QQQ_CI_ORB_VERSION='0.7'))
+        self.render(ok=False, QQQ_CI_ORB_VERSION='0.8')
+
     def test_branch_matrix(self):
         for branch, workflow in [("develop", "publish_snapshot"), ("release/1.0", "publish_release_candidate"),
                                  ("main", "test_only"), ("hotfix/fix", "test_only"),
