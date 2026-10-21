@@ -6,6 +6,8 @@ Example: python tools/audit_estate.py --inventory inventory.json --orb-version 0
 Policy: {"profiles":{"qbit":{"required_checks":{"main":["observed context"],
 "develop":["observed context"]}}},"repositories":{"QRun-IO/example":{...}}}.
 Only use contexts verified on hosted canaries. Absent policy is unknown, not pass.
+Use --live --source-branch main (or release/...) to inspect that branch's source;
+omitting it retains default-branch auditing. Unavailable branches remain unknown.
 A profile/repository policy may set rc_worker_sha independently of --worker-sha
 so an RC-only worker change does not require updating unchanged native workers.
 """
@@ -71,11 +73,17 @@ class Snapshot:
             raise ReadError('invalid repository name')
         self.live = live
         self.path = entry.get('localPath', '')
-        self.branch = (entry.get('defaultBranchRef') or {}).get('name')
+        requested = entry.get('sourceBranch')
+        if requested is not None and (not live or not isinstance(requested, str)
+                                      or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._/-]*', requested)):
+            raise ReadError('explicit source branch requires a valid branch name and live lookup')
+        self.default_branch = (entry.get('defaultBranchRef') or {}).get('name')
+        self.branch = requested or self.default_branch
         self.sha = entry.get('sha', '')
         if live:
             info = gh('repos/' + self.repo)
-            self.branch = info['default_branch']
+            self.default_branch = info['default_branch']
+            self.branch = requested or self.default_branch
             if info['archived']:
                 raise ReadError('repository is now archived; refresh inventory')
             self.sha = gh('repos/' + self.repo + '/commits/' + quote(self.branch, safe=''))['sha']
@@ -169,7 +177,8 @@ def audit(entry, snapshot, version, worker_sha, policy):
     name = entry['name']
     profile = policy.get('profile') or ('qbit' if name.startswith('qbit-') else PROFILES.get(name))
     result = {'repository': entry['nameWithOwner'], 'sha': snapshot.sha,
-              'default_branch': snapshot.branch, 'profile': profile, 'findings': [], 'required_checks': {}}
+              'default_branch': getattr(snapshot, 'default_branch', snapshot.branch),
+              'source_branch': snapshot.branch, 'profile': profile, 'findings': [], 'required_checks': {}}
     findings = result['findings']
     def finding(code, path=None, detail=None):
         findings.append({k: v for k, v in {'code': code, 'path': path, 'detail': detail}.items() if v is not None})
@@ -198,7 +207,7 @@ def audit(entry, snapshot, version, worker_sha, policy):
                     manifest = Path(directory) / 'manifest.yml'
                     manifest.write_text(raw, encoding='utf-8')
                     generator.load_manifest(manifest, pin)
-                if data.get('default_branch') != snapshot.branch:
+                if data.get('default_branch') != result['default_branch']:
                     finding('default_branch_drift', '.qqq-ci.yml')
                 if caller is not None:
                     standard.validate(caller, raw, pin)
@@ -324,9 +333,13 @@ def audit(entry, snapshot, version, worker_sha, policy):
     return result
 
 
-def run(entries, version, worker_sha, policies, live=False, snapshot_factory=Snapshot):
+def run(entries, version, worker_sha, policies, live=False, snapshot_factory=Snapshot, source_branch=None):
+    if source_branch is not None and not live:
+        raise ValueError('Explicit source branch audits require --live')
     results = []
     for entry in entries:
+        if source_branch is not None:
+            entry = dict(entry, sourceBranch=source_branch)
         if entry.get('isArchived'):
             results.append({'repository': entry['nameWithOwner'], 'status': 'archived_skip'})
             continue
@@ -337,10 +350,11 @@ def run(entries, version, worker_sha, policies, live=False, snapshot_factory=Sna
         try:
             results.append(audit(entry, snapshot_factory(entry, live), version, worker_sha, policy))
         except (ReadError, OSError, ValueError, KeyError, subprocess.TimeoutExpired):
-            results.append({'repository': entry['nameWithOwner'], 'status': 'unknown', 'reason': 'source/API/policy read failed'})
+            results.append({'repository': entry['nameWithOwner'], 'source_branch': source_branch,
+                            'status': 'unknown', 'reason': 'source/API/policy read failed'})
     return {'inventory_count': len(entries), 'active_count': sum(not e.get('isArchived', False) for e in entries),
             'covered_count': len(results), 'unique_repository_count': len({e['nameWithOwner'] for e in entries}),
-            'live': live, 'results': results}
+            'live': live, 'source_branch_selector': source_branch or 'default', 'results': results}
 
 
 def main():
@@ -350,12 +364,15 @@ def main():
     parser.add_argument('--worker-sha')
     parser.add_argument('--policy', type=Path)
     parser.add_argument('--live', action='store_true', help='Read current source and branch rules using existing gh authentication')
+    parser.add_argument('--source-branch', help='Inspect this branch instead of the repository default; requires --live')
     parser.add_argument('--expected-active', type=int, default=68)
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
+    if args.source_branch is not None and not args.live:
+        parser.error('--source-branch requires --live')
     entries = json.loads(args.inventory.read_text(encoding='utf-8'))
     policies = json.loads(args.policy.read_text(encoding='utf-8')) if args.policy else {}
-    report = run(entries, args.orb_version, args.worker_sha, policies, args.live)
+    report = run(entries, args.orb_version, args.worker_sha, policies, args.live, source_branch=args.source_branch)
     report['expected_active_count'] = args.expected_active
     report['coverage_matches_expected'] = (report['active_count'] == args.expected_active
                                            and report['unique_repository_count'] == report['inventory_count'])

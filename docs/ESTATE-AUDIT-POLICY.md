@@ -3,6 +3,18 @@
 `tools/audit_estate.py` classifies repositories from explicit mappings and observed source.
 It never changes consumers, branch rules or publication settings.
 
+Source auditing reads the repository's current default branch unless
+`--live --source-branch main` (or an explicit `release/...` or `hotfix/...` branch)
+is supplied. Run separate audits for each maintained source branch: a clean
+default-branch report does not establish conformity on main or release branches.
+The selected branch is resolved to an immutable commit before any files are read.
+Reports identify both `source_branch` and the repository's `default_branch`;
+the manifest's `default_branch` must still match the repository default.
+Unavailable selected branches remain unknown without falling back to default.
+Explicit branch selection requires live lookup and cannot relabel an offline SHA.
+Required-check policy still controls which branch settings are inspected;
+`--source-branch` changes source selection, not that enforcement policy.
+
 - Circle profiles include android, mcp-policy and marketing. Their manifest and canonical
   setup caller remain mandatory; a missing configuration is a finding.
 - MCP, business-platform and the organization `.github` repository use approved native
