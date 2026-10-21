@@ -116,7 +116,7 @@ def reconcile(api, repo):
     validate_run(run, intent, repo, merge, run_id)
     checks = api.request(prefix + 'commits/' + merge + '/check-runs?filter=latest&per_page=100')
     publishers = [c for c in checks.get('check_runs', [])
-                  if c.get('name') == 'publish_release_candidate' and c.get('app', {}).get('id') == 18001]
+                  if c.get('name') in ('publish_release_candidate', 'verify') and c.get('app', {}).get('id') == 18001]
     if not publishers:
         return 'publisher-running'
     publisher = max(publishers, key=lambda c: c['id'])

@@ -198,20 +198,10 @@
     "caller": {
       "name": "Database migrations",
       "on": {
-        "pull_request": {
-          "paths": [
-            "db/**",
-            "pom.xml",
-            ".github/workflows/db-migrations.yml"
-          ]
-        },
+        "pull_request": {},
         "push": {
           "branches": [
             "main"
-          ],
-          "paths": [
-            "db/**",
-            "pom.xml"
           ]
         }
       },
@@ -222,6 +212,10 @@
         "validate": {
           "uses": "QRun-IO/qqq-orb/.github/workflows/business-db.yml@WORKER_SHA"
         }
+      },
+      "concurrency": {
+        "group": "business-db-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}",
+        "cancel-in-progress": "${{ github.event_name == 'pull_request' }}"
       }
     }
   },
@@ -262,11 +256,6 @@
             "main"
           ]
         },
-        "schedule": [
-          {
-            "cron": "17 6 * * *"
-          }
-        ],
         "workflow_dispatch": null
       },
       "permissions": {
@@ -274,7 +263,7 @@
       },
       "concurrency": {
         "group": "e2e-${{ github.ref }}",
-        "cancel-in-progress": true
+          "cancel-in-progress": "${{ github.event_name == 'pull_request' }}"
       },
       "jobs": {
         "validate": {

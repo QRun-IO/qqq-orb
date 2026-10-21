@@ -74,6 +74,25 @@ class AuditTests(unittest.TestCase):
         report = audit.audit(entry, Snapshot({'.qqq-ci.yml': audit.generator.yaml.safe_dump(manifest)}), VERSION, SHA, POLICY)
         self.assertIn('missing_rc_bridge', [f['code'] for f in report['findings']])
 
+    def test_rc_pin_policy_does_not_force_unchanged_auxiliary_worker_updates(self):
+        entry = dict(ENTRY, name='qbit-authentik', nameWithOwner='QRun-IO/qbit-authentik')
+        rc_sha = 'b' * 40
+        definition = audit.auxiliary.BRIDGES['qbit-schema-drift']
+        manifest = {'profile': 'qbit', 'orb_version': VERSION, 'default_branch': 'develop', 'release_completion': True}
+        files = {audit.rc_worker.CALLER_PATH: audit.rc_worker.generate(rc_sha),
+                 definition['path']: audit.generator.yaml.safe_dump(audit.auxiliary.canonical('qbit-schema-drift', SHA), sort_keys=False),
+                 '.qqq-ci.yml': audit.generator.yaml.safe_dump(manifest),
+                 '.circleci/config.yml': audit.generator.yaml.safe_dump(audit.standard.canonical_caller('qbit', VERSION))}
+        policy = dict(POLICY, rc_worker_sha=rc_sha)
+        self.assertEqual('pass', audit.audit(entry, Snapshot(files), VERSION, SHA, policy)['status'])
+        for pin in (SHA, 'main', ''):
+            with self.subTest(pin=pin):
+                report = audit.audit(entry, Snapshot(files), VERSION, SHA, dict(POLICY, rc_worker_sha=pin))
+                self.assertTrue(report['findings'])
+        files[definition['path']] = files[definition['path']].replace(SHA, rc_sha)
+        report = audit.audit(entry, Snapshot(files), VERSION, SHA, policy)
+        self.assertIn('native_maintenance_bridge_drift', [f['code'] for f in report['findings']])
+
     def test_qbit_rc_bridge_missing_drift_pin_and_duplicate(self):
         entry = dict(ENTRY, name='qbit-test', nameWithOwner='QRun-IO/qbit-test')
         path = audit.rc_worker.CALLER_PATH

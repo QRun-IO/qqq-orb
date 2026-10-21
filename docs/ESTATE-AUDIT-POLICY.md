@@ -65,3 +65,29 @@ actionlint .github/workflows/workflow-lint.yml
 Tests cover exact no-CI allowlists and drift, unknown repositories, missing configured
 profiles/native bridges, retained legacy workflows, bootstrap dependency/gate removal,
 required-check unknown states, and the lint image/tool/command/caller contract.
+
+## Batch orb-version rollout
+
+Upgrade existing canonical CircleCI consumers with one command:
+
+```sh
+python tools/rollout_version.py --orb-version 0.7.11 /checkouts/qbit-one /checkouts/qqq-cli
+python tools/rollout_version.py --orb-version 0.7.11 --write /checkouts/qbit-one /checkouts/qqq-cli
+```
+
+The first command previews the batch. The second updates only `.qqq-ci.yml` and
+`.circleci/config.yml`, after every supplied checkout passes the existing manifest
+and canonical-caller validators. It preserves publication opt-outs, release filters,
+credential context names and forwarded profile parameters. Already-current files
+are unchanged. Duplicate checkouts, custom jobs, invalid options and mismatched
+pins reject the batch before writing; resolve these in the central profile first.
+
+Use isolated checkouts of the intended repository heads, inspect the resulting
+patches, then commit and push through the normal automated gates. The tool does not
+commit, push, publish packages, change GitHub rules or modify native/RC worker pins.
+A version update does not prove a publication succeeded: retain exact-head hosted
+verification and artifact evidence. The requested version must already be published.
+
+```sh
+python3 -m unittest discover -s tests -p test_rollout_version.py
+```

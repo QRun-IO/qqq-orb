@@ -441,6 +441,12 @@ def main():
     if expected and (not re.fullmatch(r"[0-9a-fA-F]{40}", expected) or git("rev-parse", "HEAD") != (expected + "\n").encode()):
         raise ManifestError("Checkout does not match the pipeline commit")
     output = PROFILE_TEMPLATES[config["profile"]](config, os.environ.get("CIRCLE_BRANCH", ""), os.environ.get("CIRCLE_TAG", ""))
+    if config["profile"] in ("qbit", "core", "frontend-core", "frontend-material"):
+        # One whole-workflow check follows the same commit from feature to release.
+        # Keep every selected job, dependency and filter; add no runner or duplicate build.
+        if len(output["workflows"]) != 1:
+            raise ManifestError("Stable verification requires exactly one selected workflow")
+        output["workflows"] = {"verify": next(iter(output["workflows"].values()))}
     parameters = continuation_parameters(config["profile"])
     if config["profile"] == "core":
         output["parameters"] = copy.deepcopy(CORE_TEMPLATE["parameters"])
