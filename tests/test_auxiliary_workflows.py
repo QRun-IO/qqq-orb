@@ -58,12 +58,14 @@ class SpecialistNativeTests(unittest.TestCase):
     def worker(self, kind):
         return yaml.safe_load((ROOT / '.github/workflows' / (kind + '.yml')).read_text(encoding='utf-8'))
 
-    def test_business_database_job_and_path_filters_are_unchanged(self):
+    def test_business_database_gate_reports_for_every_pr_and_preserves_validation(self):
         original = self.originals['business-db']
         worker = self.worker('business-db')
         self.assertEqual(worker['jobs'], original['workflow']['jobs'])
         caller = bridge.canonical('business-db', SHA)
-        self.assertEqual(caller['on'], original['events'])
+        self.assertEqual(caller['on'], {'pull_request': {}, 'push': {'branches': ['main']}})
+        self.assertEqual(caller['concurrency']['cancel-in-progress'], "${{ github.event_name == 'pull_request' }}")
+        self.assertIn('github.event.pull_request.number || github.ref', caller['concurrency']['group'])
         self.assertEqual(set(worker['jobs']), {'empty-database-migration'})
         self.assertNotIn('secrets', caller['jobs']['validate'])
         self.assertNotIn('schedule', caller['on'])
