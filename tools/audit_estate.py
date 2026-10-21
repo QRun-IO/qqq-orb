@@ -66,6 +66,38 @@ def gh(path):
     return json.loads(command(['gh', 'api', '--method', 'GET', path]))
 
 
+def discover_inventory(organization):
+    """Discover every repository visible to existing gh authentication, across all pages."""
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9-]*', organization):
+        raise ReadError('invalid organization name')
+    pages = json.loads(command(['gh', 'api', '--method', 'GET', '--paginate', '--slurp',
+                               f'orgs/{organization}/repos?type=all&per_page=100']))
+    if not isinstance(pages, list) or any(not isinstance(page, list) for page in pages):
+        raise ReadError('invalid organization inventory response')
+    entries, seen = [], set()
+    for page in pages:
+        for repo in page:
+            if not isinstance(repo, dict):
+                raise ReadError('invalid organization repository')
+            name = repo.get('name')
+            full_name = repo.get('full_name')
+            archived = repo.get('archived')
+            branch = repo.get('default_branch')
+            if (not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9_.-]+', name)
+                    or not isinstance(full_name, str)
+                    or full_name.lower() != f'{organization}/{name}'.lower()
+                    or type(archived) is not bool
+                    or not isinstance(branch, str) or not branch
+                    or full_name.lower() in seen):
+                raise ReadError('invalid or duplicate organization repository')
+            seen.add(full_name.lower())
+            entries.append({'name': name, 'nameWithOwner': full_name,
+                            'isArchived': archived, 'defaultBranchRef': {'name': branch}})
+    if not entries:
+        raise ReadError('empty organization inventory; coverage is unproven')
+    return sorted(entries, key=lambda entry: entry['nameWithOwner'].lower())
+
+
 class Snapshot:
     def __init__(self, entry, live=False):
         self.repo = entry['nameWithOwner']
@@ -374,22 +406,32 @@ def run(entries, version, worker_sha, policies, live=False, snapshot_factory=Sna
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--inventory', type=Path, required=True)
+    inventory = parser.add_mutually_exclusive_group(required=True)
+    inventory.add_argument('--inventory', type=Path)
+    inventory.add_argument('--organization', help='Discover current repositories using existing gh authentication; requires --live')
     parser.add_argument('--orb-version', required=True)
     parser.add_argument('--worker-sha')
     parser.add_argument('--policy', type=Path)
     parser.add_argument('--live', action='store_true', help='Read current source and branch rules using existing gh authentication')
     parser.add_argument('--source-branch', help='Inspect this branch instead of the repository default; requires --live')
-    parser.add_argument('--expected-active', type=int, default=68)
+    parser.add_argument('--expected-active', type=int, help='Optional independent coverage check; saved inventories default to 68')
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
     if args.source_branch is not None and not args.live:
         parser.error('--source-branch requires --live')
-    entries = json.loads(args.inventory.read_text(encoding='utf-8'))
+    if args.organization and not args.live:
+        parser.error('--organization requires --live')
+    entries = (discover_inventory(args.organization) if args.organization else
+               json.loads(args.inventory.read_text(encoding='utf-8')))
+    expected_active = args.expected_active
+    if expected_active is None and not args.organization:
+        expected_active = 68
     policies = json.loads(args.policy.read_text(encoding='utf-8')) if args.policy else {}
     report = run(entries, args.orb_version, args.worker_sha, policies, args.live, source_branch=args.source_branch)
-    report['expected_active_count'] = args.expected_active
-    report['coverage_matches_expected'] = (report['active_count'] == args.expected_active
+    report['inventory_source'] = ('organization-api' if args.organization else 'saved-inventory')
+    report['inventory_visibility'] = 'authenticated repositories; inaccessible repositories cannot be certified'
+    report['expected_active_count'] = expected_active
+    report['coverage_matches_expected'] = ((expected_active is None or report['active_count'] == expected_active)
                                            and report['unique_repository_count'] == report['inventory_count'])
     text = json.dumps(report, indent=2) + '\n'
     if args.output:

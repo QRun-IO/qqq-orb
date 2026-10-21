@@ -111,3 +111,23 @@ verification and artifact evidence. The requested version must already be publis
 ```sh
 python3 -m unittest discover -s tests -p test_rollout_version.py
 ```
+
+## Live organization discovery
+
+Use `--organization QRun-IO --live` instead of `--inventory inventory.json` to
+include newly created repositories on each audit. Discovery uses the existing
+`gh` authentication and all API pages, retaining archived entries for explicit
+skip reporting. Unknown repositories receive no automatic exemption. Duplicate,
+empty, malformed or failed discovery aborts instead of reusing a stale inventory.
+
+```sh
+python tools/audit_estate.py --organization QRun-IO --live --orb-version 0.8 \
+  --worker-sha <40SHA> --policy observed-checks.json --output audit.json
+```
+
+The organization mode has no fixed repository-count ceiling. Supply
+`--expected-active N` for an independent count check when needed; saved-inventory
+mode preserves its default of 68. Reports identify the inventory source and
+credential visibility limit: inaccessible repositories cannot be certified.
+This is discovery and audit, not automatic enrollment or branch-rule mutation.
+Scheduling and authenticated onboarding still need to be configured centrally.
