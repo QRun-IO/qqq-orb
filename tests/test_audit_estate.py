@@ -324,7 +324,7 @@ class AuditTests(unittest.TestCase):
         self.assertIn('native_maintenance_bridge_drift', [f['code'] for f in report['findings']])
 
     def test_new_circle_profile_mappings_require_actual_configuration(self):
-        for name, profile in [('qqq-android', 'android'), ('qqq-mcp-rag-standard-policies', 'mcp-policy'), ('marketing-website', 'marketing'), ('qqq-templates-hub', 'repository-policy')]:
+        for name, profile in [('qqq-android', 'android'), ('qqq-mcp-rag-standard-policies', 'mcp-policy'), ('marketing-website', 'marketing'), ('qqq-templates-hub', 'repository-policy'), ('qqq-meta-manager', 'repository-policy')]:
             entry = dict(ENTRY, name=name, nameWithOwner='QRun-IO/' + name)
             report = audit.audit(entry, Snapshot({}), VERSION, SHA, {})
             self.assertEqual(profile, report['profile'])
@@ -359,7 +359,7 @@ class AuditTests(unittest.TestCase):
         self.assertIn('missing_native_maintenance_bridge', [f['code'] for f in report['findings']])
 
     def test_approved_no_ci_is_exact_allowlist_with_evidence_not_check_pass(self):
-        self.assertEqual(6, len(audit.NO_CI))
+        self.assertEqual(5, len(audit.NO_CI))
         self.assertNotIn("QRun-IO/voyage-cd", audit.NO_CI)
         for repository, policy in audit.NO_CI.items():
             entry = dict(ENTRY, name=repository.split('/')[-1], nameWithOwner=repository)

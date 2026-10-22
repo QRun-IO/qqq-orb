@@ -15,22 +15,6 @@
     ],
     "rationale": "Template source; core generated-consumer acceptance owns validation."
   },
-  "QRun-IO/qqq-meta-manager": {
-    "baseline_sha": "da17eb306bf1587cbf98a1555499e9b27f4caa50",
-    "required_paths": [
-      "README.md"
-    ],
-    "forbidden_prefixes": [
-      ".circleci/",
-      ".github/workflows/"
-    ],
-    "forbidden_paths": [
-      ".qqq-ci.yml",
-      "Jenkinsfile",
-      ".gitlab-ci.yml"
-    ],
-    "rationale": "Metadata and automation knowledge repository; no registered CI entrypoint."
-  },
   "QRun-IO/qqq-maven-registry": {
     "baseline_sha": "134576e4e701984635105f97c8f52aa1e27205b2",
     "required_paths": [
