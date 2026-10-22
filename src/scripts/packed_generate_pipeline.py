@@ -70,10 +70,12 @@ def load_manifest(path, setup_version):
     if not isinstance(data, dict):
         raise ManifestError("Manifest must be a mapping")
     profile = data.get("profile")
-    if profile not in ("qbit", "core", "frontend-material", "frontend-core", "cli", "voyage", "frontend-next", "all", "app-starter", "android", "mcp-policy", "repository-policy", "marketing"):
+    if profile not in ("qbit", "core", "frontend-material", "frontend-core", "cli", "voyage", "frontend-next", "all", "app-starter", "android", "mcp-policy", "repository-policy", "marketing", "node-artifact"):
         raise ManifestError("Unsupported profile")
     allowed = ("profile", "orb_version", "default_branch", "docs_only", "publish")
-    if profile in ("qbit", "core"):
+    if profile == "node-artifact":
+        allowed = ("profile", "orb_version", "default_branch", "node_version", "context", "npm_scopes", "artifact_path", "build_branches")
+    elif profile in ("qbit", "core"):
         allowed += ("java_version", "browsers", "api_checks")
         if profile == "qbit":
             allowed += ("release_completion", "release_on_main", "release_tag_policy", "test_branch_policy")
@@ -104,6 +106,22 @@ def load_manifest(path, setup_version):
     node = data.get("node_version", "24.21" if profile == "frontend-core" else "20")
     if not isinstance(node, str) or not re.fullmatch(r"\d+(?:\.\d+){0,2}", node):
         raise ManifestError("node_version must be an explicit numeric version string")
+    if profile == "node-artifact":
+        context = data.get("context", "")
+        scopes = data.get("npm_scopes", [])
+        artifact = data.get("artifact_path")
+        branches = data.get("build_branches")
+        if not isinstance(context, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", context):
+            raise ManifestError("Node artifact requires an explicit context")
+        if not isinstance(scopes, list) or any(not isinstance(x, str) or not re.fullmatch(r"@[a-z0-9][a-z0-9-]*", x) for x in scopes) or len(scopes) != len(set(scopes)):
+            raise ManifestError("Invalid npm registry scopes")
+        if not isinstance(artifact, str) or not re.fullmatch(r"[A-Za-z0-9_-]+(?:/[A-Za-z0-9_.-]+)+", artifact) or any(x in (".", "..") for x in artifact.split("/")):
+            raise ManifestError("Artifact must be a relative file path")
+        if not isinstance(branches, list) or not branches or any(not isinstance(x, str) or not re.fullmatch(r"[A-Za-z0-9_-]+(?:/[A-Za-z0-9_.-]+)*", x) for x in branches) or len(branches) != len(set(branches)):
+            raise ManifestError("Build branches must be distinct literal branch names")
+        return {"profile": profile, "orb_version": version, "default_branch": default_branch,
+                "node_version": node, "context": context, "npm_scopes": scopes,
+                "artifact_path": artifact, "build_branches": branches}
     publish_keys = ("snapshot", "release_candidate", "release")
     if profile == "all":
         publish_keys = ("snapshot",)
@@ -458,6 +476,30 @@ PROFILE_TEMPLATES = {"qbit": qbit_template, "core": core_template,
                      "repository-policy": repository_policy_template,
                      "frontend-material": frontend_template, "frontend-core": frontend_template,
                      "cli": cli_template, "voyage": voyage_template, "frontend-next": next_template, "all": all_template, "app-starter": starter_template, "android": android_template, "mcp-policy": policy_template, "marketing": marketing_template}
+
+
+def node_artifact_template(config, branch, tag):
+    # One checkout/install is shared by tests and an optional artifact build.
+    lines = ["registry=https://registry.npmjs.org/"]
+    lines += [scope + ":registry=https://npm.pkg.github.com/" for scope in config["npm_scopes"]]
+    if config["npm_scopes"]:
+        lines.append("//npm.pkg.github.com/:_authToken=${NPM_TOKEN}")
+    npmrc = "printf '%s\\n' " + " ".join("'" + line + "'" for line in lines) + " >> .npmrc"
+    steps = ["checkout", {"run": {"name": "Configure npm registries", "command": npmrc}},
+             {"restore_cache": {"keys": ['node-artifact-npm-v1-{{ checksum "package-lock.json" }}', 'node-artifact-npm-v1-']}},
+             {"run": {"name": "Install locked dependencies", "command": "npm ci --prefer-offline --cache ~/.npm"}},
+             {"save_cache": {"key": 'node-artifact-npm-v1-{{ checksum "package-lock.json" }}', "paths": ["~/.npm"]}},
+             {"run": {"name": "Test project", "command": "npm test"}}]
+    if not tag and branch in config["build_branches"]:
+        steps += [{"run": {"name": "Build artifact", "command": "npm run build"}},
+                  {"store_artifacts": {"path": config["artifact_path"], "destination": config["artifact_path"].split("/")[-1]}}]
+    return {"version": 2.1,
+            "jobs": {"node_artifact": {"docker": [{"image": "cimg/node:" + config["node_version"]}], "steps": steps}},
+            "workflows": {"verify": {"jobs": [{"node_artifact": {"context": [config["context"]],
+                "filters": {"branches": {"ignore": "automation/qbit-rc-pending"}, "tags": {"ignore": "/.*/"}}}}]}}}
+
+
+PROFILE_TEMPLATES["node-artifact"] = node_artifact_template
 
 
 def runtime_boolean(name):

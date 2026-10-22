@@ -15,14 +15,19 @@ standard = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(standard)
 DESIRED = [{'context': name, 'app_id': 18001} for name in ('setup', 'verify')]
 PROFILE_GATES = {profile: 'verify' for profile in (
-    'qbit', 'core', 'frontend-core', 'frontend-material', 'repository-policy')}
+    'qbit', 'core', 'frontend-core', 'frontend-material', 'repository-policy', 'node-artifact')}
 PROFILE_GATES.update({'all': 'verify-and-smoke', 'cli': 'test_only',
                       'app-starter': 'test_only', 'android': 'test-and-build',
                       'mcp-policy': 'validate'})
-PROFILES = set(PROFILE_GATES)
+PROFILES = set(PROFILE_GATES) | {'frontend-next'}
+_native_spec = importlib.util.spec_from_file_location('native_next_gates', ROOT / 'tools/native_next_gates.py')
+native = importlib.util.module_from_spec(_native_spec)
+_native_spec.loader.exec_module(native)
 
 
 def gates(profile):
+    if profile == 'frontend-next':
+        return native.gates(pull_request=True)
     return [{'context': name, 'app_id': 18001}
             for name in ('setup', PROFILE_GATES[profile])]
 
@@ -51,12 +56,12 @@ def api(path, method='GET', payload=None):
     return json.loads(result.stdout) if result.stdout.strip() else None
 
 
-def required_checks(before, runs, desired_gates=DESIRED):
-    """Append app-bound gates only after both succeeded; preserve all other gates."""
-    for desired in desired_gates:
+def required_checks(before, runs, desired_gates=DESIRED, observed_gates=None):
+    """Require successful event-appropriate gates and preserve every PR requirement."""
+    for desired in (desired_gates if observed_gates is None else observed_gates):
         matches = [run for run in runs if run['name'] == desired['context'] and run['app']['id'] == desired['app_id']]
         if not matches or max(matches, key=lambda run: run['id'])['conclusion'] != 'success':
-            raise ValueError('Current branch head has no successful CircleCI ' + desired['context'])
+            raise ValueError('Current branch head has no successful app-bound gate: ' + desired['context'])
     prior = (before or {}).get('required_status_checks') or {}
     checks = [dict(check) for check in prior.get('checks', [])]
     represented = {check['context'] for check in checks}
@@ -116,6 +121,10 @@ def inspect(repo, branch, version, request=api):
     if profile not in PROFILES:
         raise ValueError('Profile has no supported shared branch gates')
     desired_gates = gates(profile)
+    observed_gates = desired_gates
+    if profile == 'frontend-next':
+        native.validate(repo, head, branch, request, standard.load_yaml)
+        observed_gates = native.gates()
     rules = request(root + '/rules/branches/' + branch)
     rulesets, ruleset_strict = verified_rulesets(repo, rules, request, desired_gates) if rules else ([], False)
     before = request(prefix + '/protection')
@@ -131,7 +140,7 @@ def inspect(repo, branch, version, request=api):
         if len(batch) < 100:
             break
         page += 1
-    desired = required_checks(before, runs, desired_gates)
+    desired = required_checks(before, runs, desired_gates, observed_gates)
     if use_ruleset:
         return {'repository': repo, 'branch': branch, 'head': head, 'before': before, 'gates': desired_gates,
                 'required_status_checks': {'strict': False, 'checks': desired_gates},
