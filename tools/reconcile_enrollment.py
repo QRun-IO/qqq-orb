@@ -147,26 +147,36 @@ def apply(plan):
 def main():
     """Preflight every explicit target before mutations and save resumable results."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--targets', type=Path, required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument('--targets', type=Path)
+    source.add_argument('--organization')
     parser.add_argument('--orb-version', required=True)
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     if not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', args.orb_version):
         raise ValueError('A stable minor track or exact patch is required')
-    targets = json.loads(args.targets.read_text(encoding='utf-8'))
-    if not isinstance(targets, list) or not targets:
-        raise ValueError('A nonempty target list is required')
-    plans = [inspect(target, args.orb_version) for target in targets]
+    findings = []
+    if args.organization:
+        from discover_enrollment import discover
+        plans, findings = discover(args.organization, args.orb_version, inspect, api)
+    else:
+        targets = json.loads(args.targets.read_text(encoding='utf-8'))
+        if not isinstance(targets, list) or not targets:
+            raise ValueError('A nonempty target list is required')
+        plans = [inspect(target, args.orb_version) for target in targets]
     if len({(p['repository'].lower(), p['branch']) for p in plans}) != len(plans):
         raise ValueError('Duplicate target')
-    report = [{key: value for key, value in p.items() if key not in ('originals', 'replacements')} for p in plans]
+    rows = [{key: value for key, value in p.items() if key not in ('originals', 'replacements')} for p in plans]
+    report = findings + rows
     args.output.write_text(json.dumps(report, indent=2), encoding='utf-8')
     if args.apply:
-        for plan, row in zip(plans, report):
+        for plan, row in zip(plans, rows):
             row['result'] = apply(plan)
             args.output.write_text(json.dumps(report, indent=2), encoding='utf-8')
-    print(json.dumps({'targets': len(plans), 'changed': sum(p['changed'] for p in plans), 'applied': args.apply}))
+    print(json.dumps({'targets': len(plans), 'changed': sum(p['changed'] for p in plans),
+                      'unresolved': sum(row['state'] == 'unresolved' for row in findings),
+                      'applied': args.apply}))
 
 
 if __name__ == '__main__':
