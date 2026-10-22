@@ -1,6 +1,7 @@
 """Execute the policy job against real git indexes, including application promotion."""
 import importlib.util
 import json
+import os
 import shutil
 from pathlib import Path
 import subprocess
@@ -35,7 +36,7 @@ class RepositoryPolicyTests(unittest.TestCase):
             subprocess.run([sys.executable, str(root / 'scripts/pack_pipeline.py'), '--check'], check=True)
             self.assertEqual(packed, (root / 'src/scripts/packed_generate_pipeline.py').read_bytes())
 
-    def execute(self, files, untracked=None):
+    def execute(self, files, untracked=None, shell_checks=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
@@ -46,7 +47,8 @@ class RepositoryPolicyTests(unittest.TestCase):
             subprocess.run(['git', 'add', '.'], cwd=root, check=True)
             for name, content in (untracked or {}).items():
                 (root / name).write_text(content, encoding='utf-8')
-            return subprocess.run([sys.executable, '-c', SCRIPT], cwd=root, capture_output=True, text=True)
+            env = dict(os.environ, QQQ_POLICY_SHELL='true' if shell_checks else 'false')
+            return subprocess.run([sys.executable, '-c', SCRIPT], cwd=root, env=env, capture_output=True, text=True)
 
     def test_placeholder_with_wrappers_and_workflows(self):
         result = self.execute({'LICENSE': 'Apache-2.0', 'docs/DESIGN.md': '# Planned application',
@@ -73,6 +75,34 @@ class RepositoryPolicyTests(unittest.TestCase):
 
     def test_only_tracked_files_are_policy_inputs(self):
         self.assertEqual(0, self.execute({'README.md': '# Docs'}, {'main.py': 'temporary tool'}).returncode)
+
+    def test_shell_validation_is_opt_in_and_never_executes_scripts(self):
+        files = {'automation/safe.sh': '#!/bin/bash\nexit 42\n', 'diagram.mmd': 'flowchart LR\n A-->B\n'}
+        self.assertNotEqual(0, self.execute(files).returncode)
+        result = self.execute(files, shell_checks=True)
+        self.assertEqual(0, result.returncode, result.stderr)
+
+    def test_shell_validation_rejects_syntax_warnings_and_application_sources(self):
+        for name, content in [('broken.sh', '#!/bin/bash\nif then\n'),
+                              ('unsafe.sh', '#!/bin/bash\necho $unquoted\n'),
+                              ('main.py', 'print(42)'), ('package.json', '{}')]:
+            with self.subTest(name=name):
+                self.assertNotEqual(0, self.execute({name: content}, shell_checks=True).returncode)
+
+    def test_shell_option_is_strict_and_keeps_single_small_nonpublishing_job(self):
+        manifest = {'profile': 'repository-policy', 'orb_version': '0.8',
+                    'default_branch': 'main', 'shell_checks': True}
+        with patch.object(Path, 'read_text', return_value=yaml.safe_dump(manifest)):
+            config = pipeline.load_manifest('unused', '0.8')
+        result = pipeline.repository_policy_template(config, 'main', '')
+        self.assertFalse(any(config['publish'].values()))
+        self.assertEqual({'validate-policy'}, set(result['jobs']))
+        self.assertEqual('small', result['jobs']['validate-policy']['resource_class'])
+        self.assertEqual({'QQQ_POLICY_SHELL': 'true'}, result['jobs']['validate-policy']['environment'])
+        for overrides in ({'shell_checks': 'true'}, {'profile': 'qbit'}):
+            with patch.object(Path, 'read_text', return_value=yaml.safe_dump(dict(manifest, **overrides))):
+                with self.assertRaises(pipeline.ManifestError):
+                    pipeline.load_manifest('unused', '0.8')
 
     def test_manifest_cannot_enable_publication(self):
         manifest = {'profile': 'repository-policy', 'orb_version': '0.7.14', 'default_branch': 'develop'}

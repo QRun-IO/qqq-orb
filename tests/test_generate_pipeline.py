@@ -387,6 +387,15 @@ class PipelineTests(unittest.TestCase):
                 self.assertEqual({"validate-policy"}, set(result["jobs"]))
                 self.assertNotIn("orbs", result)
 
+    def test_repository_shell_option_source_and_packed(self):
+        self.write_manifest(profile="repository-policy", shell_checks=True)
+        for packed in ([False, True] if PACKED else [False]):
+            result = self.render(packed=packed, CIRCLE_BRANCH="main")
+            self.assertEqual({"verify": {"jobs": ["validate-policy"]}}, result["workflows"])
+            self.assertEqual({"QQQ_POLICY_SHELL": "true"}, result["jobs"]["validate-policy"]["environment"])
+        self.write_manifest(profile="repository-policy", shell_checks="true")
+        self.render(ok=False)
+
     def test_stable_tags_require_ascii_digits_in_source_and_packed_generator(self):
         tag = "v\u0661.\u0662.\u0663"
         self.git("tag", tag)
