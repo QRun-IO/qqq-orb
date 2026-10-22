@@ -66,6 +66,7 @@ jobs:
             python3 tests/test_discover_enrollment.py
             python3 tests/test_finish_enrollment.py
             python3 tests/test_run_enrollment.py
+            python3 tests/test_install_reconcile_gh.py
             python3 tests/test_circle_project_settings.py
             python3 tests/test_static_analysis_exit.py
             python3 tests/test_validate_standard.py

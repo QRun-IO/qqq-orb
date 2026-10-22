@@ -14,5 +14,6 @@ printf '%s  %s\n' "$checksum" "$archive" | sha256sum --check --status
 tar -xOzf "$archive" "gh_${version}_linux_amd64/bin/gh" > "$binary"
 sudo install -m 0755 "$binary" /usr/local/bin/gh
 gh --version
-gh api --help | grep -q -- --slurp
-gh pr merge --help | grep -q -- --match-head-commit
+# Drain help output: grep -q can SIGPIPE gh under pipefail.
+gh api --help | grep -- --slurp >/dev/null
+gh pr merge --help | grep -- --match-head-commit >/dev/null
