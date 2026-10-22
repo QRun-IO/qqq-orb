@@ -136,3 +136,8 @@ For a qualified batch of canonical orb branches, use the shared
 CircleCI setup/verify gates while preserving other protections. Source enrollment,
 scanner transitions and scheduled reconciliation remain separate requirements.
 Scheduling and authenticated onboarding still need to be configured centrally.
+
+## Batch enrollment
+
+Use [the shared enrollment command](consumer-enrollment.md) to convert recognized
+legacy QBits and update existing canonical consumers in one validated batch.
