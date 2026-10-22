@@ -70,6 +70,7 @@ test-pipelines: pack
 	python3 tests/test_validate_standard.py
 	python3 tests/test_voyage_profile.py
 	python3 tests/test_next_native.py
+	python3 tests/test_apt_fetch_policy.py
 	python3 tests/test_auxiliary_workflows.py
 	python3 tests/test_qbit_codeql.py
 	python3 tests/test_repository_policy.py

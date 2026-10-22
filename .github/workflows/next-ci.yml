@@ -61,7 +61,13 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
-      - run: pnpm exec playwright install-deps chromium
+      - name: Install browser system dependencies
+        timeout-minutes: 10
+        run: |
+          printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' \
+            'Acquire::https::Timeout "30";' 'APT::Update::Error-Mode "any";' \
+            | sudo tee /etc/apt/apt.conf.d/80-qqq-download-retries >/dev/null
+          pnpm exec playwright install-deps chromium
       - if: steps.browser-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install chromium
       - name: Production build
@@ -101,7 +107,13 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-all
-      - run: pnpm exec playwright install-deps chromium firefox webkit
+      - name: Install browser system dependencies
+        timeout-minutes: 10
+        run: |
+          printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' \
+            'Acquire::https::Timeout "30";' 'APT::Update::Error-Mode "any";' \
+            | sudo tee /etc/apt/apt.conf.d/80-qqq-download-retries >/dev/null
+          pnpm exec playwright install-deps chromium firefox webkit
       - if: steps.browser-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install chromium firefox webkit
       - name: Collaboration suite (mock API, every browser project)

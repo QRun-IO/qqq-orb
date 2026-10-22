@@ -100,6 +100,7 @@ jobs:
             bash tests/test_maven_test_results.sh
             bash tests/test_maven_ci_install.sh
             bash tests/test_browser_install.sh
+            python3 tests/test_apt_fetch_policy.py
             bash tests/test_frontend_build_reuse.sh
             bash tests/test_snapshot_refresh.sh
             bash tests/test_maven_settings_output.sh

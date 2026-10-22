@@ -22,7 +22,9 @@ printf '%s\n' '$nrconf{restart} = "l";' | sudo tee /etc/needrestart/conf.d/99-qq
 
 # Retry transient repository downloads within APT, including NodeSource's child process.
 # Exhausted downloads retain APT's nonzero exit status and fail this build step.
-printf '%s\n' 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/80-qqq-download-retries >/dev/null
+printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' \
+  'Acquire::https::Timeout "30";' 'APT::Update::Error-Mode "any";' \
+  | sudo tee /etc/apt/apt.conf.d/80-qqq-download-retries >/dev/null
 
 # Ubuntu archive carries the same signed security suite; avoid the flaky HTTP mirror.
 if [[ -f /etc/apt/sources.list ]]; then
