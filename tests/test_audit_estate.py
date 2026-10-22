@@ -324,12 +324,31 @@ class AuditTests(unittest.TestCase):
         self.assertIn('native_maintenance_bridge_drift', [f['code'] for f in report['findings']])
 
     def test_new_circle_profile_mappings_require_actual_configuration(self):
-        for name, profile in [('qqq-android', 'android'), ('qqq-mcp-rag-standard-policies', 'mcp-policy'), ('marketing-website', 'marketing')]:
+        for name, profile in [('qqq-android', 'android'), ('qqq-mcp-rag-standard-policies', 'mcp-policy'), ('marketing-website', 'marketing'), ('qqq-templates-hub', 'repository-policy')]:
             entry = dict(ENTRY, name=name, nameWithOwner='QRun-IO/' + name)
             report = audit.audit(entry, Snapshot({}), VERSION, SHA, {})
             self.assertEqual(profile, report['profile'])
             self.assertIn('missing_manifest', [f['code'] for f in report['findings']])
             self.assertIn('missing_canonical_caller', [f['code'] for f in report['findings']])
+
+    def test_catalog_requires_canonical_policy_pipeline(self):
+        self.assertNotIn('QRun-IO/qqq-templates-hub', audit.NO_CI)
+        entry = dict(ENTRY, name='qqq-templates-hub', nameWithOwner='QRun-IO/qqq-templates-hub')
+        files = {'.qqq-ci.yml': audit.generator.yaml.safe_dump({
+            'profile': 'repository-policy', 'orb_version': VERSION, 'default_branch': 'main'}),
+            '.circleci/config.yml': audit.generator.yaml.safe_dump(
+                audit.standard.canonical_caller('repository-policy', VERSION)),
+            'templates.yaml': 'version: 1.0'}
+        policy = {'managed_branches': ['main'], 'required_checks': {'main': ['setup', 'verify']}}
+        snapshot = Snapshot(files, ['setup', 'verify'])
+        snapshot.branch = 'main'
+        report = audit.audit(entry, snapshot, VERSION, SHA, policy)
+        self.assertEqual('repository-policy', report['profile'])
+        self.assertEqual([], report['findings'])
+        self.assertEqual('pass', report['status'])
+        files.pop('.circleci/config.yml')
+        report = audit.audit(entry, snapshot, VERSION, SHA, policy)
+        self.assertIn('missing_canonical_caller', [f['code'] for f in report['findings']])
 
     def test_intellij_is_native_product_not_no_ci_exception(self):
         repository = 'QRun-IO/qqq-app-developer-intellij-plugin'
@@ -340,7 +359,7 @@ class AuditTests(unittest.TestCase):
         self.assertIn('missing_native_maintenance_bridge', [f['code'] for f in report['findings']])
 
     def test_approved_no_ci_is_exact_allowlist_with_evidence_not_check_pass(self):
-        self.assertEqual(7, len(audit.NO_CI))
+        self.assertEqual(6, len(audit.NO_CI))
         self.assertNotIn("QRun-IO/voyage-cd", audit.NO_CI)
         for repository, policy in audit.NO_CI.items():
             entry = dict(ENTRY, name=repository.split('/')[-1], nameWithOwner=repository)
