@@ -18,6 +18,35 @@ def runs():
 
 
 class EnforcementTests(unittest.TestCase):
+    def test_profile_gates_match_shared_branch_workflows(self):
+        spec = importlib.util.spec_from_file_location('pipeline',
+            Path(__file__).resolve().parents[1] / 'src/scripts/generate_pipeline.py')
+        pipeline = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(pipeline)
+        for profile in ('all', 'cli', 'android', 'app-starter', 'mcp-policy'):
+            desired = enforcement.gates(profile)
+            for branch in ('main', 'develop', 'feature/change'):
+                config = {'orb_version': '0.8', 'publish': {'snapshot': False, 'release': False}}
+                output = pipeline.PROFILE_TEMPLATES[profile](config, branch, '')
+                self.assertEqual([desired[1]['context']], list(output['workflows']))
+            successful = [{'id': i, 'name': gate['context'], 'app': {'id': 18001},
+                           'conclusion': 'success'} for i, gate in enumerate(desired)]
+            before = {'required_status_checks': {'checks': [
+                *desired, {'context': 'scanner', 'app_id': 15368}]}}
+            checks = enforcement.required_checks(before, successful, desired)['checks']
+            self.assertTrue(enforcement.same_checks(before['required_status_checks']['checks'], checks))
+            self.assertNotIn({'context': 'verify', 'app_id': 18001}, checks)
+            for bad in (successful[:1], [*successful, dict(successful[1], id=99, conclusion='failure')],
+                        [dict(run, app={'id': 999}) for run in successful]):
+                with self.subTest(profile=profile), self.assertRaises(ValueError):
+                    enforcement.required_checks(before, bad, desired)
+            record, effective = self.ruleset_fixture()
+            record['rules'][0]['parameters']['required_status_checks'] = [
+                {'context': gate['context'], 'integration_id': gate['app_id']} for gate in desired]
+            enforcement.verified_rulesets('QRun-IO/example', effective, lambda path: record, desired)
+            with self.assertRaises(ValueError):
+                enforcement.verified_rulesets('QRun-IO/example', effective, lambda path: record)
+
     def test_check_comparison_ignores_only_order(self):
         checks = [*enforcement.DESIRED, {'context': 'scanner', 'app_id': 15368}]
         self.assertTrue(enforcement.same_checks(checks, list(reversed(checks))))
