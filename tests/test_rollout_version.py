@@ -21,7 +21,7 @@ class RolloutTests(unittest.TestCase):
         root = self.root / name
         (root / '.circleci').mkdir(parents=True)
         if profile == 'node-artifact':
-            policy = {'context': 'registry', 'npm_scopes': ['@example'],
+            policy = {'context': 'registry', 'npm_scopes': ['@example'], 'node_version': '20.19',
                       'artifact_path': 'dist/bundle.js', 'build_branches': ['main'], **policy}
         manifest = {'profile': profile, 'orb_version': '0.7.4', 'default_branch': 'develop', **policy}
         caller = rollout.standard.canonical_caller(profile, '0.7.4', explicit_manifest=explicit,
