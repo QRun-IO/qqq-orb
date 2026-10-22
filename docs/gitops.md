@@ -39,3 +39,15 @@ hooks, then performs Maven verify on the generated application with all its test
 The renderer and Maven dependencies are cached; test reports and the generated JAR
 are retained. This is acceptance of a generated consumer, not Maven publication.
 Only the standard profile, orb version, and default branch are consumer settings.
+
+The coordinator also recognizes qctl on main/develop and the approved .github,
+business-platform, MCP-RAG and IntelliJ callers on main. It verifies each complete
+workflow inventory, canonical caller, signed immutable orb pin and matching shared
+worker source before recognizing the repository. Native verification gates bind to
+the GitHub Actions app; release-only jobs are not merge requirements. No CircleCI
+caller is added to these native consumers. qctl requires its tests and Linux build;
+full platform release builds retain their existing shared-worker policy.
+
+Existing classic branch protections without a required-status-check section gain
+an additive shared ruleset. Signing, reviews, history and access restrictions remain
+unchanged, and a subsequent reconciliation verifies the effective ruleset.

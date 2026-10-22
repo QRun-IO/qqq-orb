@@ -203,8 +203,21 @@ class EnforcementTests(unittest.TestCase):
             enforcement.verified_rulesets('QRun-IO/example', effective, lambda path: record)
 
     def test_empty_push_allowlist_gains_ruleset_without_changing_access(self):
-        classic = {'restrictions': {'users': [], 'teams': [], 'apps': []},
-                   'enforce_admins': {'enabled': False}, 'required_signatures': {'enabled': True}}
+        self.assert_ruleset_preserves_classic({
+            'restrictions': {'users': [], 'teams': [], 'apps': []},
+            'enforce_admins': {'enabled': False}, 'required_signatures': {'enabled': True}})
+
+    def test_existing_protection_without_status_section_gains_ruleset(self):
+        for admin in (False, True):
+            with self.subTest(enforce_admins=admin):
+                self.assert_ruleset_preserves_classic({
+                    'enforce_admins': {'enabled': admin},
+                    'required_signatures': {'enabled': True},
+                    'required_linear_history': {'enabled': True},
+                    'required_pull_request_reviews': {'required_approving_review_count': 2},
+                    'required_conversation_resolution': {'enabled': True}})
+
+    def assert_ruleset_preserves_classic(self, classic):
         state = {'ruleset': None, 'writes': []}
 
         def request(path, method='GET', payload=None):
@@ -241,7 +254,6 @@ class EnforcementTests(unittest.TestCase):
         self.assertEqual(1, len(state['writes']))
         self.assertEqual([], state['writes'][0]['bypass_actors'])
         self.assertEqual({'include': ['refs/heads/main'], 'exclude': []}, state['writes'][0]['conditions']['ref_name'])
-        self.assertFalse(plan['before']['enforce_admins']['enabled'])
         self.assertEqual(classic, plan['before'])
         repeat = enforcement.inspect('QRun-IO/example', 'main', '0.8', request)
         self.assertFalse(repeat['changed'])
