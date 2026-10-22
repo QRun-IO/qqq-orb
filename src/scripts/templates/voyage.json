@@ -241,33 +241,6 @@
         }
       ]
     },
-    "update-cd-repo": {
-      "docker": [
-        {
-          "image": "cimg/python:3.12"
-        }
-      ],
-      "resource_class": "small",
-      "steps": [
-        {
-          "setup_remote_docker": {
-            "version": "default"
-          }
-        },
-        {
-          "run": {
-            "name": "Install manifest parser",
-            "command": "python3 -m pip install --disable-pip-version-check PyYAML==6.0.3"
-          }
-        },
-        {
-          "run": {
-            "name": "Update CD repo with new image digest",
-            "command": "set -euo pipefail\necho \"${GHCR_TOKEN}\" | docker login ghcr.io -u \"${GHCR_USERNAME}\" --password-stdin\n\nIMAGE_DIGEST=$(docker manifest inspect ghcr.io/qrun-io/voyage:${CIRCLE_SHA1:0:7} --verbose 2>/dev/null | jq -r '.Descriptor.digest // empty' || true)\n\nif [ -z \"${IMAGE_DIGEST}\" ]; then\n  docker pull ghcr.io/qrun-io/voyage:${CIRCLE_SHA1:0:7}\n  IMAGE_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/qrun-io/voyage:${CIRCLE_SHA1:0:7} | cut -d@ -f2)\nfi\n\necho \"Image digest: ${IMAGE_DIGEST}\"\n\nif [ -z \"${IMAGE_DIGEST}\" ]; then\n  echo \"ERROR: Could not determine image digest\"\n  exit 1\nfi\n\n# Keep credentials out of the clone URL and persisted Git configuration.\nGIT_ASKPASS=$(mktemp)\nexport GIT_ASKPASS GIT_TERMINAL_PROMPT=0\ntrap 'rm -f \"$GIT_ASKPASS\"' EXIT\nprintf '%s\\n' '#!/bin/sh' 'case \"$1\" in' '  *Username*) printf '\"'\"'%s\\n'\"'\"' '\"'\"'x-access-token'\"'\"' ;;' '  *Password*) printf '\"'\"'%s\\n'\"'\"' \"$GITHUB_TOKEN\" ;;' '  *) exit 1 ;;' esac > \"$GIT_ASKPASS\"\nchmod 700 \"$GIT_ASKPASS\"\ngit clone --branch main https://github.com/QRun-IO/voyage-cd.git\ncd voyage-cd\n\npython3 -c 'import re, sys\nfrom pathlib import Path\nimport yaml\ndigest = sys.argv[1]\nif not re.fullmatch(r\"sha256:[0-9a-f]{64}\", digest):\n    raise SystemExit(\"Invalid image digest\")\npath = Path(\"overlays/production/kustomization.yaml\")\ndata = yaml.safe_load(path.read_text())\nimages = [image for image in data.get(\"images\", []) if image.get(\"name\") == \"ghcr.io/qrun-io/voyage\"]\nif len(images) != 1:\n    raise SystemExit(\"Expected exactly one Voyage image in production overlay\")\nimages[0].pop(\"newTag\", None)\nimages[0][\"digest\"] = digest\npath.write_text(yaml.safe_dump(data, sort_keys=False))\n' \"$IMAGE_DIGEST\"\n\nif git diff --quiet overlays/production/kustomization.yaml; then\n  echo \"No changes to commit - digest already up to date\"\n  exit 0\nfi\n\ngit config user.name \"CircleCI\"\ngit config user.email \"ci@qrun.io\"\ngit add overlays/production/kustomization.yaml\ngit commit -m \"chore(production): update voyage image to ${CIRCLE_SHA1:0:7}\"\ngit push origin main\n\necho \"Successfully updated CD repo with new image digest\"\n"
-          }
-        }
-      ]
-    },
     "release-please": {
       "docker": [
         {
@@ -548,10 +521,9 @@
           }
         },
         {
-          "update-cd-repo": {
+          "munitor/update_cd_repo": {
             "context": [
-              "github",
-              "ghcr"
+              "github"
             ],
             "requires": [
               "docker-build"
@@ -560,7 +532,21 @@
               "branches": {
                 "only": "main"
               }
-            }
+            },
+            "name": "update-cd-repo",
+            "cd_repo": "KofTwentyTwo/cluster-gitops",
+            "environment": "prod",
+            "cd_format": "kustomize",
+            "cd_image_name": "ghcr.io/qrun-io/voyage",
+            "cd_path": "tenants/voyage/kustomization.yaml",
+            "pre-steps": [
+              {
+                "run": {
+                  "name": "Use the image published for this commit",
+                  "command": "set -euo pipefail\n[[ \"$CIRCLE_SHA1\" =~ ^[0-9a-f]{40}$ ]]\nprintf \"export PROJECT_VERSION='%s'\\n\" \"${CIRCLE_SHA1:0:7}\" >> \"$BASH_ENV\"\n"
+                }
+              }
+            ]
           }
         },
         {
@@ -582,6 +568,7 @@
     }
   },
   "orbs": {
-    "qqq-orb": "kingsrook/qqq-orb@__ORB_VERSION__"
+    "qqq-orb": "kingsrook/qqq-orb@__ORB_VERSION__",
+    "munitor": "kof22/munitor@0.3.11"
   }
 }
