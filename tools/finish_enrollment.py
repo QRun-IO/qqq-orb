@@ -6,7 +6,7 @@ import reconcile_enrollment as remote
 
 
 def qualification(repo, head, profile='qbit'):
-    """Require both app-bound orb gates and every advertised latest check/status."""
+    """Require profile-specific app-bound gates and every advertised latest check/status."""
     checks, page = [], 1
     while True:
         batch = remote.api(f'repos/{repo}/commits/{head}/check-runs?filter=latest&per_page=100&page={page}')['check_runs']
@@ -17,7 +17,7 @@ def qualification(repo, head, profile='qbit'):
     reasons = []
     for gate in enforcement.gates(profile):
         name = gate['context']
-        found = [check for check in checks if check['name'] == name and check['app']['id'] == 18001]
+        found = [check for check in checks if check['name'] == name and check['app']['id'] == gate['app_id']]
         if not found or max(found, key=lambda check: check['id'])['conclusion'] != 'success':
             reasons.append(name)
     for check in checks:
@@ -50,6 +50,8 @@ def merge_ready(plan, result):
     if pr['state'] != 'MERGED':
         if pr['baseRefOid'] != plan['head'] or remote.api(f'repos/{repo}/branches/{plan["branch"]}')['commit']['sha'] != plan['head']:
             return {'state': 'stale-base', 'url': result['url']}
+        if plan['profile'] == 'frontend-next':
+            enforcement.native.validate(repo, head, plan['branch'], remote.api, enforcement.standard.load_yaml)
         pending = qualification(repo, head, plan['profile'])
         if pending:
             return {'state': 'waiting-checks', 'checks': pending, 'url': result['url']}
