@@ -63,6 +63,4 @@ unnecessary rebuilds. Reports identify protection_mode=rulesets and the observed
 strict value. Unsupported organization-level rulesets, bypass actors and missing
 gates remain unresolved rather than being rewritten or ignored.
 
-For classic protection, an empty push allowlist with admin enforcement disabled
-requires an explicit access-policy resolution before enabling admin enforcement.
-The tool rejects that case before any writes to avoid locking every actor out.
+For classic protection with an empty push allowlist and admin enforcement disabled, the tool leaves the entire classic policy unchanged. After current-head gates pass, it creates a narrowly scoped active repository ruleset requiring app-bound setup and verify with no bypass actors. This enforces CI even for administrators without changing their existing branch access or locking all actors out. The ruleset retains the fleet freshness policy (strict=false); it does not weaken any existing classic policy. A same-named ruleset causes rejection rather than overwrite or duplication. Readback verifies the effective gates and unchanged classic protection; subsequent runs recognize the existing ruleset without writes.

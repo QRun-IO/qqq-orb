@@ -102,10 +102,9 @@ def inspect(repo, branch, version, request=api):
     rulesets, ruleset_strict = verified_rulesets(repo, rules, request) if rules else ([], False)
     before = request(prefix + '/protection')
     restrictions = (before or {}).get('restrictions')
-    if (not rulesets and restrictions is not None
+    use_ruleset = (not rulesets and restrictions is not None
             and not any(restrictions.get(kind) for kind in ('users', 'teams', 'apps'))
-            and not (before or {}).get('enforce_admins', {}).get('enabled')):
-        raise ValueError('Empty push allowlist needs explicit access policy before enforcing admins')
+            and not (before or {}).get('enforce_admins', {}).get('enabled'))
     runs = []
     page = 1
     while True:
@@ -115,6 +114,10 @@ def inspect(repo, branch, version, request=api):
             break
         page += 1
     desired = required_checks(before, runs)
+    if use_ruleset:
+        return {'repository': repo, 'branch': branch, 'head': head, 'before': before,
+                'required_status_checks': {'strict': False, 'checks': DESIRED},
+                'changed': True, 'protection_mode': 'create-ruleset'}
     if rulesets:
         desired['strict'] = ruleset_strict or bool(((before or {}).get('required_status_checks') or {}).get('strict'))
         return {'repository': repo, 'branch': branch, 'head': head, 'before': before,
@@ -140,6 +143,28 @@ def enforce(plan, request=api):
         return
     if rules:
         raise ValueError('Ruleset changed after preflight')
+    if plan.get('protection_mode') == 'create-ruleset':
+        name = 'QQQ automated verification: ' + plan['branch']
+        page = 1
+        while True:
+            existing = request(root + '/rulesets?per_page=100&page=' + str(page))
+            if any(record['name'] == name for record in existing):
+                raise ValueError('Named ruleset already exists; reconcile its scope explicitly')
+            if len(existing) < 100:
+                break
+            page += 1
+        request(root + '/rulesets', 'POST', {
+            'name': name, 'target': 'branch', 'enforcement': 'active', 'bypass_actors': [],
+            'conditions': {'ref_name': {'include': ['refs/heads/' + plan['branch']], 'exclude': []}},
+            'rules': [{'type': 'required_status_checks', 'parameters': {
+                'strict_required_status_checks_policy': False, 'do_not_enforce_on_create': False,
+                'required_status_checks': [{'context': gate['context'], 'integration_id': gate['app_id']}
+                                           for gate in DESIRED]}}]})
+        effective = request(root + '/rules/branches/' + plan['branch'])
+        verified_rulesets(plan['repository'], effective, request)
+        if request(prefix + '/protection') != plan['before']:
+            raise ValueError('Classic access policy changed during ruleset creation')
+        return
     if not plan['changed']:
         return
     before = plan['before']

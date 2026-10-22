@@ -150,13 +150,31 @@ class EnforcementTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             enforcement.verified_rulesets('QRun-IO/example', effective, lambda path: record)
 
-    def test_empty_push_allowlist_does_not_gain_admin_enforcement(self):
+    def test_empty_push_allowlist_gains_ruleset_without_changing_access(self):
+        classic = {'restrictions': {'users': [], 'teams': [], 'apps': []},
+                   'enforce_admins': {'enabled': False}, 'required_signatures': {'enabled': True}}
+        state = {'ruleset': None, 'writes': []}
+
         def request(path, method='GET', payload=None):
-            self.assertEqual('GET', method)
-            if '/rules/branches/' in path:
+            if method != 'GET':
+                self.assertEqual(('POST', 'repos/QRun-IO/example/rulesets'), (method, path))
+                state['writes'].append(copy.deepcopy(payload))
+                state['ruleset'] = {**copy.deepcopy(payload), 'id': 123,
+                                    'source_type': 'Repository', 'source': 'QRun-IO/example'}
+                return state['ruleset']
+            if '/rulesets?' in path:
                 return []
+            if path.endswith('/rulesets/123'):
+                return copy.deepcopy(state['ruleset'])
+            if '/rules/branches/' in path:
+                if state['ruleset'] is None:
+                    return []
+                return [{**state['ruleset']['rules'][0], 'ruleset_source_type': 'Repository',
+                         'ruleset_source': 'QRun-IO/example', 'ruleset_id': 123}]
             if path.endswith('/protection'):
-                return {'restrictions': {'users': [], 'teams': [], 'apps': []}, 'enforce_admins': {'enabled': False}}
+                return copy.deepcopy(classic)
+            if '/check-runs?' in path:
+                return {'check_runs': runs()}
             if '/contents/' in path:
                 data = ({'profile': 'core', 'orb_version': '0.8', 'default_branch': 'develop'}
                         if '/.qqq-ci.yml?' in path else enforcement.standard.canonical_caller('core', '0.8'))
@@ -165,8 +183,32 @@ class EnforcementTests(unittest.TestCase):
                 return {'commit': {'sha': 'a' * 40}}
             return {'archived': False}
 
-        with self.assertRaisesRegex(ValueError, 'Empty push allowlist'):
-            enforcement.inspect('QRun-IO/example', 'main', '0.8', request)
+        plan = enforcement.inspect('QRun-IO/example', 'main', '0.8', request)
+        self.assertEqual('create-ruleset', plan['protection_mode'])
+        enforcement.enforce(plan, request)
+        self.assertEqual(1, len(state['writes']))
+        self.assertEqual([], state['writes'][0]['bypass_actors'])
+        self.assertEqual({'include': ['refs/heads/main'], 'exclude': []}, state['writes'][0]['conditions']['ref_name'])
+        self.assertFalse(plan['before']['enforce_admins']['enabled'])
+        self.assertEqual(classic, plan['before'])
+        repeat = enforcement.inspect('QRun-IO/example', 'main', '0.8', request)
+        self.assertFalse(repeat['changed'])
+        enforcement.enforce(repeat, request)
+        self.assertEqual(1, len(state['writes']))
+
+    def test_existing_named_ruleset_is_not_overwritten_or_duplicated(self):
+        before = {'restrictions': {'users': [], 'teams': [], 'apps': []}, 'enforce_admins': {'enabled': False}}
+        plan, base_request, state = self.fixture(before)
+        plan['protection_mode'] = 'create-ruleset'
+
+        def request(path, method='GET', payload=None):
+            if '/rulesets?' in path:
+                return [{'name': 'QQQ automated verification: develop'}]
+            return base_request(path, method, payload)
+
+        with self.assertRaisesRegex(ValueError, 'already exists'):
+            enforcement.enforce(plan, request)
+        self.assertEqual([], state['writes'])
 
 
 if __name__ == '__main__':
