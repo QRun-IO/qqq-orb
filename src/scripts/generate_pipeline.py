@@ -107,6 +107,8 @@ def load_manifest(path, setup_version):
     if not isinstance(node, str) or not re.fullmatch(r"\d+(?:\.\d+){0,2}", node):
         raise ManifestError("node_version must be an explicit numeric version string")
     if profile == "node-artifact":
+        if "node_version" not in data or not re.fullmatch(r"\d+\.\d+(?:\.\d+)?", node):
+            raise ManifestError("Node artifact requires an explicit minor or patch image version")
         context = data.get("context", "")
         scopes = data.get("npm_scopes", [])
         artifact = data.get("artifact_path")
@@ -425,9 +427,18 @@ def cli_template(config, branch, tag):
 
 
 def marketing_template(config, branch, tag):
-    del config, branch, tag
-    # One final continuation; Munitor supplies jobs, never another setup pipeline.
-    return copy.deepcopy(MARKETING_TEMPLATE)
+    del config
+    # Select the existing branch policy once; automation PRs use normal PR checks.
+    selected = {"main": "production", "develop": "develop", "staging": "staging"}.get(
+        branch, "release-candidate" if branch.startswith("release/") else "pr-checks")
+    result = copy.deepcopy(MARKETING_TEMPLATE)
+    workflow = result["workflows"][selected]
+    for job in workflow["jobs"]:
+        next(iter(job.values()))["filters"] = {
+            "branches": {"ignore": "/.*/" if tag else "automation/qbit-rc-pending"},
+            "tags": {"ignore": "/.*/"}}
+    result["workflows"] = {"verify": workflow}
+    return result
 
 
 def android_template(config, branch, tag):

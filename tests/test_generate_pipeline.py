@@ -46,12 +46,18 @@ class MarketingContractTests(unittest.TestCase):
                     build["test_commands"] = json.dumps([
                         "npm run lint", "npm run build",
                         *json.loads(build["test_commands"])])
-        for branch in ("feature/example", "main", "develop", "staging", "release/1"):
+        for branch, selected in (("feature/example", "pr-checks"), ("main", "production"),
+                                 ("develop", "develop"), ("staging", "staging"),
+                                 ("release/1", "release-candidate"), ("automation/enroll", "pr-checks")):
             result = pipeline.marketing_template({}, branch, "")
-            self.assertEqual(result, baseline)
+            expected = copy.deepcopy(baseline)
+            workflow = expected["workflows"][selected]
+            for job in workflow["jobs"]:
+                next(iter(job.values()))["filters"] = {"branches": {"ignore": "automation/qbit-rc-pending"}, "tags": {"ignore": "/.*/"}}
+            expected["workflows"] = {"verify": workflow}
+            self.assertEqual(result, expected)
             self.assertNotIn("setup", result)
             self.assertEqual(result["orbs"], {"munitor": "kof22/munitor@0.3.11"})
-            self.assertEqual(sum(len(w["jobs"]) for w in result["workflows"].values()), 29)
             self.assertNotIn("generate_pipeline", json.dumps(result))
 
     def test_no_fabricated_coverage_or_dangling_dependency(self):
@@ -64,8 +70,9 @@ class MarketingContractTests(unittest.TestCase):
                 self.assertTrue(set(next(iter(job.values())).get("requires", [])) <= names)
 
     def test_production_deployment_and_actual_test_contracts(self):
-        result = pipeline.marketing_template({}, "main", "")
-        for name, workflow in result["workflows"].items():
+        for branch in ("main", "develop", "staging", "release/1", "automation/enroll"):
+            result = pipeline.marketing_template({}, branch, "")
+            workflow = result["workflows"]["verify"]
             jobs = {next(iter(entry)): next(iter(entry.values())) for entry in workflow["jobs"]}
             build = jobs["munitor/node_build_and_test"]
             self.assertEqual(build["node_version"], "22")
@@ -73,11 +80,11 @@ class MarketingContractTests(unittest.TestCase):
                 "npm run lint", "npm run build",
                 "npx playwright install chromium --with-deps",
                 "npm run test:chromium", "npm run lighthouse"])
-            if name == "production":
+            if branch == "main":
                 cd = jobs["munitor/update_cd_repo"]
                 self.assertEqual(cd["cd_repo"], "KofTwentyTwo/cluster-gitops")
                 self.assertEqual(cd["cd_path"], "tenants/qrun/website/kustomization.yaml")
-                self.assertEqual(cd["filters"], {"branches": {"only": "main"}})
+                self.assertEqual(cd["filters"]["tags"], {"ignore": "/.*/"})
                 self.assertEqual(cd["requires"], ["docker-build-push"])
                 self.assertEqual(jobs["munitor/github_release"]["requires"], ["docker-build-push"])
                 self.assertEqual(jobs["munitor/docker_build_push"]["health_path"], "/")
@@ -85,7 +92,7 @@ class MarketingContractTests(unittest.TestCase):
             else:
                 self.assertNotIn("munitor/update_cd_repo", jobs)
         result["workflows"].clear()
-        self.assertEqual(len(pipeline.marketing_template({}, "main", "")["workflows"]), 5)
+        self.assertEqual(list(pipeline.marketing_template({}, "main", "")["workflows"]), ["verify"])
 
     def test_marketing_manifest_rejects_custom_policy_and_wrong_branch(self):
         data = {"profile": "marketing", "orb_version": "0.7.0", "default_branch": "main"}
@@ -206,10 +213,26 @@ class PipelineTests(unittest.TestCase):
         self.assertNotIn("Traceback", result.stderr)
         return result
 
+    def test_marketing_branch_dispatch_source_and_packed(self):
+        self.write_manifest(profile="marketing", default_branch="main")
+        for packed in ([False, True] if PACKED else [False]):
+            for branch in ("main", "develop", "staging", "release/1", "feature/change", "automation/enroll"):
+                output = self.render(packed=packed, CIRCLE_BRANCH=branch)
+                self.assertEqual(["verify"], list(output["workflows"]))
+                jobs = output["workflows"]["verify"]["jobs"]
+                names = [next(iter(job)) for job in jobs]
+                self.assertEqual(branch == "main", "munitor/update_cd_repo" in names)
+                self.assertEqual(branch in ("main", "release/1"), "munitor/github_release" in names)
+                self.assertEqual(branch in ("main", "develop", "staging", "release/1"), "munitor/docker_build_push" in names)
+                self.assertIn("munitor/node_build_and_test", names)
+            output = self.render(packed=packed, CIRCLE_BRANCH="main", CIRCLE_TAG="v1.0.0")
+            for job in output["workflows"]["verify"]["jobs"]:
+                self.assertEqual({"branches": {"ignore": "/.*/"}, "tags": {"ignore": "/.*/"}}, next(iter(job.values()))["filters"])
+
     def test_node_artifact_reuses_install_and_preserves_branch_artifact_policy(self):
         self.write_manifest(profile="node-artifact", context="qqq-maven-registry-credentials",
                             npm_scopes=["@nocode-js", "@qrunio"], artifact_path="dist/q-sequential-workflow.bundle.js",
-                            build_branches=["main", "feature/initial-dev"], node_version="20")
+                            build_branches=["main", "feature/initial-dev"], node_version="20.19")
         for packed in ([False, True] if PACKED else [False]):
             for branch in ("main", "develop", "feature/initial-dev", "feature/change"):
                 output = self.render(packed=packed, CIRCLE_BRANCH=branch)
@@ -227,8 +250,21 @@ class PipelineTests(unittest.TestCase):
                 self.assertIn("${NPM_TOKEN}", commands[0])
                 self.assertEqual({"ignore": "/.*/"}, output["workflows"]["verify"]["jobs"][0]["node_artifact"]["filters"]["tags"])
 
-    def test_node_artifact_rejects_commands_paths_and_branch_regex(self):
+    def test_node_artifact_requires_explicit_minor_or_patch_image(self):
         baseline = {"profile": "node-artifact", "context": "registry", "npm_scopes": [],
+                    "artifact_path": "dist/bundle.js", "build_branches": ["main"]}
+        for packed in ([False, True] if PACKED else [False]):
+            for version in (None, "20", "22"):
+                self.write_manifest(**baseline, **({"node_version": version} if version else {}))
+                result = self.render(packed=packed, ok=False)
+                self.assertIn("explicit minor or patch", result.stderr)
+            for version in ("20.19", "20.19.0"):
+                self.write_manifest(**baseline, node_version=version)
+                result = self.render(packed=packed)
+                self.assertEqual("cimg/node:" + version, result["jobs"]["node_artifact"]["docker"][0]["image"])
+
+    def test_node_artifact_rejects_commands_paths_and_branch_regex(self):
+        baseline = {"profile": "node-artifact", "context": "registry", "npm_scopes": [], "node_version": "20.19",
                     "artifact_path": "dist/bundle.js", "build_branches": ["main"]}
         for invalid in ({"artifact_path": "dist/../secret"}, {"artifact_path": "/etc/passwd"},
                         {"build_branches": ["/.*/"]}, {"npm_scopes": ["@scope;echo bad"]},
@@ -664,7 +700,7 @@ class PipelineTests(unittest.TestCase):
     def test_marketing_source_and_packed_parity(self):
         self.write_manifest(profile="marketing", default_branch="main")
         result = self.render(CIRCLE_BRANCH="main")
-        self.assertEqual(result, pipeline.MARKETING_TEMPLATE)
+        self.assertEqual(result, pipeline.marketing_template({}, "main", ""))
         if PACKED:
             self.assertEqual(result, self.render(packed=True, CIRCLE_BRANCH="main"))
 
