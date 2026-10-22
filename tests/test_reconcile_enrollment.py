@@ -118,41 +118,67 @@ class ReconcileTests(unittest.TestCase):
         self.assertEqual('submitted', result['state'])
         self.assertEqual([['gh', 'pr', 'create']], seen)
 
-    def test_new_submission_requires_signed_commit_and_never_force_pushes(self):
+    def test_new_api_submission_is_atomic_and_exact(self):
         plan = self.plan()
-        committed = False
-        seen = []
+        mutations = []
 
         def request(path, missing=False):
             if '/git/ref/' in path:
                 return None
-            if '/pulls?' in path:
-                return []
             return self.submission_api(plan, path, missing)
 
-        def command(args, cwd=None):
-            nonlocal committed
-            seen.append(args)
-            if args[:2] == ['git', 'clone']:
-                root = Path(args[-1])
-                (root / '.circleci').mkdir(parents=True)
-                for name, data in self.sources.items():
-                    (root / name).write_bytes(data)
-            elif args[:2] == ['git', 'rev-parse']:
-                return self.new if committed else self.head
-            elif args[:2] == ['git', 'commit']:
-                self.assertIn('-S', args)
-                for name in remote.PATHS:
-                    self.assertEqual(plan['replacements'][name], (cwd / name).read_bytes())
-                committed = True
-            elif args[:3] == ['gh', 'pr', 'create']:
-                return 'https://github.com/QRun-IO/example/pull/3'
-            return ''
+        def mutate(path, payload):
+            mutations.append((path, payload))
+            return {'data': {'createCommitOnBranch': {'commit': {'oid': self.new}}}}
 
-        with mock.patch.object(remote, 'api', side_effect=request), mock.patch.object(remote, 'command', side_effect=command):
-            self.assertEqual('submitted', remote.apply(plan)['state'])
-        pushes = [args for args in seen if args[:2] == ['git', 'push']]
-        self.assertEqual([['git', 'push', 'origin', 'HEAD:refs/heads/' + plan['automation_branch']]], pushes)
+        with mock.patch.object(remote, 'api', side_effect=request), mock.patch.object(remote, 'mutation', side_effect=mutate), mock.patch.object(remote, 'command') as command:
+            self.assertEqual('existing-pr', remote.apply(plan)['state'])
+        command.assert_not_called()
+        self.assertEqual(('repos/' + self.repo + '/git/refs', {'ref': 'refs/heads/' + plan['automation_branch'], 'sha': self.head}), mutations[0])
+        commit = mutations[1][1]['variables']['input']
+        self.assertEqual(self.head, commit['expectedHeadOid'])
+        self.assertEqual({'repositoryNameWithOwner': self.repo, 'branchName': plan['automation_branch']}, commit['branch'])
+        self.assertEqual(plan['replacements'], {item['path']: base64.b64decode(item['contents']) for item in commit['fileChanges']['additions']})
+
+    def test_base_only_branch_resumes_without_creating_another_ref(self):
+        plan = self.plan()
+        result = {'data': {'createCommitOnBranch': {'commit': {'oid': self.new}}}}
+        with mock.patch.object(remote, 'api', return_value={'commit': {'sha': self.head}}), mock.patch.object(remote, 'mutation', return_value=result) as mutation:
+            self.assertEqual(self.new, remote.signed_api_commit(plan, {'object': {'sha': self.head}}))
+        self.assertEqual(1, mutation.call_count)
+        self.assertEqual('graphql', mutation.call_args.args[0])
+
+    def test_existing_completed_branch_is_not_mutated(self):
+        with mock.patch.object(remote, 'mutation') as mutation:
+            self.assertEqual(self.new, remote.signed_api_commit(self.plan(), {'object': {'sha': self.new}}))
+        mutation.assert_not_called()
+
+    def test_target_drift_prevents_commit_on_base_only_branch(self):
+        plan = self.plan()
+        with mock.patch.object(remote, 'api', return_value={'commit': {'sha': 'c' * 40}}), mock.patch.object(remote, 'mutation') as mutation:
+            with self.assertRaises(ValueError):
+                remote.signed_api_commit(plan, {'object': {'sha': self.head}})
+        mutation.assert_not_called()
+
+    def test_graphql_errors_fail_closed(self):
+        response = mock.Mock(returncode=0, stdout='{"errors": [{"message": "conflict"}]}')
+        with mock.patch.object(remote.subprocess, 'run', return_value=response):
+            with self.assertRaises(ValueError):
+                remote.mutation('graphql', {})
+
+    def test_unsigned_api_commit_cannot_create_pr(self):
+        plan = self.plan()
+        def request(path, missing=False):
+            if '/git/ref/' in path:
+                return {'object': {'sha': self.head}}
+            value = self.submission_api(plan, path, missing)
+            if '/commits/' in path:
+                value['commit']['verification']['verified'] = False
+            return value
+        with mock.patch.object(remote, 'api', side_effect=request), mock.patch.object(remote, 'mutation', return_value={'data': {'createCommitOnBranch': {'commit': {'oid': self.new}}}}), mock.patch.object(remote, 'command') as command:
+            with self.assertRaises(ValueError):
+                remote.apply(plan)
+        command.assert_not_called()
 
 
 if __name__ == '__main__':
