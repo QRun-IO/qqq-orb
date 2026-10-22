@@ -50,21 +50,30 @@ python tools/reconcile_enrollment.py --targets remote-targets.json --orb-version
 python tools/reconcile_enrollment.py --targets remote-targets.json --orb-version 0.8 --output result.json --apply
 ```
 
-Use existing `gh` authentication, GitHub SSH access, Git author identity and a
-working Git signing configuration. The coordinator never installs credentials
-or changes authentication. Every target is inspected at an immutable head and
-validated before any remote mutation. Only changed targets are cloned. A moved
-target stops submission; refresh the plan instead of overwriting it.
+Use existing `gh` authentication with repository write access. The coordinator
+never installs credentials or changes authentication. Every target is inspected
+at an immutable head and validated before any remote mutation. No repository
+clone, SSH key or local signing key is required. A moved target stops submission;
+refresh the plan instead of overwriting it.
 
 An automation branch derives from the source commit and proposed declarations.
-The coordinator signs its commit, pushes without force, verifies the remote
-signature, parent, exact changed paths and declaration bytes, then opens a PR.
-An interrupted push or PR creation can be resumed with the same invocation:
+The coordinator creates the branch at the observed base and uses GitHub's
+`createCommitOnBranch` API with `expectedHeadOid` for an atomic append. GitHub
+signs the commit when supported by the authenticated identity; the coordinator
+requires remote signature verification, exact parent, changed paths and
+declaration bytes before opening a PR. It never force-updates a branch.
+An interrupted branch creation, commit or PR creation can be resumed:
+an existing branch still at the planned base receives the missing commit;
 matching signed branches and PRs are reused. A mismatched branch is rejected.
 Closed existing PRs are reported as existing; they are not silently reopened.
 Reports include repository, branch, immutable head and submission URL, without
 embedding declaration contents or credentials. Keep the report if a later target
 fails; earlier valid submissions remain intact.
+
+API permission, signature or commit-conflict failures stop the run. A timeout
+can occur after GitHub accepted a mutation, so inspect remote state or repeat
+the same invocation; do not create a different automation branch to retry.
+See [GitHub commit API documentation](https://docs.github.com/en/graphql/reference/commits#createcommitonbranch).
 
 This handles remote target lists and signed submissions. Organization discovery is described below. Qualification-aware merging and classic branch enforcement are described below; scheduling and ruleset reconciliation remain separate work. A submitted PR is not a completed migration. Unknown profiles and
 native workflows require their own central conversion, not deletion by this tool.
@@ -117,3 +126,27 @@ Existing active repository rulesets with app-bound gates and no bypass actors ar
 A merged source update and an enforced branch are separate reported outcomes.
 Neither proves artifact publication or deployment. Scheduling and ruleset
 reconciliation remain outstanding.
+
+## Central hosted pass
+
+The orb owner's CircleCI config accepts `run_enrollment_reconcile: true` on
+`main`. This selects one small Python container instead of the normal orb
+build/publication workflow. It uses the existing
+`qqq-maven-registry-credentials` context's GitHub token through `gh`.
+No consumer-specific runner configuration or local signing key is needed.
+
+`tools/run_enrollment.py` verifies the owner repository and main branch, runs
+organization discovery, signed enrollment, qualified merging and enforcement,
+then exits. The pass has a 20-minute execution limit. Pending checks are reported
+for the next pass rather than polled while a paid executor waits. Incremental
+results and execution status are retained under `artifacts/enrollment`, including
+when execution fails or times out. A completed pass does not mean every repository
+conforms: unresolved and waiting entries remain explicit follow-up work.
+
+Create a single daily CircleCI schedule for the owner project only after a manual
+main-branch pass verifies its hosted credentials and results. Set `branch: main`
+and `run_enrollment_reconcile: true` in the schedule parameters. Scheduling is
+an external project setting; merging this config does not itself enable a schedule.
+Keep the existing RC-finalization parameter false for these runs. A timed-out
+GitHub request may already have succeeded remotely; the next pass resumes from
+the deterministic branch and verified source rather than forcing updates.

@@ -18,6 +18,13 @@ def runs():
 
 
 class EnforcementTests(unittest.TestCase):
+    def test_check_comparison_ignores_only_order(self):
+        checks = [*enforcement.DESIRED, {'context': 'scanner', 'app_id': 15368}]
+        self.assertTrue(enforcement.same_checks(checks, list(reversed(checks))))
+        self.assertFalse(enforcement.same_checks(checks, checks[:-1]))
+        self.assertFalse(enforcement.same_checks(checks, checks + checks[:1]))
+        self.assertFalse(enforcement.same_checks(checks, [*enforcement.DESIRED, {'context': 'scanner', 'app_id': 999}]))
+
     def test_preserves_security_gate_and_binds_orb_checks(self):
         before = {'required_status_checks': {'strict': False, 'contexts': ['security', 'setup'],
                   'checks': [{'context': 'security', 'app_id': 15368}, {'context': 'setup', 'app_id': -1}]}}
@@ -81,6 +88,22 @@ class EnforcementTests(unittest.TestCase):
         state['writes'] = []
         enforcement.enforce(plan, request)
         self.assertEqual([], state['writes'])
+
+    def test_github_may_reorder_required_checks_on_readback(self):
+        before = {'required_status_checks': {'strict': True, 'checks': [
+            *enforcement.DESIRED, {'context': 'scanner', 'app_id': 15368}]},
+            'enforce_admins': {'enabled': False}, 'required_signatures': {'enabled': True}}
+        plan, request, state = self.fixture(before)
+
+        def reordered(path, method='GET', payload=None):
+            value = request(path, method, payload)
+            if method == 'PATCH':
+                state['before']['required_status_checks']['checks'].reverse()
+            return value
+
+        enforcement.enforce(plan, reordered)
+        self.assertTrue(state['before']['enforce_admins']['enabled'])
+        self.assertEqual(before['required_signatures'], state['before']['required_signatures'])
 
     def test_head_or_protection_drift_never_mutates(self):
         for field, value in [('head', 'b' * 40), ('before', {'unexpected': True})]:
