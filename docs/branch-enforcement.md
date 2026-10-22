@@ -22,7 +22,7 @@ python tools/enforce_orb_checks.py --targets targets.json --orb-version 0.8 --ou
 
 Every branch must already contain the exact canonical caller for its manifest and
 have successful `setup` and `verify` checks from CircleCI app 18001 at its current
-commit. Supported profiles are QBit, Core, frontend-core and frontend-material.
+commit. Supported profiles are QBit, Core, frontend-core, frontend-material and repository-policy.
 The complete batch is inspected before any mutation. Source/head/protection drift,
 unavailable APIs, unknown profiles, and ruleset-managed branches fail closed.
 

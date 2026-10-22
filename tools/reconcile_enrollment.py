@@ -152,8 +152,12 @@ def main():
     source.add_argument('--organization')
     parser.add_argument('--orb-version', required=True)
     parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--merge-ready', action='store_true')
+    parser.add_argument('--enforce', action='store_true')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
+    if (args.merge_ready or args.enforce) and not args.apply:
+        parser.error('--merge-ready and --enforce require --apply')
     if not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', args.orb_version):
         raise ValueError('A stable minor track or exact patch is required')
     findings = []
@@ -174,6 +178,14 @@ def main():
         for plan, row in zip(plans, rows):
             row['result'] = apply(plan)
             args.output.write_text(json.dumps(report, indent=2), encoding='utf-8')
+            if args.merge_ready or args.enforce:
+                import finish_enrollment
+                if args.merge_ready:
+                    row['qualification'] = finish_enrollment.merge_ready(plan, row['result'])
+                    args.output.write_text(json.dumps(report, indent=2), encoding='utf-8')
+                if args.enforce:
+                    row['enforcement'] = finish_enrollment.enforce_current(plan)
+                    args.output.write_text(json.dumps(report, indent=2), encoding='utf-8')
     print(json.dumps({'targets': len(plans), 'changed': sum(p['changed'] for p in plans),
                       'unresolved': sum(row['state'] == 'unresolved' for row in findings),
                       'applied': args.apply}))
