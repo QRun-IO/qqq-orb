@@ -27,8 +27,15 @@ _gitops_spec = importlib.util.spec_from_file_location('native_gitops_gates', ROO
 gitops = importlib.util.module_from_spec(_gitops_spec)
 _gitops_spec.loader.exec_module(gitops)
 
+_specialist_spec = importlib.util.spec_from_file_location('native_specialist_gates', ROOT / 'tools/native_specialist_gates.py')
+specialists = importlib.util.module_from_spec(_specialist_spec)
+_specialist_spec.loader.exec_module(specialists)
+PROFILES |= specialists.PROFILES
+
 
 def gates(profile):
+    if profile in specialists.PROFILES:
+        return specialists.gates(profile)
     if profile == 'native-gitops':
         return gitops.gates()
     if profile == 'frontend-next':
@@ -115,7 +122,9 @@ def inspect(repo, branch, version, request=api):
         raise ValueError('Archived repository')
     prefix = root + '/branches/' + branch
     head = request(prefix)['commit']['sha']
-    if repo in gitops.REPOSITORIES:
+    if repo in specialists.DEFINITIONS:
+        profile, _ = specialists.validate(repo, head, branch, request)
+    elif repo in gitops.REPOSITORIES:
         gitops.validate(repo, head, branch, request, standard.load_yaml)
         profile = 'native-gitops'
     else:
@@ -138,9 +147,13 @@ def inspect(repo, branch, version, request=api):
     rulesets, ruleset_strict = verified_rulesets(repo, rules, request, desired_gates) if rules else ([], False)
     before = request(prefix + '/protection')
     restrictions = (before or {}).get('restrictions')
-    use_ruleset = (not rulesets and restrictions is not None
+    missing_status_section = before is not None and before.get('required_status_checks') is None
+    empty_push_allowlist = (restrictions is not None
             and not any(restrictions.get(kind) for kind in ('users', 'teams', 'apps'))
             and not (before or {}).get('enforce_admins', {}).get('enabled'))
+    # GitHub cannot PATCH a missing status-check subresource. An additive ruleset
+    # preserves the existing signing, review, history and access policies.
+    use_ruleset = not rulesets and (missing_status_section or empty_push_allowlist)
     runs = []
     page = 1
     while True:
