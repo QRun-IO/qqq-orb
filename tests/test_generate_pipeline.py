@@ -34,6 +34,12 @@ class MarketingContractTests(unittest.TestCase):
         # The original delegated job never builds: require the shared profile
         # to prepare the standalone artifact before browser/Lighthouse checks.
         for workflow in baseline["workflows"].values():
+            # Omit the legacy zero-threshold job that fabricated 100% coverage.
+            workflow["jobs"] = [job for job in workflow["jobs"] if "munitor/node_coverage" not in job]
+            for job in workflow["jobs"]:
+                options = next(iter(job.values()))
+                if "requires" in options:
+                    options["requires"] = [name for name in options["requires"] if name != "coverage"]
             for entry in workflow["jobs"]:
                 if "munitor/node_build_and_test" in entry:
                     build = entry["munitor/node_build_and_test"]
@@ -45,8 +51,17 @@ class MarketingContractTests(unittest.TestCase):
             self.assertEqual(result, baseline)
             self.assertNotIn("setup", result)
             self.assertEqual(result["orbs"], {"munitor": "kof22/munitor@0.3.11"})
-            self.assertEqual(sum(len(w["jobs"]) for w in result["workflows"].values()), 33)
+            self.assertEqual(sum(len(w["jobs"]) for w in result["workflows"].values()), 29)
             self.assertNotIn("generate_pipeline", json.dumps(result))
+
+    def test_no_fabricated_coverage_or_dangling_dependency(self):
+        result = pipeline.marketing_template({}, "develop", "")
+        self.assertNotIn("coverage-summary.json", json.dumps(result))
+        self.assertNotIn("munitor/node_coverage", json.dumps(result))
+        for workflow in result["workflows"].values():
+            names = {next(iter(job.values())).get("name", next(iter(job))) for job in workflow["jobs"]}
+            for job in workflow["jobs"]:
+                self.assertTrue(set(next(iter(job.values())).get("requires", [])) <= names)
 
     def test_production_deployment_and_actual_test_contracts(self):
         result = pipeline.marketing_template({}, "main", "")
