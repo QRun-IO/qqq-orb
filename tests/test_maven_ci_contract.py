@@ -43,7 +43,7 @@ class MavenCiContract(unittest.TestCase):
         self.assertIs(job["parameters"]["notify_rc_published"]["default"], False)
         self.assertIs(read("src/commands/git_operations.yml")["parameters"]["require_pushed_version"]["default"], False)
         steps = job["steps"]
-        deploy = steps.index("mvn_jar_deploy")
+        deploy = next(i for i, s in enumerate(steps) if isinstance(s, dict) and "mvn_jar_deploy" in s)
         pushed = next(i for i, s in enumerate(steps) if "git_operations" in str(s))
         dispatch = next(i for i, s in enumerate(steps) if "notify_rc_published.sh" in str(s))
         self.assertLess(deploy, pushed)
@@ -57,6 +57,8 @@ class MavenCiContract(unittest.TestCase):
             return next(i for i, s in enumerate(steps) if s == name or isinstance(s, dict) and name in s)
         self.assertLess(position("mvn_manage_version"), position("mvn_verify"))
         self.assertLess(position("mvn_verify"), position("mvn_jar_deploy"))
+        self.assertEqual(steps[position("mvn_jar_deploy")], {"mvn_jar_deploy": {"skip_verified_analysis": True}})
+        self.assertIs(read("src/commands/mvn_jar_deploy.yml")["parameters"]["skip_verified_analysis"]["default"], False)
         self.assertTrue(any("check_middleware_api_versions" in str(s) for s in steps[position("mvn_verify") + 1:position("mvn_jar_deploy")]))
         deploy = (ROOT / "src/scripts/mvn_jar_deploy.sh").read_text()
         self.assertIn("-P release", deploy)

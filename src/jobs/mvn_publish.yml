@@ -57,7 +57,8 @@ steps:
       steps:
         - check_middleware_api_versions
 
-  - mvn_jar_deploy
+  - mvn_jar_deploy:
+      skip_verified_analysis: true
 
   - when:
       condition:
