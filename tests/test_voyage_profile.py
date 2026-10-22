@@ -39,7 +39,8 @@ class VoyageContract(unittest.TestCase):
                 jobs = selected(branch)
                 self.assertEqual({w for w, _, _ in jobs}, {workflow})
                 self.assertEqual([n for _, n, _ in jobs].count("build-and-test"), 1)
-        self.assertEqual(selected("release-please--branches--main"), [])
+        self.assertEqual({n for _, n, _ in selected("release-please--branches--main")},
+                         {"build-and-test", "secrets-scan", "sast-scan", "security-scan"})
 
     def test_verify_owns_tests_quality_and_coverage_without_skips(self):
         jobs = TEMPLATE["jobs"]
