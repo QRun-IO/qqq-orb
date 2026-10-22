@@ -89,6 +89,8 @@ def load_manifest(path, setup_version):
         allowed += ("node_version",)
         if profile == "frontend-material":
             allowed += ("java_version",)
+    if profile == "repository-policy":
+        allowed += ("shell_checks",)
     mapping(data, allowed, "manifest")
     version = data.get("orb_version")
     if not isinstance(version, str) or not re.fullmatch(r"(?:\d+\.\d+(?:\.\d+)?|dev:[A-Za-z0-9_-]+)", version):
@@ -155,6 +157,7 @@ def load_manifest(path, setup_version):
     return {"profile": profile, "orb_version": version, "default_branch": default_branch,
             "java_version": java, "node_version": node, "browsers": boolean(data, "browsers", True),
             "api_checks": boolean(data, "api_checks", False),
+            "shell_checks": boolean(data, "shell_checks", False),
             "release_completion": boolean(data, "release_completion", False),
             "release_on_main": boolean(data, "release_on_main", False),
             "release_tag_policy": tag_policy, "test_branch_policy": test_policy,
@@ -483,8 +486,15 @@ def voyage_template(config, branch, tag):
 
 
 def repository_policy_template(config, branch, tag):
-    del config, branch, tag
-    return copy.deepcopy(REPOSITORY_POLICY_TEMPLATE)
+    del branch, tag
+    result = copy.deepcopy(REPOSITORY_POLICY_TEMPLATE)
+    if config.get("shell_checks", False):
+        job = result["jobs"]["validate-policy"]
+        job["environment"] = {"QQQ_POLICY_SHELL": "true"}
+        job["steps"].insert(1, {"run": {
+            "name": "Install static shell validation",
+            "command": "sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends shellcheck"}})
+    return result
 
 
 PROFILE_TEMPLATES = {"qbit": qbit_template, "core": core_template,

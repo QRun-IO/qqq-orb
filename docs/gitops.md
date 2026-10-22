@@ -9,3 +9,14 @@ The caller runs on main pushes and pull requests without path filters, so a requ
 For marketing-website-cd, the prior Circle job only printed Hello World. Its former production role moved to KofTwentyTwo/cluster-gitops; validation does not re-enable that retired deployment path.
 
 The shared registry includes marketing-website-cd and voyage-cd. Daily enrollment recognizes their canonical main-branch caller without creating Circle configuration. Recognition requires a signed immutable worker pin matching the supported worker, a complete source tree, and no additional Circle or GitHub workflows. Enforcement requires the GitHub Actions app-bound gitops / validate gate and preserves existing branch rules. Unavailable private-repository protections remain an explicit enforcement failure; recognition alone is not enforcement.
+
+
+### Documentation repositories with shell automation
+
+Use the canonical `repository-policy` manifest with `shell_checks: true` for
+repositories containing documentation, YAML/JSON, Mermaid source, and shell tools.
+The shared job remains one small executor with no publication or deployment.
+It installs ShellCheck only for this opt-in and checks every tracked `.sh` file
+with `bash -n` and ShellCheck at warning severity; scripts are never executed.
+Mermaid files are treated as UTF-8 documentation, not rendered or syntax-validated.
+Application manifests and other executable languages still require a build profile.
