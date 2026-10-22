@@ -51,6 +51,7 @@ jobs:
             python3 scripts/pack_pipeline.py --check
             bash tests/test_cli_ci_behavior.sh
             python3 tests/test_cli_ci_contract.py
+            python3 tests/test_esb_junit_staging.py
             python3 tests/test_maven_ci_contract.py
             python3 tests/test_standardize_qbit.py
             python3 tests/test_qbit_hotfix_profile.py
@@ -100,6 +101,7 @@ jobs:
             bash tests/test_maven_test_results.sh
             bash tests/test_maven_ci_install.sh
             bash tests/test_browser_install.sh
+            python3 tests/test_apt_fetch_policy.py
             bash tests/test_frontend_build_reuse.sh
             bash tests/test_snapshot_refresh.sh
             bash tests/test_maven_settings_output.sh

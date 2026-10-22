@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Embed profile resources before Circle packs/interpolates its own syntax."""
 import base64
+import re
 from pathlib import Path
 import sys
 import zlib
@@ -19,8 +20,15 @@ for variable, name in (("CORE_TEMPLATE", "core"), ("MATERIAL_TEMPLATE", "fronten
 packed = text[:start] + "\n".join(embedded) + text[end:]
 if len(packed.encode("utf-8")) > 100_000:
     sys.exit("Packed generator exceeds the tested CircleCI command-argument budget")
+def comparable_resources(value):
+    """Compare source bytes, not zlib's platform/version-dependent bitstream."""
+    pattern = r'([A-Z_]+) = json\.loads\(zlib\.decompress\(base64\.b64decode\("([A-Za-z0-9+/=]+)"\)\)\)'
+    return re.sub(pattern, lambda match: match[1] + " = " + repr(
+        zlib.decompress(base64.b64decode(match[2]))), value)
+
+
 if "--check" in sys.argv:
-    if not output.exists() or output.read_text(encoding="utf-8") != packed:
+    if not output.exists() or comparable_resources(output.read_text(encoding="utf-8")) != comparable_resources(packed):
         sys.exit("Packed generator is stale; run python3 scripts/pack_pipeline.py")
 else:
     output.write_text(packed, encoding="utf-8", newline="\n")

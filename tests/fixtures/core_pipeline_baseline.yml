@@ -152,8 +152,22 @@ jobs:
                 assert len(matches) == 1, f"{broker}: broker restart test missing"
                 assert matches[0].find("skipped") is None, f"{broker}: broker restart test was skipped"
             PY
+      - run:
+          name: Stage broker JUnit reports
+          when: always
+          command: |
+            python3 - \<<'PY'
+            from pathlib import Path
+            from shutil import copy2
+
+            source = Path("qqq-esb/target/failsafe-reports")
+            destination = Path("qqq-esb/target/circleci-junit")
+            destination.mkdir(parents=True, exist_ok=True)
+            for report in source.glob("TEST-*.xml"):
+                copy2(report, destination / report.name)
+            PY
       - store_test_results:
-          path: qqq-esb/target/failsafe-reports
+          path: qqq-esb/target/circleci-junit
 
   sample_bootstrap_source:
     executor: qqq-orb/java

@@ -43,6 +43,15 @@ class NextNativeTests(unittest.TestCase):
                                ("dashboard-image.yml", "next-dashboard-image.yml")):
             before = yaml.safe_load((ROOT / "tests/fixtures" / ("next-" + source)).read_text(encoding="utf-8"))
             after = yaml.safe_load((ROOT / ".github/workflows" / worker).read_text(encoding="utf-8"))
+            # The package-fetch policy adds bounded setup only; retain exact test gates.
+            for job in after["jobs"].values():
+                for step in job.get("steps", []):
+                    if step.get("name") == "Install browser system dependencies":
+                        self.assertEqual(step["timeout-minutes"], 10)
+                        command = step["run"].strip().splitlines()[-1]
+                        self.assertTrue(command.startswith("pnpm exec playwright install-deps "))
+                        step.clear()
+                        step["run"] = command
             self.assertEqual(before["jobs"], after["jobs"], worker)
             self.assertEqual(before.get("env"), after.get("env"), worker)
             self.assertEqual(before.get("permissions"), after.get("permissions"), worker)

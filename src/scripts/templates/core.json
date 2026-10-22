@@ -168,8 +168,15 @@
           }
         },
         {
+          "run": {
+            "name": "Stage broker JUnit reports",
+            "when": "always",
+            "command": "python3 - \\<<'PY'\nfrom pathlib import Path\nfrom shutil import copy2\n\nsource = Path(\"qqq-esb/target/failsafe-reports\")\ndestination = Path(\"qqq-esb/target/circleci-junit\")\ndestination.mkdir(parents=True, exist_ok=True)\nfor report in source.glob(\"TEST-*.xml\"):\n    copy2(report, destination / report.name)\nPY\n"
+          }
+        },
+        {
           "store_test_results": {
-            "path": "qqq-esb/target/failsafe-reports"
+            "path": "qqq-esb/target/circleci-junit"
           }
         }
       ]

@@ -54,6 +54,7 @@ test-all: test test-scripts test-pipelines
 # PyYAML 6.0.3 is the same strict parser used by the setup job.
 test-pipelines: pack
 	python3 tests/test_generate_pipeline.py --packed target/qqq-orb-packed.yml
+	python3 tests/test_esb_junit_staging.py
 	python3 tests/test_maven_ci_contract.py
 	bash tests/test_cli_ci_behavior.sh
 	python3 tests/test_cli_ci_contract.py
@@ -70,6 +71,7 @@ test-pipelines: pack
 	python3 tests/test_validate_standard.py
 	python3 tests/test_voyage_profile.py
 	python3 tests/test_next_native.py
+	python3 tests/test_apt_fetch_policy.py
 	python3 tests/test_auxiliary_workflows.py
 	python3 tests/test_qbit_codeql.py
 	python3 tests/test_repository_policy.py

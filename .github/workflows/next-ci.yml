@@ -61,7 +61,16 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
-      - run: pnpm exec playwright install-deps chromium
+      - name: Install browser system dependencies
+        timeout-minutes: 10
+        run: |
+          # A continuously slow Azure mirror never trips APT's inactivity timeout.
+          # Keep the runner's official HTTPS fallbacks and signed source configuration.
+          sudo sed -i '\|^http://azure\.archive\.ubuntu\.com/ubuntu/|d' /etc/apt/apt-mirrors.txt
+          printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' \
+            'Acquire::https::Timeout "30";' 'APT::Update::Error-Mode "any";' \
+            | sudo tee /etc/apt/apt.conf.d/80-qqq-download-retries >/dev/null
+          pnpm exec playwright install-deps chromium
       - if: steps.browser-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install chromium
       - name: Production build
@@ -101,7 +110,16 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-all
-      - run: pnpm exec playwright install-deps chromium firefox webkit
+      - name: Install browser system dependencies
+        timeout-minutes: 10
+        run: |
+          # A continuously slow Azure mirror never trips APT's inactivity timeout.
+          # Keep the runner's official HTTPS fallbacks and signed source configuration.
+          sudo sed -i '\|^http://azure\.archive\.ubuntu\.com/ubuntu/|d' /etc/apt/apt-mirrors.txt
+          printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' \
+            'Acquire::https::Timeout "30";' 'APT::Update::Error-Mode "any";' \
+            | sudo tee /etc/apt/apt.conf.d/80-qqq-download-retries >/dev/null
+          pnpm exec playwright install-deps chromium firefox webkit
       - if: steps.browser-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install chromium firefox webkit
       - name: Collaboration suite (mock API, every browser project)
