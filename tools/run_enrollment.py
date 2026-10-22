@@ -22,7 +22,8 @@ def run(environment=None, execute=subprocess.run, root=None):
     output.mkdir(parents=True, exist_ok=True)
     args = [sys.executable, str(root / 'tools/reconcile_enrollment.py'),
             '--organization', 'QRun-IO', '--orb-version', '0.8',
-            '--output', str(output / 'result.json'), '--apply', '--merge-ready', '--enforce']
+            '--output', str(output / 'result.json'), '--apply', '--merge-ready', '--enforce',
+            '--circle-settings']
     try:
         result = execute(args, cwd=root, env=env, timeout=1200, check=False)
         code = result.returncode
