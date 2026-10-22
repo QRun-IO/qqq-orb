@@ -74,4 +74,5 @@ def enforce_current(plan):
     except ValueError as error:
         return {'state': 'waiting-enforcement', 'reason': str(error)}
     enforcement.enforce(current)
-    return {'state': 'enforced', 'head': current['head'], 'changed': current['changed']}
+    return {'state': 'enforced', 'head': current['head'], 'changed': current['changed'],
+            'protection_mode': current.get('protection_mode', 'classic')}

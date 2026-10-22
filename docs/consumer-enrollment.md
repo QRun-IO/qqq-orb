@@ -112,8 +112,7 @@ pass its own orb gates before shared classic protection enforcement. Existing
 protections and other required checks are preserved. Supported gate profiles are
 QBit, Core, frontend-core, frontend-material and repository-policy. Other profiles
 remain explicitly unsupported for completion even when source enrollment works.
-Ruleset-managed branches are reported for separate reconciliation and are not
-rewritten or layered with classic protection. API/plan restrictions remain visible.
+Existing active repository rulesets with app-bound gates and no bypass actors are verified without writes. Unsupported or incomplete rulesets remain unresolved; none are rewritten or layered with classic protection. API/plan restrictions remain visible.
 
 A merged source update and an enforced branch are separate reported outcomes.
 Neither proves artifact publication or deployment. Scheduling and ruleset

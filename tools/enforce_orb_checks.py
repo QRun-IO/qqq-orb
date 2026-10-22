@@ -54,6 +54,31 @@ def required_checks(before, runs):
     return {'strict': True, 'checks': checks}
 
 
+def verified_rulesets(repo, effective, request=api):
+    """Recognize active repository rulesets with bound gates and no bypass actors."""
+    selected = [rule for rule in effective if rule['type'] == 'required_status_checks']
+    if not selected or any(rule.get('ruleset_source_type') != 'Repository'
+                           or rule.get('ruleset_source') != repo for rule in selected):
+        raise ValueError('Required rulesets need unsupported source reconciliation')
+    records = []
+    for identifier in sorted({rule['ruleset_id'] for rule in selected}):
+        record = request(f'repos/{repo}/rulesets/{identifier}')
+        if (record.get('enforcement') != 'active' or record.get('target') != 'branch'
+                or record.get('source_type') != 'Repository' or record.get('source') != repo
+                or record.get('bypass_actors') != []):
+            raise ValueError('Ruleset must be active with no bypass actors')
+        records.append(record)
+    requirements = [rule['parameters'] for record in records for rule in record['rules']
+                    if rule['type'] == 'required_status_checks']
+    for desired in DESIRED:
+        if not any(check['context'] == desired['context'] and check.get('integration_id') == desired['app_id']
+                   for parameters in requirements for check in parameters['required_status_checks']):
+            raise ValueError('Ruleset is missing app-bound gate: ' + desired['context'])
+    # Retain the existing freshness policy: recognition does not add rebuilds or
+    # weaken any existing scanner, merge, or bypass requirement.
+    return records, any(parameters.get('strict_required_status_checks_policy', False) for parameters in requirements)
+
+
 def inspect(repo, branch, version, request=api):
     """Read immutable canonical source, latest check runs, and current protections."""
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repo) or branch not in ('main', 'develop'):
@@ -74,9 +99,13 @@ def inspect(repo, branch, version, request=api):
     if standard.load_yaml(source[1])['profile'] not in PROFILES:
         raise ValueError('Profile does not use the shared setup/verify gate pair')
     rules = request(root + '/rules/branches/' + branch)
-    if rules:
-        raise ValueError('Ruleset-managed branch requires ruleset reconciliation')
+    rulesets, ruleset_strict = verified_rulesets(repo, rules, request) if rules else ([], False)
     before = request(prefix + '/protection')
+    restrictions = (before or {}).get('restrictions')
+    if (not rulesets and restrictions is not None
+            and not any(restrictions.get(kind) for kind in ('users', 'teams', 'apps'))
+            and not (before or {}).get('enforce_admins', {}).get('enabled')):
+        raise ValueError('Empty push allowlist needs explicit access policy before enforcing admins')
     runs = []
     page = 1
     while True:
@@ -86,6 +115,11 @@ def inspect(repo, branch, version, request=api):
             break
         page += 1
     desired = required_checks(before, runs)
+    if rulesets:
+        desired['strict'] = ruleset_strict or bool(((before or {}).get('required_status_checks') or {}).get('strict'))
+        return {'repository': repo, 'branch': branch, 'head': head, 'before': before,
+                'required_status_checks': desired, 'changed': False, 'protection_mode': 'rulesets',
+                'effective_rules': rules, 'rulesets': rulesets}
     current = (before or {}).get('required_status_checks') or {}
     ready = (current.get('strict') is True and current.get('checks') == desired['checks']
              and (before or {}).get('enforce_admins', {}).get('enabled') is True)
@@ -99,7 +133,12 @@ def enforce(plan, request=api):
     prefix = root + '/branches/' + plan['branch']
     if request(prefix)['commit']['sha'] != plan['head'] or request(prefix + '/protection') != plan['before']:
         raise ValueError('Branch or protection changed after preflight')
-    if request(root + '/rules/branches/' + plan['branch']):
+    rules = request(root + '/rules/branches/' + plan['branch'])
+    if plan.get('protection_mode') == 'rulesets':
+        if rules != plan['effective_rules'] or verified_rulesets(plan['repository'], rules, request)[0] != plan['rulesets']:
+            raise ValueError('Ruleset changed after preflight')
+        return
+    if rules:
         raise ValueError('Ruleset changed after preflight')
     if not plan['changed']:
         return
