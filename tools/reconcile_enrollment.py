@@ -11,6 +11,8 @@ import subprocess
 import tempfile
 
 import enroll_consumers
+import native_gitops_gates as gitops
+import yaml
 
 PATHS = ('.circleci/config.yml', '.qqq-ci.yml')
 
@@ -107,6 +109,10 @@ def inspect(target, version):
     if info['archived']:
         raise ValueError('Archived repository')
     head = api(f'repos/{repo}/branches/{branch}')['commit']['sha']
+    if repo in gitops.REPOSITORIES:
+        pin = gitops.validate(repo, head, branch, api, yaml.safe_load)
+        return {**target, 'head': head, 'profile': 'native-gitops', 'version': version,
+                'changed': False, 'worker_pin': pin}
     originals = {path: content(repo, path, head) for path in PATHS}
     if originals[PATHS[0]] is None:
         raise ValueError('No recognized CircleCI entrypoint')

@@ -426,7 +426,10 @@
           "uses": "QRun-IO/qqq-orb/.github/workflows/gitops.yml@WORKER_SHA"
         }
       }
-    }
+    },
+    "additional_repositories": [
+      "QRun-IO/voyage-cd"
+    ]
   },
   "qbit-codeql": {
     "repository": null,

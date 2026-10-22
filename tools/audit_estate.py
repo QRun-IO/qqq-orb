@@ -46,7 +46,7 @@ PROFILES = {'qqq': 'core', 'qqq-frontend-material-dashboard': 'frontend-material
             'qqq-android': 'android', 'qqq-mcp-rag-standard-policies': 'mcp-policy',
             'marketing-website': 'marketing', 'qqq-mcp-rag': 'native-mcp',
             'qqq-business-platform': 'native-business', '.github': 'native-workflow-lint',
-            'qqq-orb': 'owner-bootstrap', 'marketing-website-cd': 'native-gitops'}
+            'qqq-orb': 'owner-bootstrap', 'marketing-website-cd': 'native-gitops', 'voyage-cd': 'native-gitops'}
 NO_CI = json.loads((ROOT / 'tools/no-ci-policy.json').read_text(encoding='utf-8'))
 
 
@@ -270,7 +270,8 @@ def audit(entry, snapshot, version, worker_sha, policy):
             if profile not in ('qbit', 'repository-policy', 'all') or 'codeql_worker_sha' not in policy:
                 continue
             bridge_sha = policy['codeql_worker_sha']
-        elif definition['repository'] != entry['nameWithOwner']:
+        elif (definition['repository'] != entry['nameWithOwner']
+              and entry['nameWithOwner'] not in definition.get('additional_repositories', [])):
             continue
         path = definition['path']
         raw = snapshot.read(path)
