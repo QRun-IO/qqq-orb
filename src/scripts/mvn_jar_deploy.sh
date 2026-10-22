@@ -25,7 +25,7 @@ set -e
 # The shared publish job already ran these checks in its verify lifecycle.
 # Standalone command callers retain analysis unless explicitly opted in.
 analysis_args=()
-if [[ "${QQQ_SKIP_VERIFIED_ANALYSIS:-false}" == "true" ]]; then
+if [[ "${QQQ_SKIP_VERIFIED_ANALYSIS:-false}" == "true" || "${QQQ_SKIP_VERIFIED_ANALYSIS:-false}" == "1" ]]; then
   analysis_args=(-Dspotbugs.skip=true -Dpmd.skip=true)
 fi
 
