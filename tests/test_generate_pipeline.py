@@ -191,6 +191,36 @@ class PipelineTests(unittest.TestCase):
         self.assertNotIn("Traceback", result.stderr)
         return result
 
+    def test_node_artifact_reuses_install_and_preserves_branch_artifact_policy(self):
+        self.write_manifest(profile="node-artifact", context="qqq-maven-registry-credentials",
+                            npm_scopes=["@nocode-js", "@qrunio"], artifact_path="dist/q-sequential-workflow.bundle.js",
+                            build_branches=["main", "feature/initial-dev"], node_version="20")
+        for packed in ([False, True] if PACKED else [False]):
+            for branch in ("main", "develop", "feature/initial-dev", "feature/change"):
+                output = self.render(packed=packed, CIRCLE_BRANCH=branch)
+                self.assertEqual(["verify"], list(output["workflows"]))
+                self.assertEqual(["node_artifact"], list(output["jobs"]))
+                steps = output["jobs"]["node_artifact"]["steps"]
+                self.assertEqual(1, steps.count("checkout"))
+                commands = [step["run"]["command"] for step in steps if isinstance(step, dict) and "run" in step]
+                self.assertEqual(1, commands.count("npm ci --prefer-offline --cache ~/.npm"))
+                self.assertEqual(1, commands.count("npm test"))
+                self.assertEqual(branch in ("main", "feature/initial-dev"), "npm run build" in commands)
+                artifacts = [step["store_artifacts"] for step in steps if isinstance(step, dict) and "store_artifacts" in step]
+                self.assertEqual(int(branch in ("main", "feature/initial-dev")), len(artifacts))
+                self.assertNotIn("npm publish", str(output))
+                self.assertIn("${NPM_TOKEN}", commands[0])
+                self.assertEqual({"ignore": "/.*/"}, output["workflows"]["verify"]["jobs"][0]["node_artifact"]["filters"]["tags"])
+
+    def test_node_artifact_rejects_commands_paths_and_branch_regex(self):
+        baseline = {"profile": "node-artifact", "context": "registry", "npm_scopes": [],
+                    "artifact_path": "dist/bundle.js", "build_branches": ["main"]}
+        for invalid in ({"artifact_path": "dist/../secret"}, {"artifact_path": "/etc/passwd"},
+                        {"build_branches": ["/.*/"]}, {"npm_scopes": ["@scope;echo bad"]},
+                        {"publish": {"release": True}}, {"context": "$(echo bad)"}):
+            self.write_manifest(**{**baseline, **invalid})
+            self.render(ok=False)
+
     def assert_full(self, result, workflow="test_only"):
         self.assertEqual(list(result["workflows"]), ["verify"])
         self.assertNotIn("docs_only", result.get("jobs", {}))

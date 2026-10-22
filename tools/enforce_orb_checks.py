@@ -15,7 +15,7 @@ standard = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(standard)
 DESIRED = [{'context': name, 'app_id': 18001} for name in ('setup', 'verify')]
 PROFILE_GATES = {profile: 'verify' for profile in (
-    'qbit', 'core', 'frontend-core', 'frontend-material', 'repository-policy')}
+    'qbit', 'core', 'frontend-core', 'frontend-material', 'repository-policy', 'node-artifact')}
 PROFILE_GATES.update({'all': 'verify-and-smoke', 'cli': 'test_only',
                       'app-starter': 'test_only', 'android': 'test-and-build',
                       'mcp-policy': 'validate'})
