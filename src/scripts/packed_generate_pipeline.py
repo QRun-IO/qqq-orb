@@ -26,6 +26,7 @@ ANDROID_TEMPLATE = json.loads(zlib.decompress(base64.b64decode("eNrtWG1v2zYQ/p5f
 POLICY_TEMPLATE = json.loads(zlib.decompress(base64.b64decode("eNqdVU1v2zAMvedXCL442Rq3aYEegubQQwYMWLGeBgxVESg2nWqVJU9S1gZB/vtIWXbsdCuw+WKJH4+PlEjtR4wlv8A6aXQyZ5fZ7IwkP8za4XaPa9ILJQvhYVoL78HqowqVhcmfwaLkIUpYpwt6WYkNoDrJZbU5r3f+yej5VTa7TDqrQ1w9nrWgFpzZ2hxWuRKOwiWuEkolnYHzULtB0CR/gvzZbH1ndELEbnWPdxRqUQVyn7XzGIDd777f3n3pQTTQpqqELsiwljWT0Xg6LaQTa4WFkfU0VnEaeESgxeI6u8iukh7c4Zj2/xD9Fs+CxbNgpVTg3iMcKn7FOL+5Yeny66eUa1nVxnq2E5XqNm7nuC6tqQj5Sck1i4p73HLNNVhrrGML9vDIdYy+ys1We5RdkEVpbMBcESesUnAdp1k6yexGmfU4/ZCRPp3MuSaesmRC78a1sD7DklrvXmT0YARGCsLpQDOSuNadvtxoL/UWKD7tvd31tATHTA163EFMmHCs7NnQhxUVmAUZZU6UsFJGFONy0qJGsmnbAOcp0XLe9nBPIC383EoLBRUslUV6xlIvvQJa5HiAG2N3tC7A5VbWHq9OUGE+oH36OESrpHNSbwisDKUpiUAXA7mVTJtQLMrlxBvVEeCEJH3NuWaixjJhzjzZdzkd5uwuBi4lqMLhtYxAB55MhljDK/FxwWZt9eA1h7q5bhl1xZIi0jFAj877NMiNroODxhCJwJFCDLAMPyzkv2Evh4B4ua3UnszaZivYfpDdYdh90Q2r3ASKkRsYnnCul03vlOhczDvadI6hTwZuR1dkwNh0kCl2aQav0o9nKADl4CTWLY6l9pKyMLeDK7Y913+ZQu3wHbW7MJeSF2OfS2Ve/vAO9Md/fCl6c/jta/E2wugw+g3AlOQ8")))
 REPOSITORY_POLICY_TEMPLATE = json.loads(zlib.decompress(base64.b64decode("eNqlVttu4zYQfc9XEH6RDETM7gYoiuz6YbE1ugFSJ2ncFkEcGLQ0splQpEpSid3A/94Z6hLZi1zQ5iEmh6MzZ4aHQz4dMDZ4AOuk0YMT9ol/PCTLnVk4nD7hmNaFkpnwkJRGyXTTLeBSZtJ7sGi5aSysWwvrshBLwOVBKovlUbnxK6NPjvnHT4POa9uMbg9bUAvOVDaFeaqEIx4DVwilBp2D81C6naCDdAXpval857RHxFa6x7sxalEEcqfaeQzA/ArY9dffzlgprMO0DnfdU1MUQmf0RZ3JMUsKVsqSyQYgSTLpxEJhqWSZNHVNAjd2sSHo0egn/oEfD3rI2+dS/Bfyfza7E9iLssQtEp7C5haALazQ6eodmcxmX75EF9fT7+eTaKZlURrr2Z0zupsYN9O5NZix8CslF6yxX+C0c3LVorQmBec607pQHDyS4WMFBWg/JWLCsfG089mIQs0wFEE7NurB8FC9OW5tWfn4JlpKHx2ySLkklwocjZN/otshzyA1GcRR5fPk52jIHVbCx9Fs9iEaPgPfENuYajdkubGMRrh9rF6XeTDcIi8cGV+bT2aaqmaFdMCuNqi+Yrwm7Ilh3go8ARmrjwarOWE8gqF4T9HZ6bfx5GpMRCfnU5zQ6Nv5xfXp5Nd6+Mv4/K/J+PcrmnHMTy61sdDOhPdWLipPudZEwl/EIZPe2NToXC7JuXjQj+0vT4ss2s60W4FS81BCYmMcB/0grdF8CZjA5eXl/OIcGV7Pr76Pz86iIRuNWORtBSgCV+W5XDdpcAQkRtaF+nO/rn8FtoAw2BSq/hXNgMQTBriTJVgvMQOkhMKTOThfw5am4Ov6gxIrid2i+y4Vdmm4N83qBmHuIPWdBRcLk+0UJRRmUUmV8aUVmQpF7M/5vQ+SceC91EvXc9szBU+kSyIhFXQiadSAAqEpl27uMHWp7+Mha3w57T5X5hEsGvHDLueTZ7I/yCmPvj6fXoJqcJmFvyuJTZEJFnJhWAkSGrYEirYlvfUpCTcvjZPruN5NjoI4erTYGsAeFeIBdNLM+J2wUY8SaglLUMGrcLWY/EbBUa29sH89lPGUU5twKFu9jAOEBZHNPax9DBpPKdpH7TkdvhJ+R73Yr2o+tSy78oYU3arPoNc9sHVi01gIdKBOEYSVJPgf6QVuw9tDFiKMpqj64SsggU1wrUEcYIOXfjN6FFZjSu+H/h+JFngMe5m+Vd239ja0P2p0KNK6Zb0UvXFqe8LrQv4De0dJjX23M35mDhQe4beETLlgd3hfcm0qe3yRa7zXlIY90ko6H5OVO5HDXBmMgjd4TJFaTYJ6ATvsRGhTPUSac8JxNQjeOXgAqBrtDZ2xJwU6SMMNt3tXxxH20Ypux/r4h4vkM1a9f6U3VaMuUy1aI9Whvrdn+oVnRfvCOmhn4aExeDT2Psec+k89VHS+88JrnoK9p9b+c/BH9IPtwb8HDzW4")))
 MARKETING_TEMPLATE = json.loads(zlib.decompress(base64.b64decode("eNrtXE1v2zYYvudXvNG6GhhCKXGxHRKkKDDsUAy95VCgDgRaoizOEqlQVByvzX/fS0qKbVmO3SzfYQ6JRT4k32/yoYV83wPwLpkquRTeMQz9owPTItW4xMfv+Bmf8kpwLRU2eFOZDIdB0/Dp0P/gHx15iLq2w2ZSTZNMzpbGFopEKYumiyZs/Efa6b81z3DTs7xcIGTMwnHFszikIg41K/XSJA1Y0JwZwSyOII5Y3EEHZaZaqOkNh11EQaMpnbAwpwL/WF1FkXdRZu4wkjmiYqOB923k/bIfVKUKxlwETFzCmJbpaCQKxYVOYPBrOcIfMYBBwQuWccGOwUhDZmxMiwLbl2VDDwyxKZbRlKlj/ARQlSxUrJBh3ZjwDGfQqmID+Ah+Yyt/nmcj7wBGRmhQlQBcSa+2WAu1TVdQZHQ+U3ySauCi1DTLIEqVzHmVAyEzrlMSs6JcncPof9zC6q5+9UumgbBKgtE6oTzDtnYSXExpFD7QeRFcXFwQlHVKSqbQCH4mJzD8+P4I3ttZTFtY8Pj03T4+a0ULGEw5yopG9d4t+s0jjgtidhmICvt//LBGOoEZ5XpX9AD++vr5DBdSjMbz04RmJcOnRCoIqdYsL4yx4PuR7/9xeH0CscReAJ7APlipyOG2pU5Ap0zYYQAR1Rut0EDYFYp/ZB8S3q4WVQrXIsau+KfEkBBobiIrXVQ4441ahOT0imieMxhCqnVxHASZjGiWSvTjh8PD34MVeWq1jSWahjG2TJcXLzPGCitPLIVBoTTfap3tYKvu/qm1JpwvTb5VVRalEgZfqJoyzcUE6m6IeYz5omHMMO1YLSFIAYXEGDIaYBq8H9YztKaysrbRZquPXbHsZgjGfioxv0beeTfRIyk0u9IrRarpmmBqVGNvpfm8MxyzVGNGr5Ur7BorKlCmvj5TeEU271nU9gUJo7pSaPXA/y3oSNxiUqkTftVA1hDnnZbrlefrbk3EKCGlxirQI1KP8CVWIhZicvOERrpfQ1tqdWpq56ICEVPglO5XKcaawwXVTeleH7U26Lqr5cG9y+4voifiO8m9GLC73HubfLfoWdKtdxOtd42wjKjYvHnyHPc8YjGdELA9YYvL2+w0u1fJNevCFZvwUisTwt4kjZTPZXCByUa4XIdeVFyxvtDqbuavMdXu5EwMNsV0ucWbDarXn2/KWhQPa1tMRU2F67MTbq2hFGHCRYzxbs969jjwlg1qT6qR+XVR0Yzr+WbDGhRpUQ90GHcV5I4uxAJRKXTM9jpiYb0J4pz4gE7cWx7buBTPE5csk4Xj0Y5HOx7teLTj0TtU9Zui6XjvG+O9T0+Vdoy910ttHtIAjoo8jckddXhcozfXd/XpvajKdLPNayipNbfQR7vLSxnNdBq2m0Swqd9Uf+zH48bhBkg83liObnP3LTkOt1Z52FwooRvGtwbRbQcdNN4zjsBesoncYoKx4cimI5uObDqy6cjmLlW4LZqObDqy+dhkc7fYe8Vk8wEN4Mjm05jckc3HNbojm45sPnAE9pJNxTJGcctGvfHkSDVztNPRTkc7He10tPPOb640NdW9COw46vN+d/T/BepbezH0Cazl2O8L8I+jys/YQ45XO179gsK1PrSGzcqbY7XGkRb3E55ej/I7u+WFHrB/4nakUDKuoub06K5F3LWIuxZx1yLuWmTrNXVOuXBfxb+1aw531r53Hva03zbtkMZ3CpSqMN80hVFsjwabo6TGkSi2YbxW5G6Ge3/L5GyGu8j8bCaDKKuwkCiClU5iOemMwl2eKylyRNsUxxNez8S4Z+bUAqY4GZ4X/mU9qNUg7cRdsDVocYY2CjUTVOjSjg0aeNAubfPan9M8W5uBh6hlyNBRmb0E4p/MDP561DfIVtYvtSfgz8+vlzs8WPg6knZfhl4lXeZ/We1d7/0Hg+30Mg==")))
+HOMEBREW_TEMPLATE = json.loads(zlib.decompress(base64.b64decode("eNqVVNtu2zAMfc9XCMYeNqBurk7SAgXmpRlaIM2lTVYMy2AoMh2rtSVDknNBkX+fpCReLkWxvdjU4eERRVJ6KyHkLEBIyplzjWqX1QuDvPCZ1Ms3bRs/TmiIFbgKZwWq8ZCTVxAa+bVDUOGzfpriOWi3M4+JuKS8HPMUZgKWZfP5KmNc85rXFdDfegheu0a8eoVc6Z/XqFVIhJst8GbNyozMvEa11a7WrloA9QZpepU2wU1oNZq47hRbbnbW74t9hgIkzwWBgCRYmhM5MsVJ4hSEJRevlM2DkAogiou14dg8ywll+cpmmwn+or1/o4AtqOAsBaYO6qEdd4OH7rfH7nPQHwT+ZDwIJsNbf9w1otUi/JTX93s/x/edpw9Z9/2nsd/rBZ1e1+9PhlvujropEpMKMnnUEIfEQF55rg6Ej5okcnZ0BgsynNrG/QBBozXSJUNZglXERYpCvmQJx6FEmIWIMqmMW8WAYIWJQnpIkIAFtSN1caLLA51KlqtA0RRMVnoTLz2lEZ6mWtz2CxRyIecooxlEmCZTZnpid5k6n0ajUVCUaewPp45Bh8+3U2fKFEhllp/nVIt0rGmDXVdAxiU1DX9f5YsW0odwMywkoLuuf2uQm0LtzLdPS+TbPc8ldwwBODQFc125ZgqvtMHlzRbBgsTW/EggAkViQ04Sd98UqdeznCahGwmeutuhf0+lfIx8Hzw+THp+ob3v5v9H7mv972HOQc8353e4tF/Z6bYXNUr48vBZssN5+CDtnq2D6T96us6lS5vSH3rbZEU=")))
 
 
 class ManifestError(ValueError):
@@ -70,10 +71,12 @@ def load_manifest(path, setup_version):
     if not isinstance(data, dict):
         raise ManifestError("Manifest must be a mapping")
     profile = data.get("profile")
-    if profile not in ("qbit", "core", "frontend-material", "frontend-core", "cli", "voyage", "frontend-next", "all", "app-starter", "android", "mcp-policy", "repository-policy", "marketing", "node-artifact"):
+    if profile not in ("qbit", "core", "frontend-material", "frontend-core", "cli", "voyage", "frontend-next", "all", "app-starter", "android", "mcp-policy", "repository-policy", "marketing", "node-artifact", "homebrew-tap"):
         raise ManifestError("Unsupported profile")
     allowed = ("profile", "orb_version", "default_branch", "docs_only", "publish")
-    if profile == "node-artifact":
+    if profile == "homebrew-tap":
+        allowed = ("profile", "orb_version", "default_branch", "tap", "formula")
+    elif profile == "node-artifact":
         allowed = ("profile", "orb_version", "default_branch", "node_version", "context", "npm_scopes", "artifact_path", "build_branches")
     elif profile in ("qbit", "core"):
         allowed += ("java_version", "browsers", "api_checks")
@@ -102,6 +105,14 @@ def load_manifest(path, setup_version):
         raise ManifestError("default_branch must be main or develop")
     if profile == "marketing" and default_branch != "main":
         raise ManifestError("Marketing requires the audited main production branch")
+    if profile == "homebrew-tap":
+        tap, formula = data.get("tap"), data.get("formula")
+        if not isinstance(tap, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*", tap):
+            raise ManifestError("Homebrew requires an explicit lowercase owner/tap")
+        if not isinstance(formula, str) or not re.fullmatch(r"[a-z0-9][a-z0-9+@._-]*", formula):
+            raise ManifestError("Homebrew requires a literal formula name")
+        return {"profile": profile, "orb_version": version, "default_branch": default_branch,
+                "tap": tap, "formula": formula}
     java = data.get("java_version", "21")
     if java not in ("17", "21"):
         raise ManifestError("java_version must be the string 17 or 21")
@@ -497,7 +508,15 @@ def repository_policy_template(config, branch, tag):
     return result
 
 
-PROFILE_TEMPLATES = {"qbit": qbit_template, "core": core_template,
+def homebrew_template(config, branch, tag):
+    del branch, tag
+    result = copy.deepcopy(HOMEBREW_TEMPLATE)
+    result["jobs"]["validate-tap"]["environment"].update({
+        "QQQ_HOMEBREW_TAP": config["tap"], "QQQ_HOMEBREW_FORMULA": config["formula"]})
+    return result
+
+
+PROFILE_TEMPLATES = {"homebrew-tap": homebrew_template, "qbit": qbit_template, "core": core_template,
                      "repository-policy": repository_policy_template,
                      "frontend-material": frontend_template, "frontend-core": frontend_template,
                      "cli": cli_template, "voyage": voyage_template, "frontend-next": next_template, "all": all_template, "app-starter": starter_template, "android": android_template, "mcp-policy": policy_template, "marketing": marketing_template}

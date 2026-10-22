@@ -20,3 +20,12 @@ It installs ShellCheck only for this opt-in and checks every tracked `.sh` file
 with `bash -n` and ShellCheck at warning severity; scripts are never executed.
 Mermaid files are treated as UTF-8 documentation, not rendered or syntax-validated.
 Application manifests and other executable languages still require a build profile.
+
+
+### Homebrew distribution taps
+
+The `homebrew-tap` profile takes only `tap` (lowercase owner/name) and `formula`.
+One small job in a digest-pinned Homebrew container validates the exact checkout,
+reads all OS/architecture variants, fetches their binaries with checksum verification,
+then installs and tests the Linux formula. It does not publish or update formulae.
+macOS downloads are verified, but this Linux job does not execute macOS binaries.
