@@ -30,6 +30,7 @@ class RunnerTests(unittest.TestCase):
                 output = Path(args[args.index('--output') + 1])
                 output.write_text('[{"state":"unresolved"}]')
                 self.assertEqual(1200, kwargs['timeout'])
+                self.assertIn('--circle-settings', args)
                 self.assertEqual('test-only-secret', kwargs['env']['GH_TOKEN'])
                 raise subprocess.TimeoutExpired(args, 1200)
             self.assertEqual(124, run_enrollment.run(self.environment(), execute, directory))

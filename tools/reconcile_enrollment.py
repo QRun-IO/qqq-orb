@@ -187,6 +187,7 @@ def main():
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--merge-ready', action='store_true')
     parser.add_argument('--enforce', action='store_true')
+    parser.add_argument('--circle-settings', action='store_true')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     if (args.merge_ready or args.enforce) and not args.apply:
@@ -219,6 +220,17 @@ def main():
                 if args.enforce:
                     row['enforcement'] = finish_enrollment.enforce_current(plan)
                     args.output.write_text(json.dumps(report, indent=2), encoding='utf-8')
+    if args.circle_settings:
+        import circle_project_settings
+        settings, seen = [], set()
+        for plan in sorted(plans, key=lambda p: p['changed']):
+            if plan['repository'] in seen:
+                continue
+            seen.add(plan['repository'])
+            settings.append({'repository': plan['repository'], 'profile': plan['profile'],
+                             **circle_project_settings.reconcile(plan, api, apply=args.apply)})
+            args.output.with_suffix('.circle-settings.json').write_text(
+                json.dumps(settings, indent=2), encoding='utf-8')
     print(json.dumps({'targets': len(plans), 'changed': sum(p['changed'] for p in plans),
                       'unresolved': sum(row['state'] == 'unresolved' for row in findings),
                       'applied': args.apply}))
