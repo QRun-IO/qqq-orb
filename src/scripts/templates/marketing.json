@@ -89,28 +89,6 @@
           }
         },
         {
-          "munitor/node_coverage": {
-            "name": "coverage",
-            "node_version": "22",
-            "package_manager": "npm",
-            "min_coverage": "0",
-            "coverage_tool": "jest",
-            "coverage_summary_path": "coverage/coverage-summary.json",
-            "coverage_command": "mkdir -p coverage && echo '{\"total\":{\"lines\":{\"pct\":100}}}' > coverage/coverage-summary.json",
-            "requires": [
-              "build-and-test"
-            ],
-            "filters": {
-              "branches": {
-                "only": [
-                  "/feature\\/.*/",
-                  "/hotfix\\/.*/"
-                ]
-              }
-            }
-          }
-        },
-        {
           "munitor/node_security_scan": {
             "name": "security-scan",
             "node_version": "22",
@@ -185,25 +163,6 @@
           }
         },
         {
-          "munitor/node_coverage": {
-            "name": "coverage",
-            "node_version": "22",
-            "package_manager": "npm",
-            "min_coverage": "0",
-            "coverage_tool": "jest",
-            "coverage_summary_path": "coverage/coverage-summary.json",
-            "coverage_command": "mkdir -p coverage && echo '{\"total\":{\"lines\":{\"pct\":100}}}' > coverage/coverage-summary.json",
-            "requires": [
-              "build-and-test"
-            ],
-            "filters": {
-              "branches": {
-                "only": "develop"
-              }
-            }
-          }
-        },
-        {
           "munitor/node_security_scan": {
             "name": "security-scan",
             "node_version": "22",
@@ -228,7 +187,6 @@
             "health_db": "false",
             "requires": [
               "code-quality",
-              "coverage",
               "secrets-scan",
               "sast-scan",
               "security-scan"
@@ -300,25 +258,6 @@
           }
         },
         {
-          "munitor/node_coverage": {
-            "name": "coverage",
-            "node_version": "22",
-            "package_manager": "npm",
-            "min_coverage": "0",
-            "coverage_tool": "jest",
-            "coverage_summary_path": "coverage/coverage-summary.json",
-            "coverage_command": "mkdir -p coverage && echo '{\"total\":{\"lines\":{\"pct\":100}}}' > coverage/coverage-summary.json",
-            "requires": [
-              "build-and-test"
-            ],
-            "filters": {
-              "branches": {
-                "only": "staging"
-              }
-            }
-          }
-        },
-        {
           "munitor/node_security_scan": {
             "name": "security-scan",
             "node_version": "22",
@@ -343,7 +282,6 @@
             "health_db": "false",
             "requires": [
               "code-quality",
-              "coverage",
               "secrets-scan",
               "sast-scan",
               "security-scan"
@@ -423,27 +361,6 @@
           }
         },
         {
-          "munitor/node_coverage": {
-            "name": "coverage",
-            "node_version": "22",
-            "package_manager": "npm",
-            "min_coverage": "0",
-            "coverage_tool": "jest",
-            "coverage_summary_path": "coverage/coverage-summary.json",
-            "coverage_command": "mkdir -p coverage && echo '{\"total\":{\"lines\":{\"pct\":100}}}' > coverage/coverage-summary.json",
-            "requires": [
-              "build-and-test"
-            ],
-            "filters": {
-              "branches": {
-                "only": [
-                  "/release\\/.*/"
-                ]
-              }
-            }
-          }
-        },
-        {
           "munitor/node_security_scan": {
             "name": "security-scan",
             "node_version": "22",
@@ -470,7 +387,6 @@
             "health_db": "false",
             "requires": [
               "code-quality",
-              "coverage",
               "secrets-scan",
               "sast-scan",
               "security-scan"
