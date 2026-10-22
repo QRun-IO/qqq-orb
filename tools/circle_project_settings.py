@@ -54,3 +54,25 @@ def reconcile(plan, source_request, apply=False, settings_request=request):
         return {'state': 'enforced' if apply else 'inspected', 'changed': changed}
     except (ValueError, KeyError, TypeError) as error:
         return {'state': 'unresolved', 'reason': str(error)}
+
+
+def reconcile_repository(plans, findings, source_request, apply=False, settings_request=request):
+    """A project-wide flag requires agreement across all discovered current branches."""
+    repo = plans[0]['repository']
+    if any(plan['repository'] != repo for plan in plans):
+        raise ValueError('Expected one repository')
+    if any(row['repository'] == repo and row.get('state') == 'unresolved' for row in findings):
+        return {'state': 'waiting-source', 'reason': 'A current branch is unresolved'}
+    if any(plan['profile'] not in AUTOCANCEL_PROFILES for plan in plans):
+        return {'state': 'not-managed', 'reason': 'A current branch has an unreviewed cancellation policy'}
+    if any(plan['changed'] for plan in plans):
+        return {'state': 'waiting-source', 'reason': 'All current branches must have canonical enrollment'}
+    try:
+        for plan in plans:
+            if source_request(f'repos/{repo}/branches/{plan["branch"]}')['commit']['sha'] != plan['head']:
+                raise ValueError('Source changed after enrollment inspection')
+    except (ValueError, KeyError, TypeError) as error:
+        return {'state': 'unresolved', 'reason': str(error)}
+    # Preserve the marketing default-branch guard even in mixed eligible profiles.
+    plan = next((p for p in plans if p['profile'] == 'marketing'), plans[0])
+    return reconcile(plan, source_request, apply, settings_request)
