@@ -17,6 +17,12 @@ DESIRED = [{'context': name, 'app_id': 18001} for name in ('setup', 'verify')]
 PROFILES = {'qbit', 'core', 'frontend-core', 'frontend-material', 'repository-policy'}
 
 
+def same_checks(left, right):
+    """GitHub may reorder checks; retain exact bindings and duplicate counts."""
+    return sorted(json.dumps(check, sort_keys=True) for check in left) == sorted(
+        json.dumps(check, sort_keys=True) for check in right)
+
+
 def api(path, method='GET', payload=None):
     """Use existing gh authentication; never expose response bodies on failure."""
     args = ['gh', 'api', '--method', method, path]
@@ -124,7 +130,7 @@ def inspect(repo, branch, version, request=api):
                 'required_status_checks': desired, 'changed': False, 'protection_mode': 'rulesets',
                 'effective_rules': rules, 'rulesets': rulesets}
     current = (before or {}).get('required_status_checks') or {}
-    ready = (current.get('strict') is True and current.get('checks') == desired['checks']
+    ready = (current.get('strict') is True and same_checks(current.get('checks', []), desired['checks'])
              and (before or {}).get('enforce_admins', {}).get('enabled') is True)
     return {'repository': repo, 'branch': branch, 'head': head, 'before': before,
             'required_status_checks': desired, 'changed': not ready}
@@ -178,7 +184,7 @@ def enforce(plan, request=api):
             request(prefix + '/protection/enforce_admins', 'POST')
     after = request(prefix + '/protection')
     actual = after['required_status_checks']
-    if not actual['strict'] or actual['checks'] != plan['required_status_checks']['checks'] or not after['enforce_admins']['enabled']:
+    if not actual['strict'] or not same_checks(actual['checks'], plan['required_status_checks']['checks']) or not after['enforce_admins']['enabled']:
         raise ValueError('Protection readback did not match requested gates')
     if before:
         for key, value in before.items():
