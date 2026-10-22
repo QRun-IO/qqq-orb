@@ -1,9 +1,10 @@
+#!/usr/bin/env bash
 set -euo pipefail
 npm run start > /tmp/qqq-link-server.log 2>&1 &
 server_pid=$!
 trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
 ready=false
-for attempt in {1..60}; do
+for _attempt in {1..60}; do
   if ! kill -0 "$server_pid" 2>/dev/null; then
     cat /tmp/qqq-link-server.log
     exit 1
