@@ -5,7 +5,7 @@ import enforce_orb_checks as enforcement
 import reconcile_enrollment as remote
 
 
-def qualification(repo, head):
+def qualification(repo, head, profile='qbit'):
     """Require both app-bound orb gates and every advertised latest check/status."""
     checks, page = [], 1
     while True:
@@ -15,7 +15,8 @@ def qualification(repo, head):
             break
         page += 1
     reasons = []
-    for name in ('setup', 'verify'):
+    for gate in enforcement.gates(profile):
+        name = gate['context']
         found = [check for check in checks if check['name'] == name and check['app']['id'] == 18001]
         if not found or max(found, key=lambda check: check['id'])['conclusion'] != 'success':
             reasons.append(name)
@@ -49,7 +50,7 @@ def merge_ready(plan, result):
     if pr['state'] != 'MERGED':
         if pr['baseRefOid'] != plan['head'] or remote.api(f'repos/{repo}/branches/{plan["branch"]}')['commit']['sha'] != plan['head']:
             return {'state': 'stale-base', 'url': result['url']}
-        pending = qualification(repo, head)
+        pending = qualification(repo, head, plan['profile'])
         if pending:
             return {'state': 'waiting-checks', 'checks': pending, 'url': result['url']}
         remote.command(['gh', 'pr', 'merge', str(pr['number']), '--repo', repo, '--squash', '--match-head-commit', head])
