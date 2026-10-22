@@ -1,0 +1,70 @@
+{
+  "version": 2.1,
+  "jobs": {
+    "verify-template": {
+      "docker": [
+        {
+          "image": "cimg/openjdk:21.0"
+        }
+      ],
+      "resource_class": "medium",
+      "steps": [
+        "checkout",
+        {
+          "restore_cache": {
+            "keys": [
+              "qqq-template-v1-java21-d84a5783bf09c58e42ba72203247f20bd5779302"
+            ]
+          }
+        },
+        {
+          "run": {
+            "name": "Prepare pinned qctl renderer",
+            "command": "set -euo pipefail\ntool_dir=\"${QQQ_TEMPLATE_TOOL_DIR:-$HOME/.cache/qqq-template-renderer}\"\nmaven_repo=\"${QQQ_TEMPLATE_MAVEN_REPO:-$HOME/.m2/repository}\"\nif [[ ! -d \"$tool_dir/.git\" ]]; then\n  git init \"$tool_dir\"\n  git -C \"$tool_dir\" remote add origin https://github.com/QRun-IO/qctl.git\n  git -C \"$tool_dir\" fetch --depth=1 origin d84a5783bf09c58e42ba72203247f20bd5779302\n  git -C \"$tool_dir\" checkout --detach FETCH_HEAD\nfi\ntest \"$(git -C \"$tool_dir\" rev-parse HEAD)\" = d84a5783bf09c58e42ba72203247f20bd5779302\n# Build the immutable, already-qualified renderer, not another copy of the consumer.\nif [[ ! -f \"$tool_dir/qctl-qqq/target/qctl-qqq-0.2.1.jar\" || ! -f \"$maven_repo/io/qrun/qctl/qctl-qqq/0.2.1/qctl-qqq-0.2.1.pom\" ]]; then\n  mvn -B -ntp -f \"$tool_dir/pom.xml\" -Dmaven.repo.local=\"$maven_repo\" -pl qctl-qqq -am install -DskipTests\nfi\nmvn -B -ntp -f \"$tool_dir/pom.xml\" -Dmaven.repo.local=\"$maven_repo\" -pl qctl-qqq dependency:build-classpath -Dmdep.outputFile=\"$tool_dir/classpath.txt\"\n",
+            "no_output_timeout": "10m"
+          }
+        },
+        {
+          "run": {
+            "name": "Render the exact template checkout without hooks",
+            "command": "set -euo pipefail\ntool_dir=\"${QQQ_TEMPLATE_TOOL_DIR:-$HOME/.cache/qqq-template-renderer}\"\noutput=\"${QQQ_TEMPLATE_OUTPUT:-$HOME/qqq-template-acceptance}\"\nwork=\"${QQQ_TEMPLATE_WORK:-/tmp/qqq-template-check}\"\nmkdir -p \"$work\"\ncurl --fail --silent --show-error --location --retry 2 --max-time 60 https://raw.githubusercontent.com/QRun-IO/qqq-templates-hub/4d22fc650967eee609107476d5dc3ac5dffeb071/templates.yaml -o \"$work/catalog.yaml\"\necho \"9342ef716f11ffea25a684fba6865e4daf303d968b5fa6a1ddcc6de43a6bb193  $work/catalog.yaml\" | sha256sum --check --status\ncat > \"$work/QqqTemplateCheck.java\" \\<<'JAVA'\nimport java.nio.file.Files;\nimport java.nio.file.Path;\nimport java.util.LinkedHashMap;\nimport java.util.Map;\nimport com.fasterxml.jackson.databind.JsonNode;\nimport com.fasterxml.jackson.databind.ObjectMapper;\nimport com.fasterxml.jackson.dataformat.yaml.YAMLFactory;\nimport io.qrun.qctl.qqq.template.TemplateEngine;\nimport io.qrun.qctl.qqq.template.TemplateManifest;\nimport io.qrun.qctl.qqq.template.TransformExecutor;\n\npublic class QqqTemplateCheck\n{\n   public static void main(String[] args) throws Exception\n   {\n      if(args.length != 3)\n      {\n         throw new IllegalArgumentException(\"Expected catalog, checked-out template, fresh output directory\");\n      }\n      Path output = Path.of(args[2]);\n      if(Files.exists(output))\n      {\n         throw new IllegalArgumentException(\"Output directory must not exist\");\n      }\n      ObjectMapper mapper = new ObjectMapper(new YAMLFactory());\n      JsonNode index = mapper.readTree(Path.of(args[0]).toFile());\n      TemplateManifest manifest = null;\n      for(JsonNode entry : index.get(\"templates\"))\n      {\n         if(\"new-qqq-application\".equals(entry.path(\"id\").asText()))\n         {\n            if(manifest != null) throw new IllegalArgumentException(\"Duplicate template entry\");\n            manifest = mapper.treeToValue(entry, TemplateManifest.class);\n         }\n      }\n      if(manifest == null) throw new IllegalArgumentException(\"Template missing from catalog\");\n      TemplateEngine engine = new TemplateEngine();\n      Map<String, String> variables = new LinkedHashMap<>(Map.of(\n         \"projectName\", \"ci-template\", \"groupId\", \"io.qrun.ci\",\n         \"artifactId\", \"ci-template\", \"packageName\", \"io.qrun.ci\"));\n      variables = engine.evaluateComputed(manifest.computed(), variables);\n      Files.createDirectories(output);\n      int count = engine.render(Path.of(args[1]), output, variables, manifest);\n      if(manifest.transforms() != null)\n      {\n         new TransformExecutor().execute(output, manifest.transforms(), variables);\n      }\n      if(count == 0 || !Files.isRegularFile(output.resolve(\"pom.xml\")))\n      {\n         throw new IllegalStateException(\"Renderer did not create the application\");\n      }\n      System.out.println(\"Rendered \" + count + \" files from the exact local template; hooks not executed\");\n   }\n}\nJAVA\njava -cp \"$(cat \"$tool_dir/classpath.txt\"):$tool_dir/qctl-qqq/target/classes\" \"$work/QqqTemplateCheck.java\" \"$work/catalog.yaml\" \"$PWD\" \"$output\"\n"
+          }
+        },
+        {
+          "run": {
+            "name": "Verify generated application and package",
+            "command": "set -euo pipefail\nmvn -B -ntp -f \"${QQQ_TEMPLATE_OUTPUT:-$HOME/qqq-template-acceptance}/pom.xml\" -Dmaven.repo.local=\"${QQQ_TEMPLATE_MAVEN_REPO:-$HOME/.m2/repository}\" verify\n",
+            "no_output_timeout": "10m"
+          }
+        },
+        {
+          "store_test_results": {
+            "path": "~/qqq-template-acceptance/target/surefire-reports"
+          }
+        },
+        {
+          "store_artifacts": {
+            "path": "~/qqq-template-acceptance/target/ci-template.jar",
+            "destination": "generated-application.jar"
+          }
+        },
+        {
+          "save_cache": {
+            "key": "qqq-template-v1-java21-d84a5783bf09c58e42ba72203247f20bd5779302",
+            "paths": [
+              "~/.m2/repository",
+              "~/.cache/qqq-template-renderer"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "workflows": {
+    "verify": {
+      "jobs": [
+        "verify-template"
+      ]
+    }
+  }
+}
