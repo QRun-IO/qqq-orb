@@ -5,6 +5,12 @@ description: >
   - Deploys signed artifacts and waits for confirmed Central release publication
   - Saves Maven cache for future builds
 
+parameters:
+  skip_verified_analysis:
+    type: boolean
+    default: false
+    description: "Skip repeated SpotBugs and PMD only after this job has completed mvn_verify"
+
 steps:
   - run:
       name: Setup Maven Settings
@@ -17,6 +23,8 @@ steps:
       # Central's native publication wait can be silent for its 30-minute limit.
       # Let Maven return its real result before CircleCI's inactivity watchdog.
       no_output_timeout: 35m
+      environment:
+        QQQ_SKIP_VERIFIED_ANALYSIS: << parameters.skip_verified_analysis >>
       command: <<include(scripts/mvn_jar_deploy.sh)>>
   - save_cache:
       paths:
