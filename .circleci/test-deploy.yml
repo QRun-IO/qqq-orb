@@ -47,6 +47,7 @@ jobs:
           name: Verify pipeline selection and Maven compatibility contracts
           command: |
             python3 tests/test_generate_pipeline.py
+            python3 tests/test_marketing_link_check.py
             python3 scripts/pack_pipeline.py --check
             bash tests/test_cli_ci_behavior.sh
             python3 tests/test_cli_ci_contract.py
