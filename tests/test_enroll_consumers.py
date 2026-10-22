@@ -29,6 +29,9 @@ class EnrollmentTests(unittest.TestCase):
         target = self.legacy(profile)
         root = Path(target['checkout'])
         data = {'profile': profile, 'orb_version': '0.7.4', 'default_branch': 'main'}
+        if profile == 'node-artifact':
+            data.update(context='registry', npm_scopes=['@example'],
+                        artifact_path='dist/bundle.js', build_branches=['main'])
         (root / '.qqq-ci.yml').write_text(yaml.safe_dump(data), encoding='utf-8')
         (root / '.circleci/config.yml').write_text(yaml.safe_dump(
             enrollment.rollout.standard.canonical_caller(profile, '0.7.4')), encoding='utf-8')

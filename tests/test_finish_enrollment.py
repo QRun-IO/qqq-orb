@@ -83,7 +83,7 @@ class FinishTests(unittest.TestCase):
             enforce.assert_called_once_with(current)
 
     def test_unknown_gate_profile_never_merges_or_enforces(self):
-        self.plan['profile'] = 'frontend-next'
+        self.plan['profile'] = 'marketing'
         with mock.patch.object(finish.remote, 'command') as command, mock.patch.object(finish.enforcement, 'inspect') as inspect:
             self.assertEqual('unsupported-gates', finish.merge_ready(self.plan, self.result)['state'])
             self.assertEqual('unsupported-gates', finish.enforce_current(self.plan)['state'])
