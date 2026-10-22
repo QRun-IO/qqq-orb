@@ -398,6 +398,37 @@ class PipelineTests(unittest.TestCase):
             self.write_manifest(profile="application-template", **invalid)
             self.render(ok=False)
 
+    def test_template_uncached_renderer_build_runs_in_renderer_directory(self):
+        self.write_manifest(profile="application-template")
+        tool = self.root / "renderer"
+        (tool / ".git").mkdir(parents=True)
+        binaries = self.root / "bin"
+        binaries.mkdir()
+        commands = {
+            "git": "#!/bin/bash\nprintf '%s\\n' d84a5783bf09c58e42ba72203247f20bd5779302\n",
+            "mvn": '#!/bin/bash\nset -eu\ntest "$PWD" = "$QQQ_TEMPLATE_TOOL_DIR"\nprintf "%s\\n" "$*" >> "$MAVEN_CALLS"\n',
+        }
+        for name, script in commands.items():
+            path = binaries / name
+            path.write_text(script, encoding="utf-8")
+            path.chmod(0o755)
+        for packed in ([False, True] if PACKED else [False]):
+            with self.subTest(packed=packed):
+                result = self.render(packed=packed, CIRCLE_BRANCH="main")
+                bootstrap = next(step["run"]["command"] for step in result["jobs"]["verify-template"]["steps"]
+                                 if isinstance(step, dict) and "run" in step)
+                calls = self.root / ("maven-packed.log" if packed else "maven-source.log")
+                env = {**self.env, "PATH": str(binaries) + os.pathsep + os.environ["PATH"],
+                       "QQQ_TEMPLATE_TOOL_DIR": str(tool), "QQQ_TEMPLATE_MAVEN_REPO": str(self.root / "m2"),
+                       "MAVEN_CALLS": str(calls)}
+                completed = subprocess.run(["bash", "-c", bootstrap], cwd=self.repo, env=env,
+                                           capture_output=True, text=True)
+                self.assertEqual(0, completed.returncode, completed.stderr)
+                invoked = calls.read_text().splitlines()
+                self.assertEqual(2, len(invoked))
+                self.assertIn(" install ", invoked[0])
+                self.assertIn("dependency:build-classpath", invoked[1])
+
     def test_homebrew_source_and_packed_is_one_nonpublishing_job(self):
         self.write_manifest(profile="homebrew-tap", tap="qrun-io/qctl", formula="qctl")
         for packed in ([False, True] if PACKED else [False]):
