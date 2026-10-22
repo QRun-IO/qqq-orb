@@ -50,6 +50,50 @@ def content(repo, path, head):
     return base64.b64decode(item['content'])
 
 
+def mutation(path, payload):
+    """Use the existing gh identity; never print credentials or response bodies."""
+    result = subprocess.run(['gh', 'api', path, '--method', 'POST', '--input', '-'],
+                            input=json.dumps(payload), capture_output=True,
+                            text=True, encoding='utf-8', timeout=60)
+    if result.returncode:
+        raise ValueError('GitHub mutation failed; inspect remote state before retrying')
+    try:
+        data = json.loads(result.stdout)
+    except ValueError:
+        raise ValueError('Invalid GitHub mutation response') from None
+    if not isinstance(data, dict) or data.get('errors'):
+        raise ValueError('GitHub mutation did not succeed')
+    return data
+
+
+def signed_api_commit(plan, ref):
+    """Resume a base-only branch; append atomically without local Git/SSH keys."""
+    repo, branch, base = plan['repository'], plan['automation_branch'], plan['head']
+    if ref is None:
+        mutation(f'repos/{repo}/git/refs', {'ref': 'refs/heads/' + branch, 'sha': base})
+    elif ref['object']['sha'] != base:
+        return ref['object']['sha']
+    if api(f'repos/{repo}/branches/{plan["branch"]}')['commit']['sha'] != base:
+        raise ValueError('Target branch moved before submission')
+    additions = [{'path': path, 'contents': base64.b64encode(plan['replacements'][path]).decode('ascii')}
+                 for path in PATHS if plan['originals'][path] != plan['replacements'][path]]
+    result = mutation('graphql', {
+        'query': 'mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }',
+        'variables': {'input': {
+            'branch': {'repositoryNameWithOwner': repo, 'branchName': branch},
+            'expectedHeadOid': base,
+            'message': {'headline': 'ci: enroll in the shared QQQ orb',
+                        'body': 'Co-Authored-By: Codex <noreply@openai.com>'},
+            'fileChanges': {'additions': additions}}}})
+    try:
+        head = result['data']['createCommitOnBranch']['commit']['oid']
+    except (KeyError, TypeError):
+        raise ValueError('GitHub commit response is incomplete') from None
+    if not isinstance(head, str) or not re.fullmatch(r'[0-9a-f]{40}', head):
+        raise ValueError('GitHub commit response has no valid SHA')
+    return head
+
+
 def inspect(target, version):
     """Resolve observed repository identity and reuse the shared enrollment planner."""
     if not isinstance(target, dict) or set(target) != {'repository', 'branch'}:
@@ -103,29 +147,7 @@ def apply(plan):
     if api(f'repos/{repo}/branches/{plan["branch"]}')['commit']['sha'] != plan['head']:
         raise ValueError('Target branch changed after preflight')
     ref = api(f'repos/{repo}/git/ref/heads/{branch}', missing=True)
-    if ref is None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory) / 'checkout'
-            command(['git', 'clone', '-c', 'core.autocrlf=false', '--depth', '1', '--single-branch', '--branch', plan['branch'],
-                     f'git@github.com:{repo}.git', str(root)])
-            if command(['git', 'rev-parse', 'HEAD'], root) != plan['head']:
-                raise ValueError('Target branch moved before checkout')
-            for path in PATHS:
-                target = enroll_consumers.declaration(root, path)
-                current = target.read_bytes() if target.exists() else None
-                if current != plan['originals'][path]:
-                    raise ValueError('Checkout differs from immutable preflight')
-                target.write_bytes(plan['replacements'][path])
-            command(['git', 'add', '--', *PATHS], root)
-            command(['git', 'diff', '--cached', '--check'], root)
-            command(['git', 'commit', '-S', '-m', 'ci: enroll in the shared QQQ orb', '-m',
-                     'Co-Authored-By: Codex <noreply@openai.com>'], root)
-            head = command(['git', 'rev-parse', 'HEAD'], root)
-            if api(f'repos/{repo}/branches/{plan["branch"]}')['commit']['sha'] != plan['head']:
-                raise ValueError('Target branch moved before submission')
-            command(['git', 'push', 'origin', f'HEAD:refs/heads/{branch}'], root)
-    else:
-        head = ref['object']['sha']
+    head = signed_api_commit(plan, ref)
     verify_submission(plan, head)
     pulls = api(f'repos/{repo}/pulls?state=all&head={repo.split("/")[0]}:{branch}&base={plan["branch"]}')
     if pulls:
