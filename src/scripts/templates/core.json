@@ -238,7 +238,7 @@
         {
           "run": {
             "name": "Build framework dependencies for the sample",
-            "command": "mvn -B -s /tmp/circleci/mvn-settings.xml -Drevision=0.0.0-sample-acceptance -DskipTests clean install"
+            "command": "mvn -B -s /tmp/circleci/mvn-settings.xml -Drevision=0.0.0-sample-acceptance -DskipTests -Dspotbugs.skip=true -Dpmd.skip=true clean install"
           }
         },
         {
@@ -308,7 +308,7 @@
         {
           "run": {
             "name": "Build framework dependencies for the sample",
-            "command": "mvn -B -s /tmp/circleci/mvn-settings.xml -Drevision=0.0.0-sample-multinode -DskipTests clean install"
+            "command": "mvn -B -s /tmp/circleci/mvn-settings.xml -Drevision=0.0.0-sample-multinode -DskipTests -Dspotbugs.skip=true -Dpmd.skip=true clean install"
           }
         },
         {
@@ -336,7 +336,7 @@
         {
           "run": {
             "name": "Build framework dependencies for the consumers",
-            "command": "mvn -B -s /tmp/circleci/mvn-settings.xml -Drevision=0.0.0-sample-acceptance -DskipTests clean install"
+            "command": "mvn -B -s /tmp/circleci/mvn-settings.xml -Drevision=0.0.0-sample-acceptance -DskipTests -Dspotbugs.skip=true -Dpmd.skip=true clean install"
           }
         },
         {
