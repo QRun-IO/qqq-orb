@@ -378,6 +378,21 @@ class PipelineTests(unittest.TestCase):
         for packed in ([False, True] if PACKED else [False]):
             self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="", CIRCLE_TAG="publish-test"))
 
+    def test_homebrew_source_and_packed_is_one_nonpublishing_job(self):
+        self.write_manifest(profile="homebrew-tap", tap="qrun-io/qctl", formula="qctl")
+        for packed in ([False, True] if PACKED else [False]):
+            result = self.render(packed=packed, CIRCLE_BRANCH="main")
+            self.assertEqual({"verify": {"jobs": ["validate-tap"]}}, result["workflows"])
+            self.assertEqual({"validate-tap"}, set(result["jobs"]))
+            job = result["jobs"]["validate-tap"]
+            self.assertEqual("small", job["resource_class"])
+            self.assertEqual("qrun-io/qctl", job["environment"]["QQQ_HOMEBREW_TAP"])
+            self.assertIn("@sha256:", job["docker"][0]["image"])
+        for invalid in ({"tap": "qrun-io/qctl;echo bad"}, {"formula": "../qctl"},
+                        {"publish": {"release": True}}, {"command": "true"}):
+            self.write_manifest(profile="homebrew-tap", **dict({"tap": "qrun-io/qctl", "formula": "qctl"}, **invalid))
+            self.render(ok=False)
+
     def test_repository_policy_source_and_packed_never_select_publication(self):
         self.write_manifest(profile="repository-policy")
         for packed in ([False, True] if PACKED else [False]):
