@@ -52,6 +52,7 @@ jobs:
             bash tests/test_cli_ci_behavior.sh
             python3 tests/test_cli_ci_contract.py
             python3 tests/test_maven_ci_contract.py
+            python3 tests/test_version_preflight.py
             python3 tests/test_standardize_qbit.py
             python3 tests/test_qbit_hotfix_profile.py
             python3 tests/test_qbit_feature_profile.py

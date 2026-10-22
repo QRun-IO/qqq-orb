@@ -55,6 +55,7 @@ test-all: test test-scripts test-pipelines
 test-pipelines: pack
 	python3 tests/test_generate_pipeline.py --packed target/qqq-orb-packed.yml
 	python3 tests/test_maven_ci_contract.py
+	python3 tests/test_version_preflight.py
 	bash tests/test_cli_ci_behavior.sh
 	python3 tests/test_cli_ci_contract.py
 	python3 tests/test_standardize_qbit.py

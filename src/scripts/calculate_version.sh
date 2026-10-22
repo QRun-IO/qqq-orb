@@ -435,6 +435,13 @@ main() {
     echo ""
     echo "Calculated next version: $NEW_VERSION"
     echo ""
+
+    # QQQ help bundle versions and persisted provenance support at most 50 characters.
+    # Check unchanged versions too, before Maven edits or publication can begin.
+    if (( ${#NEW_VERSION} > 50 )); then
+        echo "ERROR: Calculated version '$NEW_VERSION' is ${#NEW_VERSION} characters; QQQ bundle/provenance versions support at most 50. Use a shorter feature branch name or version." >&2
+        exit 1
+    fi
     
     #######################################
     ## Set the version if it's different ##
