@@ -47,6 +47,7 @@ PROFILE_PARAMETERS = {
     "mcp-policy": {},
     "repository-policy": {},
     "marketing": {},
+    "node-artifact": {},
 }
 
 
@@ -66,6 +67,8 @@ def canonical_caller(profile, version, explicit_manifest=False, release_tag_poli
         "orb_version": version,
         "filters": {"branches": {"ignore": "automation/qbit-rc-pending"}, "tags": {"only": "/.*/"}},
     }
+    if profile == "node-artifact":
+        options["filters"]["tags"] = {"ignore": "/.*/"}
     if profile == "frontend-next":
         options["filters"]["branches"] = {"ignore": "/.*/"}
     if profile == "qbit" and release_tag_policy is not None:
