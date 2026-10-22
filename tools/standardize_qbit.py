@@ -91,6 +91,7 @@ def test_filters(filters):
         "/(develop|main|release/.*|integration.*)/": "feature",
         "/(develop|main|release/.*)/": "non-release-no-main",
         "/(develop|release/.*|hotfix/.*)/": "non-release-no-hotfix",
+        "/(develop|release/.*|hotfix/.*|integration.*)/": "non-release-no-hotfix-integration",
         "/(develop|main|release/.*|hotfix/.*)/": "non-release-no-main-hotfix",
         "/(develop|main|release/.*|hotfix/.*|integration.*)/": "feature-no-hotfix",
     }.get(pattern.replace(r"\/", "/"))
