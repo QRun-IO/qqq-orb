@@ -66,3 +66,5 @@ and verifies preservation of all other flags. Its separate
 unconverted sources and profiles needing cancellation-policy review explicitly.
 Publication-heavy profiles are not changed until their non-default release
 semantics are reviewed; a successful reconciliation pass does not certify them.
+
+Because cancellation is project-wide, eligibility requires every discovered current main/develop branch to be canonical and use a reviewed profile. An unresolved branch or an unreviewed publishing profile prevents enabling the flag, regardless of branch order. The report lists all observed profiles.
