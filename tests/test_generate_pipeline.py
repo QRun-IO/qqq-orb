@@ -254,7 +254,7 @@ class PipelineTests(unittest.TestCase):
                 artifacts = [step["store_artifacts"] for step in steps if isinstance(step, dict) and "store_artifacts" in step]
                 self.assertEqual(int(branch in ("main", "feature/initial-dev")), len(artifacts))
                 self.assertNotIn("npm publish", str(output))
-                self.assertIn("${NPM_TOKEN}", commands[0])
+                self.assertIn("${GITHUB_TOKEN}", commands[0])
                 self.assertEqual({"ignore": "/.*/"}, output["workflows"]["verify"]["jobs"][0]["node_artifact"]["filters"]["tags"])
 
     def test_node_artifact_requires_explicit_minor_or_patch_image(self):

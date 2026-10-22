@@ -533,7 +533,7 @@ def node_artifact_template(config, branch, tag):
     lines = ["registry=https://registry.npmjs.org/"]
     lines += [scope + ":registry=https://npm.pkg.github.com/" for scope in config["npm_scopes"]]
     if config["npm_scopes"]:
-        lines.append("//npm.pkg.github.com/:_authToken=${NPM_TOKEN}")
+        lines.append("//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}")
     npmrc = "printf '%s\\n' " + " ".join("'" + line + "'" for line in lines) + " >> .npmrc"
     steps = ["checkout", {"run": {"name": "Configure npm registries", "command": npmrc}},
              {"restore_cache": {"keys": ['node-artifact-npm-v1-{{ checksum "package-lock.json" }}', 'node-artifact-npm-v1-']}},
