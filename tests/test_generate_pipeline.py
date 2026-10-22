@@ -46,6 +46,11 @@ class MarketingContractTests(unittest.TestCase):
                     build["test_commands"] = json.dumps([
                         "npm run lint", "npm run build",
                         *json.loads(build["test_commands"])])
+                    commands = json.loads(build["test_commands"])
+                    commands.insert(0, (ROOT / "tests/fixtures/marketing-worker-input.sh").read_text().rstrip())
+                    commands.insert(5, (ROOT / "tests/fixtures/marketing-link-check.sh").read_text().rstrip())
+                    build["test_commands"] = json.dumps(commands)
+                    build["post-steps"] = [{"store_artifacts": {"path": path, "destination": dest}} for path, dest in [("playwright-report", "playwright-report"), (".lighthouseci", "lighthouse-report")]]
         for branch, selected in (("feature/example", "pr-checks"), ("main", "production"),
                                  ("develop", "develop"), ("staging", "staging"),
                                  ("release/1", "release-candidate"), ("automation/enroll", "pr-checks")):
@@ -77,9 +82,11 @@ class MarketingContractTests(unittest.TestCase):
             build = jobs["munitor/node_build_and_test"]
             self.assertEqual(build["node_version"], "22")
             self.assertEqual(json.loads(build["test_commands"]), [
+                (ROOT / "tests/fixtures/marketing-worker-input.sh").read_text().rstrip(),
                 "npm run lint", "npm run build",
                 "npx playwright install chromium --with-deps",
-                "npm run test:chromium", "npm run lighthouse"])
+                "npm run test:chromium",
+                (ROOT / "tests/fixtures/marketing-link-check.sh").read_text().rstrip(), "npm run lighthouse"])
             if branch == "main":
                 cd = jobs["munitor/update_cd_repo"]
                 self.assertEqual(cd["cd_repo"], "KofTwentyTwo/cluster-gitops")

@@ -13,6 +13,71 @@ def entry(name, archived=False):
 
 
 class DiscoveryTests(unittest.TestCase):
+    def policy(self):
+        return {'QRun-IO/example': {'baseline_sha': 'a' * 40, 'required_paths': ['README.md'],
+                'forbidden_paths': ['.qqq-ci.yml'], 'forbidden_prefixes': ['.circleci/', '.github/workflows/'],
+                'rationale': 'Approved documentation-only snapshot'}}
+
+    def test_approved_snapshot_is_reported_without_enrollment(self):
+        def request(path):
+            if '/branches?' in path:
+                return [{'name': 'main'}, {'name': 'develop'}]
+            if '/branches/' in path:
+                return {'commit': {'sha': ('a' if path.endswith('main') else 'b') * 40}}
+            return {'truncated': False, 'tree': [{'path': 'README.md', 'type': 'blob'}]}
+        inspect = mock.Mock(side_effect=lambda target, version: target)
+        with mock.patch.dict(discovery.audit_estate.NO_CI, self.policy(), clear=True):
+            plans, findings = discovery.discover('QRun-IO', '0.8', inspect, request, [entry('example')])
+        self.assertEqual([{'repository': 'QRun-IO/example', 'branch': 'develop'}], plans)
+        self.assertEqual('approved-no-ci', findings[0]['state'])
+        self.assertEqual('a' * 40, findings[0]['head'])
+        inspect.assert_called_once_with(plans[0], '0.8')
+
+    def test_no_ci_tree_must_be_complete_and_match_approved_identity(self):
+        for tree in ({'truncated': True, 'tree': [{'path': 'README.md'}]},
+                     {'truncated': False, 'tree': []},
+                     {'truncated': False, 'tree': [{'path': 'README.md'}, {'path': '.circleci/config.yml'}]}):
+            def request(path):
+                if '/branches?' in path:
+                    return [{'name': 'main'}]
+                if '/branches/' in path:
+                    return {'commit': {'sha': 'a' * 40}}
+                return tree
+            inspect = mock.Mock()
+            with mock.patch.dict(discovery.audit_estate.NO_CI, self.policy(), clear=True):
+                plans, findings = discovery.discover('QRun-IO', '0.8', inspect, request, [entry('example')])
+            self.assertEqual([], plans)
+            self.assertEqual('unresolved', findings[0]['state'])
+            inspect.assert_not_called()
+
+    def test_old_no_ci_label_never_exempts_executable_or_deployment_source(self):
+        for source in ('base/deployment.yaml', 'template/pom.xml', 'scripts/customize.py', 'Formula/qctl.rb'):
+            def request(path):
+                if '/branches?' in path:
+                    return [{'name': 'main'}]
+                if '/branches/' in path:
+                    return {'commit': {'sha': 'a' * 40}}
+                return {'truncated': False, 'tree': [{'path': 'README.md', 'type': 'blob'},
+                                                   {'path': source, 'type': 'blob'}]}
+            inspect = mock.Mock(side_effect=ValueError('Source needs centralized validation'))
+            with mock.patch.dict(discovery.audit_estate.NO_CI, self.policy(), clear=True):
+                plans, findings = discovery.discover('QRun-IO', '0.8', inspect, request, [entry('example')])
+            self.assertEqual([], plans)
+            self.assertEqual('unresolved', findings[0]['state'])
+            inspect.assert_called_once()
+
+    def test_changed_no_ci_source_is_never_exempted(self):
+        def request(path):
+            if '/branches?' in path:
+                return [{'name': 'main'}]
+            return {'commit': {'sha': 'b' * 40}}
+        inspect = mock.Mock(side_effect=ValueError('Unrecognized executable source'))
+        with mock.patch.dict(discovery.audit_estate.NO_CI, self.policy(), clear=True):
+            plans, findings = discovery.discover('QRun-IO', '0.8', inspect, request, [entry('example')])
+        self.assertEqual([], plans)
+        self.assertEqual('unresolved', findings[0]['state'])
+        inspect.assert_called_once()
+
     def test_paginates_branches_and_ignores_historical_releases(self):
         requests = []
 
