@@ -12,6 +12,7 @@ import tempfile
 
 import enroll_consumers
 import native_gitops_gates as gitops
+import native_specialist_gates as specialists
 import yaml
 
 PATHS = ('.circleci/config.yml', '.qqq-ci.yml')
@@ -109,6 +110,10 @@ def inspect(target, version):
     if info['archived']:
         raise ValueError('Archived repository')
     head = api(f'repos/{repo}/branches/{branch}')['commit']['sha']
+    if repo in specialists.DEFINITIONS:
+        profile, pins = specialists.validate(repo, head, branch, api)
+        return {**target, 'head': head, 'profile': profile, 'version': version,
+                'changed': False, 'worker_pins': pins}
     if repo in gitops.REPOSITORIES:
         pin = gitops.validate(repo, head, branch, api, yaml.safe_load)
         return {**target, 'head': head, 'profile': 'native-gitops', 'version': version,

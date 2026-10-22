@@ -50,6 +50,8 @@ def merge_ready(plan, result):
     if pr['state'] != 'MERGED':
         if pr['baseRefOid'] != plan['head'] or remote.api(f'repos/{repo}/branches/{plan["branch"]}')['commit']['sha'] != plan['head']:
             return {'state': 'stale-base', 'url': result['url']}
+        if plan['profile'] in enforcement.specialists.PROFILES:
+            enforcement.specialists.validate(repo, head, plan['branch'], remote.api)
         if plan['profile'] == 'native-gitops':
             enforcement.gitops.validate(repo, head, plan['branch'], remote.api, enforcement.standard.load_yaml)
         if plan['profile'] == 'frontend-next':
