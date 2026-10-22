@@ -23,6 +23,8 @@ class RolloutTests(unittest.TestCase):
         if profile == 'node-artifact':
             policy = {'context': 'registry', 'npm_scopes': ['@example'], 'node_version': '20.19',
                       'artifact_path': 'dist/bundle.js', 'build_branches': ['main'], **policy}
+        if profile == 'homebrew-tap':
+            policy = {'tap': 'qrun-io/qctl', 'formula': 'qctl', **policy}
         manifest = {'profile': profile, 'orb_version': '0.7.4', 'default_branch': 'develop', **policy}
         caller = rollout.standard.canonical_caller(profile, '0.7.4', explicit_manifest=explicit,
                                                    release_tag_policy=manifest.get('release_tag_policy'))

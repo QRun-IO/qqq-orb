@@ -32,6 +32,8 @@ class EnrollmentTests(unittest.TestCase):
         if profile == 'node-artifact':
             data.update(context='registry', npm_scopes=['@example'], node_version='20.19',
                         artifact_path='dist/bundle.js', build_branches=['main'])
+        if profile == 'homebrew-tap':
+            data.update(tap='qrun-io/qctl', formula='qctl')
         (root / '.qqq-ci.yml').write_text(yaml.safe_dump(data), encoding='utf-8')
         (root / '.circleci/config.yml').write_text(yaml.safe_dump(
             enrollment.rollout.standard.canonical_caller(profile, '0.7.4')), encoding='utf-8')
