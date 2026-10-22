@@ -130,4 +130,9 @@ The organization mode has no fixed repository-count ceiling. Supply
 mode preserves its default of 68. Reports identify the inventory source and
 credential visibility limit: inaccessible repositories cannot be certified.
 This is discovery and audit, not automatic enrollment or branch-rule mutation.
+
+For a qualified batch of canonical orb branches, use the shared
+[branch-check enforcement command](branch-enforcement.md). It adds the observed
+CircleCI setup/verify gates while preserving other protections. Source enrollment,
+scanner transitions and scheduled reconciliation remain separate requirements.
 Scheduling and authenticated onboarding still need to be configured centrally.
