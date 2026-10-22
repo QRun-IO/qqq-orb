@@ -64,6 +64,7 @@ test-pipelines: pack
 	python3 tests/test_enforce_orb_checks.py
 	python3 tests/test_enroll_consumers.py
 	python3 tests/test_reconcile_enrollment.py
+	python3 tests/test_discover_enrollment.py
 	python3 tests/test_static_analysis_exit.py
 	python3 tests/test_validate_standard.py
 	python3 tests/test_voyage_profile.py

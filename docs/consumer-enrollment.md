@@ -66,8 +66,30 @@ Reports include repository, branch, immutable head and submission URL, without
 embedding declaration contents or credentials. Keep the report if a later target
 fails; earlier valid submissions remain intact.
 
-This handles explicit remote target lists and signed submissions. Organization
-discovery is available through `audit_estate.py`; automatic target selection,
-qualification-aware merging, enforcement reconciliation and scheduling are still
-separate work. A submitted PR is not a completed migration. Unknown profiles and
+This handles remote target lists and signed submissions. Organization discovery is described below. Qualification-aware merging, enforcement reconciliation and scheduling remain separate work. A submitted PR is not a completed migration. Unknown profiles and
 native workflows require their own central conversion, not deletion by this tool.
+
+## Organization discovery
+
+The coordinator can select observed current branches directly from GitHub:
+
+```sh
+python tools/reconcile_enrollment.py --organization QRun-IO --orb-version 0.8 --output organization-plan.json
+python tools/reconcile_enrollment.py --organization QRun-IO --orb-version 0.8 --output organization-result.json --apply
+```
+
+Repository and branch inventories are paginated. Only existing main/develop
+branches are considered; historical release branches are excluded. Archived
+repositories and the orb's own bootstrap repository are reported separately.
+Each supported branch receives the same immutable preflight as explicit targets.
+Unknown workflows, missing entrypoints, unsupported branch layouts and unavailable
+APIs stay `unresolved` in the output. They are never counted as conforming or
+silently converted. No-CI and native-only repositories may therefore appear as
+unresolved here; use the estate auditor for their separate policy classification.
+
+Discovery finishes before any submission. `--apply` processes qualified plans
+and retains unresolved entries for follow-up; one unsupported repository does
+not prevent independent valid submissions. An explicit `--targets` batch keeps
+its stricter behavior: any preflight failure stops the whole batch. Neither mode
+merges PRs or changes branch protections. Qualification-aware merge, enforcement
+reconciliation and scheduling remain to be connected.
