@@ -14,7 +14,17 @@ spec = importlib.util.spec_from_file_location('standard', ROOT / 'src/scripts/va
 standard = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(standard)
 DESIRED = [{'context': name, 'app_id': 18001} for name in ('setup', 'verify')]
-PROFILES = {'qbit', 'core', 'frontend-core', 'frontend-material', 'repository-policy'}
+PROFILE_GATES = {profile: 'verify' for profile in (
+    'qbit', 'core', 'frontend-core', 'frontend-material', 'repository-policy')}
+PROFILE_GATES.update({'all': 'verify-and-smoke', 'cli': 'test_only',
+                      'app-starter': 'test_only', 'android': 'test-and-build',
+                      'mcp-policy': 'validate'})
+PROFILES = set(PROFILE_GATES)
+
+
+def gates(profile):
+    return [{'context': name, 'app_id': 18001}
+            for name in ('setup', PROFILE_GATES[profile])]
 
 
 def same_checks(left, right):
@@ -41,9 +51,9 @@ def api(path, method='GET', payload=None):
     return json.loads(result.stdout) if result.stdout.strip() else None
 
 
-def required_checks(before, runs):
+def required_checks(before, runs, desired_gates=DESIRED):
     """Append app-bound gates only after both succeeded; preserve all other gates."""
-    for desired in DESIRED:
+    for desired in desired_gates:
         matches = [run for run in runs if run['name'] == desired['context'] and run['app']['id'] == desired['app_id']]
         if not matches or max(matches, key=lambda run: run['id'])['conclusion'] != 'success':
             raise ValueError('Current branch head has no successful CircleCI ' + desired['context'])
@@ -51,7 +61,7 @@ def required_checks(before, runs):
     checks = [dict(check) for check in prior.get('checks', [])]
     represented = {check['context'] for check in checks}
     checks += [{'context': name, 'app_id': -1} for name in prior.get('contexts', []) if name not in represented]
-    for desired in DESIRED:
+    for desired in desired_gates:
         matches = [check for check in checks if check['context'] == desired['context']]
         if any(check.get('app_id') not in (None, -1, desired['app_id']) for check in matches):
             raise ValueError('Existing gate uses a different app: ' + desired['context'])
@@ -60,7 +70,7 @@ def required_checks(before, runs):
     return {'strict': True, 'checks': checks}
 
 
-def verified_rulesets(repo, effective, request=api):
+def verified_rulesets(repo, effective, request=api, desired_gates=DESIRED):
     """Recognize active repository rulesets with bound gates and no bypass actors."""
     selected = [rule for rule in effective if rule['type'] == 'required_status_checks']
     if not selected or any(rule.get('ruleset_source_type') != 'Repository'
@@ -76,7 +86,7 @@ def verified_rulesets(repo, effective, request=api):
         records.append(record)
     requirements = [rule['parameters'] for record in records for rule in record['rules']
                     if rule['type'] == 'required_status_checks']
-    for desired in DESIRED:
+    for desired in desired_gates:
         if not any(check['context'] == desired['context'] and check.get('integration_id') == desired['app_id']
                    for parameters in requirements for check in parameters['required_status_checks']):
             raise ValueError('Ruleset is missing app-bound gate: ' + desired['context'])
@@ -102,10 +112,12 @@ def inspect(repo, branch, version, request=api):
             raise ValueError('Canonical declarations must be regular files')
         source.append(base64.b64decode(item['content'], validate=False).decode('utf-8'))
     standard.validate(*source, version)
-    if standard.load_yaml(source[1])['profile'] not in PROFILES:
-        raise ValueError('Profile does not use the shared setup/verify gate pair')
+    profile = standard.load_yaml(source[1])['profile']
+    if profile not in PROFILES:
+        raise ValueError('Profile has no supported shared branch gates')
+    desired_gates = gates(profile)
     rules = request(root + '/rules/branches/' + branch)
-    rulesets, ruleset_strict = verified_rulesets(repo, rules, request) if rules else ([], False)
+    rulesets, ruleset_strict = verified_rulesets(repo, rules, request, desired_gates) if rules else ([], False)
     before = request(prefix + '/protection')
     restrictions = (before or {}).get('restrictions')
     use_ruleset = (not rulesets and restrictions is not None
@@ -119,32 +131,33 @@ def inspect(repo, branch, version, request=api):
         if len(batch) < 100:
             break
         page += 1
-    desired = required_checks(before, runs)
+    desired = required_checks(before, runs, desired_gates)
     if use_ruleset:
-        return {'repository': repo, 'branch': branch, 'head': head, 'before': before,
-                'required_status_checks': {'strict': False, 'checks': DESIRED},
+        return {'repository': repo, 'branch': branch, 'head': head, 'before': before, 'gates': desired_gates,
+                'required_status_checks': {'strict': False, 'checks': desired_gates},
                 'changed': True, 'protection_mode': 'create-ruleset'}
     if rulesets:
         desired['strict'] = ruleset_strict or bool(((before or {}).get('required_status_checks') or {}).get('strict'))
-        return {'repository': repo, 'branch': branch, 'head': head, 'before': before,
+        return {'repository': repo, 'branch': branch, 'head': head, 'before': before, 'gates': desired_gates,
                 'required_status_checks': desired, 'changed': False, 'protection_mode': 'rulesets',
                 'effective_rules': rules, 'rulesets': rulesets}
     current = (before or {}).get('required_status_checks') or {}
     ready = (current.get('strict') is True and same_checks(current.get('checks', []), desired['checks'])
              and (before or {}).get('enforce_admins', {}).get('enabled') is True)
-    return {'repository': repo, 'branch': branch, 'head': head, 'before': before,
+    return {'repository': repo, 'branch': branch, 'head': head, 'before': before, 'gates': desired_gates,
             'required_status_checks': desired, 'changed': not ready}
 
 
 def enforce(plan, request=api):
     """Recheck drift, use narrow updates, and verify preservation of other settings."""
+    desired_gates = plan.get('gates', DESIRED)
     root = 'repos/' + plan['repository']
     prefix = root + '/branches/' + plan['branch']
     if request(prefix)['commit']['sha'] != plan['head'] or request(prefix + '/protection') != plan['before']:
         raise ValueError('Branch or protection changed after preflight')
     rules = request(root + '/rules/branches/' + plan['branch'])
     if plan.get('protection_mode') == 'rulesets':
-        if rules != plan['effective_rules'] or verified_rulesets(plan['repository'], rules, request)[0] != plan['rulesets']:
+        if rules != plan['effective_rules'] or verified_rulesets(plan['repository'], rules, request, desired_gates)[0] != plan['rulesets']:
             raise ValueError('Ruleset changed after preflight')
         return
     if rules:
@@ -165,9 +178,9 @@ def enforce(plan, request=api):
             'rules': [{'type': 'required_status_checks', 'parameters': {
                 'strict_required_status_checks_policy': False, 'do_not_enforce_on_create': False,
                 'required_status_checks': [{'context': gate['context'], 'integration_id': gate['app_id']}
-                                           for gate in DESIRED]}}]})
+                                           for gate in desired_gates]}}]})
         effective = request(root + '/rules/branches/' + plan['branch'])
-        verified_rulesets(plan['repository'], effective, request)
+        verified_rulesets(plan['repository'], effective, request, desired_gates)
         if request(prefix + '/protection') != plan['before']:
             raise ValueError('Classic access policy changed during ruleset creation')
         return

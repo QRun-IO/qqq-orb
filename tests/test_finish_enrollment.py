@@ -29,6 +29,17 @@ class FinishTests(unittest.TestCase):
                 {'statuses': [{'context': 'legacy-test', 'state': 'pending'}]}]):
             self.assertEqual(['legacy-test', 'scanner', 'verify'], finish.qualification('QRun-IO/example', 'b' * 40))
 
+    def test_profile_qualification_requires_its_actual_workflow(self):
+        for profile in ('all', 'cli', 'android', 'app-starter', 'mcp-policy'):
+            checks = self.checks()
+            checks[1]['name'] = finish.enforcement.PROFILE_GATES[profile]
+            with mock.patch.object(finish.remote, 'api', side_effect=[
+                    {'check_runs': checks}, {'statuses': []}]):
+                self.assertEqual([], finish.qualification('QRun-IO/example', 'b' * 40, profile))
+            with mock.patch.object(finish.remote, 'api', side_effect=[
+                    {'check_runs': self.checks()}, {'statuses': []}]):
+                self.assertEqual([checks[1]['name']], finish.qualification('QRun-IO/example', 'b' * 40, profile))
+
     def test_failed_or_missing_checks_never_merge(self):
         with mock.patch.object(finish.remote, 'verify_submission'), mock.patch.object(finish.remote, 'command', return_value=json.dumps(self.pr)) as command, mock.patch.object(finish.remote, 'api', return_value={'commit': {'sha': self.plan['head']}}), mock.patch.object(finish, 'qualification', return_value=['verify']):
             self.assertEqual('waiting-checks', finish.merge_ready(self.plan, self.result)['state'])
@@ -72,7 +83,7 @@ class FinishTests(unittest.TestCase):
             enforce.assert_called_once_with(current)
 
     def test_unknown_gate_profile_never_merges_or_enforces(self):
-        self.plan['profile'] = 'all'
+        self.plan['profile'] = 'frontend-next'
         with mock.patch.object(finish.remote, 'command') as command, mock.patch.object(finish.enforcement, 'inspect') as inspect:
             self.assertEqual('unsupported-gates', finish.merge_ready(self.plan, self.result)['state'])
             self.assertEqual('unsupported-gates', finish.enforce_current(self.plan)['state'])
