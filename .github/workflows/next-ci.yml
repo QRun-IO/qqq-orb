@@ -64,6 +64,9 @@ jobs:
       - name: Install browser system dependencies
         timeout-minutes: 10
         run: |
+          # A continuously slow Azure mirror never trips APT's inactivity timeout.
+          # Keep the runner's official HTTPS fallbacks and signed source configuration.
+          sudo sed -i '\|^http://azure\.archive\.ubuntu\.com/ubuntu/|d' /etc/apt/apt-mirrors.txt
           printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' \
             'Acquire::https::Timeout "30";' 'APT::Update::Error-Mode "any";' \
             | sudo tee /etc/apt/apt.conf.d/80-qqq-download-retries >/dev/null
@@ -110,6 +113,9 @@ jobs:
       - name: Install browser system dependencies
         timeout-minutes: 10
         run: |
+          # A continuously slow Azure mirror never trips APT's inactivity timeout.
+          # Keep the runner's official HTTPS fallbacks and signed source configuration.
+          sudo sed -i '\|^http://azure\.archive\.ubuntu\.com/ubuntu/|d' /etc/apt/apt-mirrors.txt
           printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' \
             'Acquire::https::Timeout "30";' 'APT::Update::Error-Mode "any";' \
             | sudo tee /etc/apt/apt.conf.d/80-qqq-download-retries >/dev/null

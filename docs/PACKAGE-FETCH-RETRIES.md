@@ -23,3 +23,12 @@ validation is pending approval to transmit the configuration to CircleCI.
 Related: QRun-IO/qqq#1307. No release rerun or successful full-browser-matrix claim
 is implied by these local checks. Publish and adopt the shared workflow change
 before rerunning the current frontend candidate's full acceptance matrix.
+
+The hosted Next workers also remove the Azure HTTP entry from the runner's
+`/etc/apt/apt-mirrors.txt`, retaining its official archive/security HTTPS fallbacks.
+Run 39840989837 downloaded 25.9 MB at 43.5 kB/s for almost ten minutes: continuous
+progress bypassed inactivity timeouts and exhausted the setup budget. Retrying
+that same mirror cannot address this failure. Source suites, components, signing
+keys and signature/checksum verification remain unchanged. A fixture executes
+the actual mirror edit twice and verifies both HTTPS entries survive unchanged.
+Hosted acceptance must still establish that this fixes the observed bottleneck.

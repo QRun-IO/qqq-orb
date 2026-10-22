@@ -25,6 +25,27 @@ POLICY = (
 
 
 class AptFetchPolicyTests(unittest.TestCase):
+    def test_runner_mirror_selection(self):
+        # Execute the actual workflow command against the hosted runner's mirror format.
+        original = ("http://azure.archive.ubuntu.com/ubuntu/\tpriority:1\n"
+                    "https://archive.ubuntu.com/ubuntu/\tpriority:2\n"
+                    "https://security.ubuntu.com/ubuntu/\tpriority:3\n")
+        expected = original.split("\n", 1)[1]
+        for name in ("next-ci.yml", "next-acceptance.yml"):
+            workflow = (ROOT / ".github/workflows" / name).read_text()
+            commands = [line.strip() for line in workflow.splitlines()
+                        if line.strip().startswith("sudo sed -i ")]
+            self.assertEqual(len(commands), 2)
+            for command in commands:
+                with tempfile.TemporaryDirectory() as scratch:
+                    mirrors = Path(scratch) / "apt-mirrors.txt"
+                    mirrors.write_text(original)
+                    command = command.removeprefix("sudo ").replace(
+                        "/etc/apt/apt-mirrors.txt", str(mirrors))
+                    for _ in range(2):
+                        subprocess.run(["bash", "-e", "-c", command], check=True)
+                        self.assertEqual(mirrors.read_text(), expected)
+
     def test_real_download_failures(self):
         source = (ROOT / "src/scripts/install_java.sh").read_text()
         stanza = source.split("# Retry transient repository downloads", 1)[1].split("# Ubuntu archive", 1)[0]
