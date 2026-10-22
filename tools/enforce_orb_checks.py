@@ -14,7 +14,7 @@ spec = importlib.util.spec_from_file_location('standard', ROOT / 'src/scripts/va
 standard = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(standard)
 DESIRED = [{'context': name, 'app_id': 18001} for name in ('setup', 'verify')]
-PROFILES = {'qbit', 'core', 'frontend-core', 'frontend-material'}
+PROFILES = {'qbit', 'core', 'frontend-core', 'frontend-material', 'repository-policy'}
 
 
 def api(path, method='GET', payload=None):

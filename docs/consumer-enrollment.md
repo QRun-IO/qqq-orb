@@ -66,7 +66,7 @@ Reports include repository, branch, immutable head and submission URL, without
 embedding declaration contents or credentials. Keep the report if a later target
 fails; earlier valid submissions remain intact.
 
-This handles remote target lists and signed submissions. Organization discovery is described below. Qualification-aware merging, enforcement reconciliation and scheduling remain separate work. A submitted PR is not a completed migration. Unknown profiles and
+This handles remote target lists and signed submissions. Organization discovery is described below. Qualification-aware merging and classic branch enforcement are described below; scheduling and ruleset reconciliation remain separate work. A submitted PR is not a completed migration. Unknown profiles and
 native workflows require their own central conversion, not deletion by this tool.
 
 ## Organization discovery
@@ -90,6 +90,31 @@ unresolved here; use the estate auditor for their separate policy classification
 Discovery finishes before any submission. `--apply` processes qualified plans
 and retains unresolved entries for follow-up; one unsupported repository does
 not prevent independent valid submissions. An explicit `--targets` batch keeps
-its stricter behavior: any preflight failure stops the whole batch. Neither mode
-merges PRs or changes branch protections. Qualification-aware merge, enforcement
-reconciliation and scheduling remain to be connected.
+its stricter behavior: any preflight failure stops the whole batch. By default neither mode merges PRs or changes branch protections. Use the explicit completion flags below.
+
+## Qualification and enforcement
+
+```sh
+python tools/reconcile_enrollment.py --targets remote-targets.json --orb-version 0.8 --output result.json --apply --merge-ready --enforce
+```
+
+Both flags require `--apply` and are optional. `--merge-ready` revalidates the
+signed submission, exact parent/files/content and current base, requires successful
+CircleCI-app `setup` and `verify` checks and every advertised latest check/status,
+then requests a normal exact-head squash merge. It never uses admin override or
+force pushes. The resulting signed merge must have the qualified source tree.
+Pending/failed checks and changed bases are reported without merging. Repeated
+runs can advance the same PR once checks complete; there is no polling loop that
+holds a CI executor open.
+
+`--enforce` independently checks the actual current target branch, which must
+pass its own orb gates before shared classic protection enforcement. Existing
+protections and other required checks are preserved. Supported gate profiles are
+QBit, Core, frontend-core, frontend-material and repository-policy. Other profiles
+remain explicitly unsupported for completion even when source enrollment works.
+Ruleset-managed branches are reported for separate reconciliation and are not
+rewritten or layered with classic protection. API/plan restrictions remain visible.
+
+A merged source update and an enforced branch are separate reported outcomes.
+Neither proves artifact publication or deployment. Scheduling and ruleset
+reconciliation remain outstanding.
