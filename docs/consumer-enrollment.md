@@ -126,3 +126,27 @@ Existing active repository rulesets with app-bound gates and no bypass actors ar
 A merged source update and an enforced branch are separate reported outcomes.
 Neither proves artifact publication or deployment. Scheduling and ruleset
 reconciliation remain outstanding.
+
+## Central hosted pass
+
+The orb owner's CircleCI config accepts `run_enrollment_reconcile: true` on
+`main`. This selects one small Python container instead of the normal orb
+build/publication workflow. It uses the existing
+`qqq-maven-registry-credentials` context's GitHub token through `gh`.
+No consumer-specific runner configuration or local signing key is needed.
+
+`tools/run_enrollment.py` verifies the owner repository and main branch, runs
+organization discovery, signed enrollment, qualified merging and enforcement,
+then exits. The pass has a 20-minute execution limit. Pending checks are reported
+for the next pass rather than polled while a paid executor waits. Incremental
+results and execution status are retained under `artifacts/enrollment`, including
+when execution fails or times out. A completed pass does not mean every repository
+conforms: unresolved and waiting entries remain explicit follow-up work.
+
+Create a single daily CircleCI schedule for the owner project only after a manual
+main-branch pass verifies its hosted credentials and results. Set `branch: main`
+and `run_enrollment_reconcile: true` in the schedule parameters. Scheduling is
+an external project setting; merging this config does not itself enable a schedule.
+Keep the existing RC-finalization parameter false for these runs. A timed-out
+GitHub request may already have succeeded remotely; the next pass resumes from
+the deterministic branch and verified source rather than forcing updates.

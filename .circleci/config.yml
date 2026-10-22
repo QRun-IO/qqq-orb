@@ -4,6 +4,9 @@ parameters:
   run_rc_finalize_sweep:
     type: boolean
     default: false
+  run_enrollment_reconcile:
+    type: boolean
+    default: false
 orbs:
   orb-tools: circleci/orb-tools@12.3
   shellcheck: circleci/shellcheck@3.2
@@ -13,6 +16,24 @@ filters: &filters
     only: /.*/
 
 jobs:
+  enrollment-reconcile:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Install reconciliation tools
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends gh
+            python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
+      - run:
+          name: Reconcile current QQQ branches
+          no_output_timeout: 21m
+          command: python3 tools/run_enrollment.py
+      - store_artifacts:
+          path: artifacts/enrollment
   rc-finalize-sweep:
     docker:
       - image: cimg/python:3.12
@@ -28,7 +49,10 @@ jobs:
 workflows:
   lint-pack:
     when:
-      not: << pipeline.parameters.run_rc_finalize_sweep >>
+      not:
+        or:
+          - << pipeline.parameters.run_rc_finalize_sweep >>
+          - << pipeline.parameters.run_enrollment_reconcile >>
     jobs:
       - orb-tools/lint:
           filters: *filters
@@ -50,6 +74,16 @@ workflows:
     when: << pipeline.parameters.run_rc_finalize_sweep >>
     jobs:
       - rc-finalize-sweep:
+          context: qqq-maven-registry-credentials
+          filters:
+            branches:
+              only: main
+            tags:
+              ignore: /.*/
+  reconcile-enrollment:
+    when: << pipeline.parameters.run_enrollment_reconcile >>
+    jobs:
+      - enrollment-reconcile:
           context: qqq-maven-registry-credentials
           filters:
             branches:
