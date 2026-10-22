@@ -25,6 +25,7 @@ ANDROID_TEMPLATE = json.loads((_TEMPLATE_DIR / "android.json").read_text(encodin
 POLICY_TEMPLATE = json.loads((_TEMPLATE_DIR / "mcp-policy.json").read_text(encoding="utf-8"))
 REPOSITORY_POLICY_TEMPLATE = json.loads((_TEMPLATE_DIR / "repository-policy.json").read_text(encoding="utf-8"))
 MARKETING_TEMPLATE = json.loads((_TEMPLATE_DIR / "marketing.json").read_text(encoding="utf-8"))
+HOMEBREW_TEMPLATE = json.loads((_TEMPLATE_DIR / "homebrew-tap.json").read_text(encoding="utf-8"))
 # END PROFILE RESOURCES
 
 
@@ -70,10 +71,12 @@ def load_manifest(path, setup_version):
     if not isinstance(data, dict):
         raise ManifestError("Manifest must be a mapping")
     profile = data.get("profile")
-    if profile not in ("qbit", "core", "frontend-material", "frontend-core", "cli", "voyage", "frontend-next", "all", "app-starter", "android", "mcp-policy", "repository-policy", "marketing", "node-artifact"):
+    if profile not in ("qbit", "core", "frontend-material", "frontend-core", "cli", "voyage", "frontend-next", "all", "app-starter", "android", "mcp-policy", "repository-policy", "marketing", "node-artifact", "homebrew-tap"):
         raise ManifestError("Unsupported profile")
     allowed = ("profile", "orb_version", "default_branch", "docs_only", "publish")
-    if profile == "node-artifact":
+    if profile == "homebrew-tap":
+        allowed = ("profile", "orb_version", "default_branch", "tap", "formula")
+    elif profile == "node-artifact":
         allowed = ("profile", "orb_version", "default_branch", "node_version", "context", "npm_scopes", "artifact_path", "build_branches")
     elif profile in ("qbit", "core"):
         allowed += ("java_version", "browsers", "api_checks")
@@ -102,6 +105,14 @@ def load_manifest(path, setup_version):
         raise ManifestError("default_branch must be main or develop")
     if profile == "marketing" and default_branch != "main":
         raise ManifestError("Marketing requires the audited main production branch")
+    if profile == "homebrew-tap":
+        tap, formula = data.get("tap"), data.get("formula")
+        if not isinstance(tap, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*", tap):
+            raise ManifestError("Homebrew requires an explicit lowercase owner/tap")
+        if not isinstance(formula, str) or not re.fullmatch(r"[a-z0-9][a-z0-9+@._-]*", formula):
+            raise ManifestError("Homebrew requires a literal formula name")
+        return {"profile": profile, "orb_version": version, "default_branch": default_branch,
+                "tap": tap, "formula": formula}
     java = data.get("java_version", "21")
     if java not in ("17", "21"):
         raise ManifestError("java_version must be the string 17 or 21")
@@ -497,7 +508,15 @@ def repository_policy_template(config, branch, tag):
     return result
 
 
-PROFILE_TEMPLATES = {"qbit": qbit_template, "core": core_template,
+def homebrew_template(config, branch, tag):
+    del branch, tag
+    result = copy.deepcopy(HOMEBREW_TEMPLATE)
+    result["jobs"]["validate-tap"]["environment"].update({
+        "QQQ_HOMEBREW_TAP": config["tap"], "QQQ_HOMEBREW_FORMULA": config["formula"]})
+    return result
+
+
+PROFILE_TEMPLATES = {"homebrew-tap": homebrew_template, "qbit": qbit_template, "core": core_template,
                      "repository-policy": repository_policy_template,
                      "frontend-material": frontend_template, "frontend-core": frontend_template,
                      "cli": cli_template, "voyage": voyage_template, "frontend-next": next_template, "all": all_template, "app-starter": starter_template, "android": android_template, "mcp-policy": policy_template, "marketing": marketing_template}

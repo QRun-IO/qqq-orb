@@ -47,22 +47,6 @@
     ],
     "rationale": "Component placeholder documentation with no executable CI."
   },
-  "QRun-IO/homebrew-qctl": {
-    "baseline_sha": "8dc185d2172c9cbf14dd5b7f83caf350430a632b",
-    "required_paths": [
-      "README.md"
-    ],
-    "forbidden_prefixes": [
-      ".circleci/",
-      ".github/workflows/"
-    ],
-    "forbidden_paths": [
-      ".qqq-ci.yml",
-      "Jenkinsfile",
-      ".gitlab-ci.yml"
-    ],
-    "rationale": "Distribution tap; qctl publication owns formula updates, no local CI."
-  },
   "QRun-IO/.github-private": {
     "baseline_sha": "3eb51cfc419398b2d4f1f6e5ebdeb17f3469ef8a",
     "required_paths": [

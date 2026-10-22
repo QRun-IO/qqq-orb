@@ -1,0 +1,36 @@
+{
+  "version": 2.1,
+  "jobs": {
+    "validate-tap": {
+      "docker": [
+        {
+          "image": "ghcr.io/homebrew/brew@sha256:0e2563de582c530c92c55420cfa67e5b60bcb541781297ee34c6508ca6e746a3"
+        }
+      ],
+      "resource_class": "small",
+      "working_directory": "/home/linuxbrew/project",
+      "environment": {
+        "HOMEBREW_NO_AUTO_UPDATE": "1",
+        "HOMEBREW_NO_ANALYTICS": "1",
+        "HOMEBREW_NO_INSTALL_CLEANUP": "1"
+      },
+      "steps": [
+        "checkout",
+        {
+          "run": {
+            "name": "Verify all platform downloads and install the exact tap revision",
+            "no_output_timeout": "5m",
+            "command": "set -euo pipefail\nbrew tap \"$QQQ_HOMEBREW_TAP\" \"$PWD\"\ntest \"$(git -C \"$(brew --repository \"$QQQ_HOMEBREW_TAP\")\" rev-parse HEAD)\" = \"$(git rev-parse HEAD)\"\nbrew trust \"$QQQ_HOMEBREW_TAP\"\nbrew readall --syntax --os=all --arch=all \"$QQQ_HOMEBREW_TAP\"\nbrew fetch --all-platforms --build-from-source \"$QQQ_HOMEBREW_TAP/$QQQ_HOMEBREW_FORMULA\"\nbrew install \"$QQQ_HOMEBREW_TAP/$QQQ_HOMEBREW_FORMULA\"\nbrew test \"$QQQ_HOMEBREW_TAP/$QQQ_HOMEBREW_FORMULA\"\n"
+          }
+        }
+      ]
+    }
+  },
+  "workflows": {
+    "verify": {
+      "jobs": [
+        "validate-tap"
+      ]
+    }
+  }
+}
