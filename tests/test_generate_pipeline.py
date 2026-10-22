@@ -675,11 +675,30 @@ class PipelineTests(unittest.TestCase):
         if PACKED:
             self.assertEqual(self.render(), self.render(packed=True))
 
+    def test_voyage_selected_workflow_retains_all_filters_and_actions(self):
+        self.write_manifest(profile="voyage")
+        template = json.loads(json.dumps(pipeline.VOYAGE_TEMPLATE).replace("__ORB_VERSION__", "0.7.0"))
+        for packed in ([False, True] if PACKED else [False]):
+            for branch, selected in (("main", "release"), ("release/1", "release"),
+                                     ("develop", "develop"), ("automation/enroll", "pull-request"),
+                                     ("hotfix/1", "pull-request"), ("release-please--branches--main", "pull-request")):
+                result = self.render(packed=packed, CIRCLE_BRANCH=branch)
+                expected = copy.deepcopy(template)
+                expected["workflows"] = {"verify": expected["workflows"][selected]}
+                self.assertEqual(expected, result)
+                jobs = {next(iter(job)): next(iter(job.values())) for job in result["workflows"]["verify"]["jobs"]}
+                if selected == "release":
+                    for name in ("update-cd-repo", "release-please"):
+                        self.assertEqual({"branches": {"only": "main"}}, jobs[name]["filters"])
+                if selected in ("release", "develop"):
+                    self.assertIn("sonar-scan", jobs)
+                    self.assertEqual(["sonarcloud"], jobs["sonar-scan"]["context"])
+
     def test_voyage_owns_complete_template(self):
         self.write_manifest(profile="voyage")
         result = self.render(CIRCLE_BRANCH="release/1")
         self.assertEqual(len(result["jobs"]), 9)
-        self.assertEqual(len(result["workflows"]), 3)
+        self.assertEqual(list(result["workflows"]), ["verify"])
         self.assertNotIn("__ORB_VERSION__", json.dumps(result))
         self.assertEqual(result["orbs"]["qqq-orb"], "kingsrook/qqq-orb@0.7.0")
         if PACKED:

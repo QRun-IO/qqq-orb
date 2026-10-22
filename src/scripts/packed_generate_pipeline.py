@@ -474,8 +474,12 @@ def next_template(config, branch, tag):
 
 
 def voyage_template(config, branch, tag):
-    del branch, tag  # This profile's reviewed static filters own its three workflows.
-    return json.loads(json.dumps(VOYAGE_TEMPLATE).replace("__ORB_VERSION__", config["orb_version"]))
+    del tag  # Existing job filters retain tag exclusion and main-only release actions.
+    selected = "develop" if branch == "develop" else (
+        "release" if branch == "main" or branch.startswith("release/") else "pull-request")
+    result = json.loads(json.dumps(VOYAGE_TEMPLATE).replace("__ORB_VERSION__", config["orb_version"]))
+    result["workflows"] = {"verify": result["workflows"][selected]}
+    return result
 
 
 def repository_policy_template(config, branch, tag):
