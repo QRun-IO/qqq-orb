@@ -340,7 +340,8 @@ class AuditTests(unittest.TestCase):
         self.assertIn('missing_native_maintenance_bridge', [f['code'] for f in report['findings']])
 
     def test_approved_no_ci_is_exact_allowlist_with_evidence_not_check_pass(self):
-        self.assertEqual(8, len(audit.NO_CI))
+        self.assertEqual(7, len(audit.NO_CI))
+        self.assertNotIn("QRun-IO/voyage-cd", audit.NO_CI)
         for repository, policy in audit.NO_CI.items():
             entry = dict(ENTRY, name=repository.split('/')[-1], nameWithOwner=repository)
             files = {path: 'identity fixture' for path in policy['required_paths']}
@@ -362,13 +363,13 @@ class AuditTests(unittest.TestCase):
         self.assertIn('profile_not_assigned', [f['code'] for f in report['findings']])
 
     def test_native_specialists_require_bridges_and_report_remaining_workflows(self):
-        for name, kind in [('qqq-mcp-rag', 'mcp-rag'), ('qqq-business-platform', 'business-db'), ('.github', 'github-workflow-lint'), ('marketing-website-cd', 'gitops')]:
+        for name, kind in [('qqq-mcp-rag', 'mcp-rag'), ('qqq-business-platform', 'business-db'), ('.github', 'github-workflow-lint'), ('marketing-website-cd', 'gitops'), ('voyage-cd', 'gitops')]:
             entry = dict(ENTRY, name=name, nameWithOwner='QRun-IO/' + name)
             definition = audit.auxiliary.BRIDGES[kind]
             missing = audit.audit(entry, Snapshot({}), VERSION, SHA, {})
             self.assertIn('missing_native_maintenance_bridge', [f['code'] for f in missing['findings']])
             files = {item['path']: audit.generator.yaml.safe_dump(audit.auxiliary.canonical(key, SHA), sort_keys=False)
-                     for key, item in audit.auxiliary.BRIDGES.items() if item['repository'] == entry['nameWithOwner']}
+                     for key, item in audit.auxiliary.BRIDGES.items() if item['repository'] == entry['nameWithOwner'] or entry['nameWithOwner'] in item.get('additional_repositories', [])}
             report = audit.audit(entry, Snapshot(files), VERSION, SHA, {})
             self.assertEqual([], report['findings'])
             self.assertEqual('unknown', report['status'])

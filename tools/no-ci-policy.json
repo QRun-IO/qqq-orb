@@ -15,22 +15,6 @@
     ],
     "rationale": "Template source; core generated-consumer acceptance owns validation."
   },
-  "QRun-IO/voyage-cd": {
-    "baseline_sha": "f8734e2d30b59af4909bd0a4c39fa6c9d6981d61",
-    "required_paths": [
-      "README.md"
-    ],
-    "forbidden_prefixes": [
-      ".circleci/",
-      ".github/workflows/"
-    ],
-    "forbidden_paths": [
-      ".qqq-ci.yml",
-      "Jenkinsfile",
-      ".gitlab-ci.yml"
-    ],
-    "rationale": "GitOps deployment declarations; audited repository has no CI."
-  },
   "QRun-IO/qqq-templates-hub": {
     "baseline_sha": "bd591168c7200ce40a3535f2052b8327056e82e0",
     "required_paths": [

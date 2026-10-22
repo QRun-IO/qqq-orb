@@ -19,13 +19,18 @@ PROFILE_GATES = {profile: 'verify' for profile in (
 PROFILE_GATES.update({'all': 'verify-and-smoke', 'cli': 'test_only',
                       'app-starter': 'test_only', 'android': 'test-and-build',
                       'mcp-policy': 'validate'})
-PROFILES = set(PROFILE_GATES) | {'frontend-next'}
+PROFILES = set(PROFILE_GATES) | {'frontend-next', 'native-gitops'}
 _native_spec = importlib.util.spec_from_file_location('native_next_gates', ROOT / 'tools/native_next_gates.py')
 native = importlib.util.module_from_spec(_native_spec)
 _native_spec.loader.exec_module(native)
+_gitops_spec = importlib.util.spec_from_file_location('native_gitops_gates', ROOT / 'tools/native_gitops_gates.py')
+gitops = importlib.util.module_from_spec(_gitops_spec)
+_gitops_spec.loader.exec_module(gitops)
 
 
 def gates(profile):
+    if profile == 'native-gitops':
+        return gitops.gates()
     if profile == 'frontend-next':
         return native.gates(pull_request=True)
     return [{'context': name, 'app_id': 18001}
@@ -110,14 +115,18 @@ def inspect(repo, branch, version, request=api):
         raise ValueError('Archived repository')
     prefix = root + '/branches/' + branch
     head = request(prefix)['commit']['sha']
-    source = []
-    for path in ('.circleci/config.yml', '.qqq-ci.yml'):
-        item = request(root + '/contents/' + quote(path, safe='/') + '?ref=' + head)
-        if item.get('encoding') != 'base64' or item.get('type') != 'file':
-            raise ValueError('Canonical declarations must be regular files')
-        source.append(base64.b64decode(item['content'], validate=False).decode('utf-8'))
-    standard.validate(*source, version)
-    profile = standard.load_yaml(source[1])['profile']
+    if repo in gitops.REPOSITORIES:
+        gitops.validate(repo, head, branch, request, standard.load_yaml)
+        profile = 'native-gitops'
+    else:
+        source = []
+        for path in ('.circleci/config.yml', '.qqq-ci.yml'):
+            item = request(root + '/contents/' + quote(path, safe='/') + '?ref=' + head)
+            if item.get('encoding') != 'base64' or item.get('type') != 'file':
+                raise ValueError('Canonical declarations must be regular files')
+            source.append(base64.b64decode(item['content'], validate=False).decode('utf-8'))
+        standard.validate(*source, version)
+        profile = standard.load_yaml(source[1])['profile']
     if profile not in PROFILES:
         raise ValueError('Profile has no supported shared branch gates')
     desired_gates = gates(profile)
