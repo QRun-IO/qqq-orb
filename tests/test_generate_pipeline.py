@@ -378,6 +378,26 @@ class PipelineTests(unittest.TestCase):
         for packed in ([False, True] if PACKED else [False]):
             self.assert_full(self.render(packed=packed, CIRCLE_BRANCH="", CIRCLE_TAG="publish-test"))
 
+    def test_application_template_source_and_packed_is_exact_source_acceptance(self):
+        self.write_manifest(profile="application-template")
+        for packed in ([False, True] if PACKED else [False]):
+            result = self.render(packed=packed, CIRCLE_BRANCH="main")
+            self.assertEqual({"verify": {"jobs": ["verify-template"]}}, result["workflows"])
+            self.assertEqual({"verify-template"}, set(result["jobs"]))
+            job = result["jobs"]["verify-template"]
+            self.assertEqual("cimg/openjdk:21.0", job["docker"][0]["image"])
+            runs = [step["run"]["command"] for step in job["steps"] if isinstance(step, dict) and "run" in step]
+            self.assertEqual(3, len(runs))
+            self.assertIn('"$PWD" "$output"', runs[1])
+            self.assertIn('engine.render(Path.of(args[1])', runs[1])
+            self.assertNotIn('PostGenExecutor', runs[1])
+            self.assertIn(' verify', runs[2])
+            self.assertNotIn('skipTests', runs[2])
+            self.assertNotIn('deploy', runs[2])
+        for invalid in ({"publish": {"release": True}}, {"command": "true"}, {"renderer_sha": "main"}):
+            self.write_manifest(profile="application-template", **invalid)
+            self.render(ok=False)
+
     def test_homebrew_source_and_packed_is_one_nonpublishing_job(self):
         self.write_manifest(profile="homebrew-tap", tap="qrun-io/qctl", formula="qctl")
         for packed in ([False, True] if PACKED else [False]):
