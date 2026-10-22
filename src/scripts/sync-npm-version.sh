@@ -28,13 +28,17 @@ if [[ "$CURRENT_BRANCH" == "main" ]]; then
     TARGET_VERSION="$MAJOR_MINOR.0"
     echo "Main branch detected - targeting release version: $TARGET_VERSION"
 elif [[ "$CURRENT_BRANCH" == "develop" ]]; then
-    # Develop branch - should be a snapshot version (e.g., 1.0.127-SNAPSHOT)
-    # Increment patch version for develop
+    # Snapshot coordinates are unique per CI job without pushing a version commit.
+    # The source head stays the head whose required checks are being reported.
+    if [[ ! "${CIRCLE_BUILD_NUM:-}" =~ ^[1-9][0-9]*$ ]]; then
+        echo "ERROR: Snapshot publication requires a positive CIRCLE_BUILD_NUM" >&2
+        exit 1
+    fi
     MAJOR_MINOR_PATCH="${NPM_VERSION%-*}"
     MAJOR_MINOR="${MAJOR_MINOR_PATCH%.*}"
     PATCH="${MAJOR_MINOR_PATCH##*.}"
     NEW_PATCH=$((PATCH + 1))
-    TARGET_VERSION="$MAJOR_MINOR.$NEW_PATCH-SNAPSHOT"
+    TARGET_VERSION="$MAJOR_MINOR.$NEW_PATCH-SNAPSHOT.$CIRCLE_BUILD_NUM"
     echo "Develop branch detected - targeting snapshot version: $TARGET_VERSION"
 elif [[ "$CURRENT_BRANCH" == release/* ]]; then
     # Release branch - should be a release candidate (e.g., 1.0.0-RC.1, 1.0.0-RC.2, etc.)

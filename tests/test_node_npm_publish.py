@@ -76,6 +76,7 @@ sys.exit(subprocess.run([os.environ['TEST_REAL_NODE'], *sys.argv[1:]], input=sou
     def test_tags_and_legacy_authentication(self):
         for trusted in [True, False]:
             for version, tag in [('1.0.0-RC.1', 'rc'), ('1.0.0-SNAPSHOT', 'snapshot'),
+                                 ('1.0.0-SNAPSHOT.101', 'snapshot'),
                                  ('1.0.0-alpha.1', 'next'), ('1.0.0-beta.1', 'next'), ('1.0.0', 'latest')]:
                 with self.subTest(trusted=trusted, version=version):
                     result, args, oidc = self.run_publish(version, trusted)
@@ -131,6 +132,39 @@ sys.exit(subprocess.run([os.environ['TEST_REAL_NODE'], *sys.argv[1:]], input=sou
         self.assertIsNotNone(args)
         self.assertTrue(oidc)
         self.assertNotIn('Successfully published', result.stdout)
+
+
+class SnapshotVersionTests(unittest.TestCase):
+    def test_snapshot_jobs_keep_source_head_and_publish_distinct_versions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            def git(*args):
+                return subprocess.check_output(['git', *args], cwd=root, text=True).strip()
+            git('init', '-q', '-b', 'develop')
+            source = '{"name": "snapshot-test", "version": "0.40.27-SNAPSHOT"}\n'
+            package = root / 'package.json'
+            package.write_text(source)
+            git('add', 'package.json')
+            git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                '-c', 'commit.gpgsign=false', 'commit', '-qm', 'initial source')
+            head = git('rev-parse', 'HEAD')
+            for number in ('101', '102'):
+                package.write_text(source)
+                env = dict(os.environ, CIRCLE_BUILD_NUM=number, BRANCH_TYPE='snapshot')
+                subprocess.run(['bash', str(SCRIPT.parent / 'sync-npm-version.sh')],
+                               cwd=root, env=env, check=True, capture_output=True)
+                self.assertEqual(json.loads(package.read_text())['version'], '0.40.28-SNAPSHOT.' + number)
+                subprocess.run(['bash', str(SCRIPT.parent / 'node_version_commit.sh')],
+                               cwd=root, env=env, check=True, capture_output=True)
+                self.assertEqual(git('rev-parse', 'HEAD'), head)
+                self.assertEqual(git('diff', '--cached', '--name-only'), '')
+            for number in ('', '0', '01', '-1', 'abc'):
+                package.write_text(source)
+                result = subprocess.run(['bash', str(SCRIPT.parent / 'sync-npm-version.sh')],
+                                        cwd=root, env=dict(os.environ, CIRCLE_BUILD_NUM=number),
+                                        capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(package.read_text(), source)
 
 
 if __name__ == '__main__':
