@@ -14,7 +14,7 @@ spec = importlib.util.spec_from_file_location('standard', ROOT / 'src/scripts/va
 standard = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(standard)
 DESIRED = [{'context': name, 'app_id': 18001} for name in ('setup', 'verify')]
-PROFILES = {'qbit', 'core', 'frontend-core', 'frontend-material'}
+PROFILES = {'qbit', 'core', 'frontend-core', 'frontend-material', 'repository-policy'}
 
 
 def api(path, method='GET', payload=None):
@@ -54,6 +54,31 @@ def required_checks(before, runs):
     return {'strict': True, 'checks': checks}
 
 
+def verified_rulesets(repo, effective, request=api):
+    """Recognize active repository rulesets with bound gates and no bypass actors."""
+    selected = [rule for rule in effective if rule['type'] == 'required_status_checks']
+    if not selected or any(rule.get('ruleset_source_type') != 'Repository'
+                           or rule.get('ruleset_source') != repo for rule in selected):
+        raise ValueError('Required rulesets need unsupported source reconciliation')
+    records = []
+    for identifier in sorted({rule['ruleset_id'] for rule in selected}):
+        record = request(f'repos/{repo}/rulesets/{identifier}')
+        if (record.get('enforcement') != 'active' or record.get('target') != 'branch'
+                or record.get('source_type') != 'Repository' or record.get('source') != repo
+                or record.get('bypass_actors') != []):
+            raise ValueError('Ruleset must be active with no bypass actors')
+        records.append(record)
+    requirements = [rule['parameters'] for record in records for rule in record['rules']
+                    if rule['type'] == 'required_status_checks']
+    for desired in DESIRED:
+        if not any(check['context'] == desired['context'] and check.get('integration_id') == desired['app_id']
+                   for parameters in requirements for check in parameters['required_status_checks']):
+            raise ValueError('Ruleset is missing app-bound gate: ' + desired['context'])
+    # Retain the existing freshness policy: recognition does not add rebuilds or
+    # weaken any existing scanner, merge, or bypass requirement.
+    return records, any(parameters.get('strict_required_status_checks_policy', False) for parameters in requirements)
+
+
 def inspect(repo, branch, version, request=api):
     """Read immutable canonical source, latest check runs, and current protections."""
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repo) or branch not in ('main', 'develop'):
@@ -74,9 +99,12 @@ def inspect(repo, branch, version, request=api):
     if standard.load_yaml(source[1])['profile'] not in PROFILES:
         raise ValueError('Profile does not use the shared setup/verify gate pair')
     rules = request(root + '/rules/branches/' + branch)
-    if rules:
-        raise ValueError('Ruleset-managed branch requires ruleset reconciliation')
+    rulesets, ruleset_strict = verified_rulesets(repo, rules, request) if rules else ([], False)
     before = request(prefix + '/protection')
+    restrictions = (before or {}).get('restrictions')
+    use_ruleset = (not rulesets and restrictions is not None
+            and not any(restrictions.get(kind) for kind in ('users', 'teams', 'apps'))
+            and not (before or {}).get('enforce_admins', {}).get('enabled'))
     runs = []
     page = 1
     while True:
@@ -86,6 +114,15 @@ def inspect(repo, branch, version, request=api):
             break
         page += 1
     desired = required_checks(before, runs)
+    if use_ruleset:
+        return {'repository': repo, 'branch': branch, 'head': head, 'before': before,
+                'required_status_checks': {'strict': False, 'checks': DESIRED},
+                'changed': True, 'protection_mode': 'create-ruleset'}
+    if rulesets:
+        desired['strict'] = ruleset_strict or bool(((before or {}).get('required_status_checks') or {}).get('strict'))
+        return {'repository': repo, 'branch': branch, 'head': head, 'before': before,
+                'required_status_checks': desired, 'changed': False, 'protection_mode': 'rulesets',
+                'effective_rules': rules, 'rulesets': rulesets}
     current = (before or {}).get('required_status_checks') or {}
     ready = (current.get('strict') is True and current.get('checks') == desired['checks']
              and (before or {}).get('enforce_admins', {}).get('enabled') is True)
@@ -99,8 +136,35 @@ def enforce(plan, request=api):
     prefix = root + '/branches/' + plan['branch']
     if request(prefix)['commit']['sha'] != plan['head'] or request(prefix + '/protection') != plan['before']:
         raise ValueError('Branch or protection changed after preflight')
-    if request(root + '/rules/branches/' + plan['branch']):
+    rules = request(root + '/rules/branches/' + plan['branch'])
+    if plan.get('protection_mode') == 'rulesets':
+        if rules != plan['effective_rules'] or verified_rulesets(plan['repository'], rules, request)[0] != plan['rulesets']:
+            raise ValueError('Ruleset changed after preflight')
+        return
+    if rules:
         raise ValueError('Ruleset changed after preflight')
+    if plan.get('protection_mode') == 'create-ruleset':
+        name = 'QQQ automated verification: ' + plan['branch']
+        page = 1
+        while True:
+            existing = request(root + '/rulesets?per_page=100&page=' + str(page))
+            if any(record['name'] == name for record in existing):
+                raise ValueError('Named ruleset already exists; reconcile its scope explicitly')
+            if len(existing) < 100:
+                break
+            page += 1
+        request(root + '/rulesets', 'POST', {
+            'name': name, 'target': 'branch', 'enforcement': 'active', 'bypass_actors': [],
+            'conditions': {'ref_name': {'include': ['refs/heads/' + plan['branch']], 'exclude': []}},
+            'rules': [{'type': 'required_status_checks', 'parameters': {
+                'strict_required_status_checks_policy': False, 'do_not_enforce_on_create': False,
+                'required_status_checks': [{'context': gate['context'], 'integration_id': gate['app_id']}
+                                           for gate in DESIRED]}}]})
+        effective = request(root + '/rules/branches/' + plan['branch'])
+        verified_rulesets(plan['repository'], effective, request)
+        if request(prefix + '/protection') != plan['before']:
+            raise ValueError('Classic access policy changed during ruleset creation')
+        return
     if not plan['changed']:
         return
     before = plan['before']

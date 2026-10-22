@@ -22,9 +22,9 @@ python tools/enforce_orb_checks.py --targets targets.json --orb-version 0.8 --ou
 
 Every branch must already contain the exact canonical caller for its manifest and
 have successful `setup` and `verify` checks from CircleCI app 18001 at its current
-commit. Supported profiles are QBit, Core, frontend-core and frontend-material.
+commit. Supported profiles are QBit, Core, frontend-core, frontend-material and repository-policy.
 The complete batch is inspected before any mutation. Source/head/protection drift,
-unavailable APIs, unknown profiles, and ruleset-managed branches fail closed.
+unavailable APIs and unknown profiles fail closed. Existing repository rulesets are verified as described below.
 
 The tool appends the app-bound checks, enables strict checks and administrator
 enforcement, and reads the result back. Existing required checks remain required.
@@ -47,3 +47,20 @@ GitHub API reference: [protected branches](https://docs.github.com/en/rest/branc
 ```sh
 python -m unittest discover -s tests -p test_enforce_orb_checks.py -v
 ```
+
+## Existing rulesets
+
+When effective branch rules come from repository rulesets, the tool can verify
+existing enforcement without adding classic protection. Each contributing ruleset
+must be active for branches, have no bypass actors and require both setup and
+verify from CircleCI app18001. The current branch must also have successful gate
+runs. The tool rechecks the branch, effective rules and full ruleset records before
+reporting verified. Rule drift or an unbound/missing gate stops verification.
+
+This path writes nothing. It preserves scanner requirements, conditions and the
+existing up-to-date-branch policy, including a false strict setting that avoids
+unnecessary rebuilds. Reports identify protection_mode=rulesets and the observed
+strict value. Unsupported organization-level rulesets, bypass actors and missing
+gates remain unresolved rather than being rewritten or ignored.
+
+For classic protection with an empty push allowlist and admin enforcement disabled, the tool leaves the entire classic policy unchanged. After current-head gates pass, it creates a narrowly scoped active repository ruleset requiring app-bound setup and verify with no bypass actors. This enforces CI even for administrators without changing their existing branch access or locking all actors out. The ruleset retains the fleet freshness policy (strict=false); it does not weaken any existing classic policy. A same-named ruleset causes rejection rather than overwrite or duplication. Readback verifies the effective gates and unchanged classic protection; subsequent runs recognize the existing ruleset without writes.
