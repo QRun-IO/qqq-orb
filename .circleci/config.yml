@@ -25,8 +25,7 @@ jobs:
       - run:
           name: Install reconciliation tools
           command: |
-            sudo apt-get update
-            sudo apt-get install -y --no-install-recommends gh
+            bash tools/install_reconcile_gh.sh
             python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
       - run:
           name: Reconcile current QQQ branches
