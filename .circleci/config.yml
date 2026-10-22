@@ -83,7 +83,7 @@ workflows:
     when: << pipeline.parameters.run_enrollment_reconcile >>
     jobs:
       - enrollment-reconcile:
-          context: qqq-maven-registry-credentials
+          context: [qqq-maven-registry-credentials, orb-publishing]
           filters:
             branches:
               only: main
