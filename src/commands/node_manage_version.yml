@@ -3,7 +3,7 @@ description: >
   - Adds SSH keys for Git operations
   - Sets up Git identity for version commits
   - Synchronizes NPM version
-  - Commits version changes if modified (skipped for feature branches)
+  - Commits version changes if modified (skipped for feature and snapshot builds)
 
 parameters:
   branch_type:

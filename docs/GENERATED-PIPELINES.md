@@ -220,6 +220,16 @@ whole-branch changes, tags, errors, defaults and source/packed parity. The hoste
 pipeline-contract-test runs the source suite and shared Maven behavioral tests;
 the full local target additionally extracts and executes the actual packed command.
 
+## Node snapshot versions
+
+The shared Node publisher calculates develop snapshots as
+`MAJOR.MINOR.NEXT_PATCH-SNAPSHOT.CIRCLE_BUILD_NUM`. A positive CircleCI job number
+is required, so independent publication jobs receive distinct npm coordinates.
+The package version is changed only in the build workspace and published under
+the `snapshot` dist-tag. No snapshot version commit is pushed: the branch remains
+at the source revision whose required checks ran, avoiding unchecked `[skip ci]`
+heads and recursive publication. Stable, RC and hotfix version policies are unchanged.
+
 ## Android and MCP policy profiles
 
 `android` and `mcp-policy` accept only profile, orb_version and default_branch.

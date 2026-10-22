@@ -64,7 +64,7 @@ echo "Publishing version: $VERSION"
 if [[ "$VERSION" =~ -RC\.[0-9]+$ ]]; then
     NPM_TAG="rc"
     echo "Detected RC version - using tag: $NPM_TAG"
-elif [[ "$VERSION" =~ -SNAPSHOT$ ]]; then
+elif [[ "$VERSION" =~ -SNAPSHOT(\.[1-9][0-9]*)?$ ]]; then
     NPM_TAG="snapshot"
     echo "Detected SNAPSHOT version - using tag: $NPM_TAG"
 elif [[ "$VERSION" =~ -(alpha|beta) ]]; then

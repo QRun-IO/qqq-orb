@@ -9,7 +9,7 @@
 ## It also pushes the changes back to the current branch.
 ##
 ## Process:
-## 1. Skips for feature branches (ephemeral versions)
+## 1. Skips for feature and snapshot builds (ephemeral versions)
 ## 2. Checks if package.json has been modified
 ## 3. Extracts the new version from package.json
 ## 4. Commits the changes with skip ci flag
@@ -22,12 +22,12 @@
 set -e
 
 ################################################################
-## Skip version commit for feature branches                   ##
-## Feature versions are ephemeral and don't need to be        ##
+## Skip version commit for feature and snapshot builds        ##
+## These versions are ephemeral and don't need to be          ##
 ## persisted back to the repository                           ##
 ################################################################
-if [[ "$BRANCH_TYPE" == "feature" ]]; then
-  echo "Skipping version commit for feature branch (ephemeral versions)"
+if [[ "$BRANCH_TYPE" == "feature" || "$BRANCH_TYPE" == "snapshot" ]]; then
+  echo "Skipping version commit for $BRANCH_TYPE build (ephemeral version)"
   exit 0
 fi
 
