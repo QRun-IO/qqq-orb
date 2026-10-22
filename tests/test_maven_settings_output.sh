@@ -58,13 +58,19 @@ EOF
 diff -u "$test_dir/expected-args" "$test_dir/mvn-args"
 # The verified publishing job skips only duplicate analysis. Every signing,
 # flattening and publication argument must remain identical to the default.
-PATH="$test_dir/bin:$PATH" TEST_MVN_ARGS="$test_dir/verified-args" \
-    GPG_KEYNAME=test-key GPG_PASSPHRASE=test-passphrase QQQ_SKIP_VERIFIED_ANALYSIS=true \
-    bash "$test_dir/deploy.sh" > "$test_dir/verified-output" 2>&1
-grep -Fxq -- '-Dspotbugs.skip=true' "$test_dir/verified-args"
-grep -Fxq -- '-Dpmd.skip=true' "$test_dir/verified-args"
-grep -Fxv -e '-Dspotbugs.skip=true' -e '-Dpmd.skip=true' "$test_dir/verified-args" > "$test_dir/verified-common-args"
-diff -u "$test_dir/expected-args" "$test_dir/verified-common-args"
+for mode in true 1 false 0; do
+    PATH="$test_dir/bin:$PATH" TEST_MVN_ARGS="$test_dir/verified-args" \
+        GPG_KEYNAME=test-key GPG_PASSPHRASE=test-passphrase QQQ_SKIP_VERIFIED_ANALYSIS="$mode" \
+        bash "$test_dir/deploy.sh" > "$test_dir/verified-output" 2>&1
+    if [[ "$mode" == true || "$mode" == 1 ]]; then
+        grep -Fxq -- '-Dspotbugs.skip=true' "$test_dir/verified-args"
+        grep -Fxq -- '-Dpmd.skip=true' "$test_dir/verified-args"
+        grep -Fxv -e '-Dspotbugs.skip=true' -e '-Dpmd.skip=true' "$test_dir/verified-args" > "$test_dir/verified-common-args"
+        diff -u "$test_dir/expected-args" "$test_dir/verified-common-args"
+    else
+        diff -u "$test_dir/expected-args" "$test_dir/verified-args"
+    fi
+done
 # A Central validation failure or publication timeout must fail this wrapper.
 cat > "$test_dir/bin/mvn" <<'EOF'
 #!/bin/bash
