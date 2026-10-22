@@ -5,18 +5,19 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = json.loads((ROOT / "src/scripts/templates/voyage.json").read_text())
 
 
 def command(job):
-    return next(step["run"]["command"] for step in TEMPLATE["jobs"][job]["steps"]
-                if isinstance(step, dict) and "run" in step)
+    return [step["run"]["command"] for step in TEMPLATE["jobs"][job]["steps"]
+            if isinstance(step, dict) and "run" in step][-1]
 
 
 class VoyageRelease(unittest.TestCase):
-    def run_job(self, job, failure=""):
+    def run_job(self, job, failure="", manifest=None):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             bin_dir = root / "bin"
@@ -42,7 +43,7 @@ elif name=='git':
         assert subprocess.check_output([askpass, 'Password for https://github.com']).strip()==b'fixture-token'
         if os.environ['FAILURE']=='clone': sys.exit(23)
         p=pathlib.Path('voyage-cd/overlays/production'); p.mkdir(parents=True)
-        (p/'kustomization.yaml').write_text('digest: sha256:'+'b'*64+'\\n')
+        (p/'kustomization.yaml').write_text(os.environ['MANIFEST_FIXTURE'])
     elif args[0]=='diff': sys.exit(1)
     elif args[0]=='push' and os.environ['FAILURE']=='push': sys.exit(24)
 elif name=='npx':
@@ -54,6 +55,7 @@ elif name=='npx':
                 (bin_dir / name).symlink_to(fake)
             events = root / "events.jsonl"
             env = {**os.environ, "PATH": str(bin_dir) + os.pathsep + os.environ["PATH"],
+                   "MANIFEST_FIXTURE": yaml.safe_dump(manifest if manifest is not None else {"images": [{"name": "ghcr.io/qrun-io/voyage", "newTag": "main"}]}),
                    "EVENTS": str(events), "FAILURE": failure, "GITHUB_TOKEN": "fixture-token",
                    "GHCR_TOKEN": "fixture-ghcr", "GHCR_USERNAME": "fixture-user",
                    "CIRCLE_SHA1": "1" * 40, "CIRCLE_BRANCH": "main"}
@@ -66,7 +68,7 @@ elif name=='npx':
     def test_cd_uses_canonical_authenticated_checkout_and_publishes_digest(self):
         result, rows, content = self.run_job("update-cd-repo")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(content, 'digest: sha256:' + 'a' * 64 + '\n')
+        self.assertEqual(yaml.safe_load(content)['images'], [{'name': 'ghcr.io/qrun-io/voyage', 'digest': 'sha256:' + 'a' * 64}])
         self.assertIn(['git', ['push', 'origin', 'main']], rows)
         self.assertNotIn('fixture-token', json.dumps(rows))
         self.assertNotIn('fixture-token', result.stdout + result.stderr)
@@ -92,3 +94,20 @@ elif name=='npx':
         # CircleCI parses shell text before execution; bare heredocs are invalid.
         for job in ("update-cd-repo", "release-please"):
             self.assertNotRegex(command(job), r"(?<!\\)<<")
+
+    def test_cd_replaces_existing_digest_and_preserves_other_images(self):
+        other = {"name": "other/image", "newTag": "keep"}
+        manifest = {"namespace": "voyage-prod", "images": [other, {"name": "ghcr.io/qrun-io/voyage", "digest": "sha256:" + "b" * 64}]}
+        result, _, content = self.run_job("update-cd-repo", manifest=manifest)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        actual = yaml.safe_load(content)
+        self.assertEqual(actual['namespace'], 'voyage-prod')
+        self.assertEqual(actual['images'][0], other)
+        self.assertEqual(actual['images'][1]['digest'], 'sha256:' + 'a' * 64)
+
+    def test_cd_rejects_missing_or_ambiguous_image_target(self):
+        image = {"name": "ghcr.io/qrun-io/voyage", "newTag": "main"}
+        for images in ([], [image, image]):
+            result, rows, _ = self.run_job("update-cd-repo", manifest={"images": images})
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse(any(name == 'git' and args[0] == 'push' for name, args in rows))
