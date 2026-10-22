@@ -51,3 +51,18 @@ full platform release builds retain their existing shared-worker policy.
 Existing classic branch protections without a required-status-check section gain
 an additive shared ruleset. Signing, reviews, history and access restrictions remain
 unchanged, and a subsequent reconciliation verifies the effective ruleset.
+
+The same daily pass manages CircleCI's native `autocancel-builds` setting for
+canonical `repository-policy`, `homebrew-tap`, `application-template`, and
+`marketing` consumers. Marketing must retain `main` as its default branch;
+environment deployment remains main-only. CircleCI excludes default-branch,
+scheduled and rerun workflows from automatic cancellation. This avoids a custom
+cancellation job and does not add executions to consumer pipelines.
+
+The pass uses the existing orb-publishing context on the trusted orb main branch.
+It changes only the cancellation flag, checks for source movement before writing,
+and verifies preservation of all other flags. Its separate
+`result.circle-settings.json` artifact records missing credentials/API access,
+unconverted sources and profiles needing cancellation-policy review explicitly.
+Publication-heavy profiles are not changed until their non-default release
+semantics are reviewed; a successful reconciliation pass does not certify them.
