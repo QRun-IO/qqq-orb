@@ -66,6 +66,40 @@ class SettingsTests(unittest.TestCase):
                          Mock(return_value={'feature_flags': {}})]:
             self.assertEqual('unresolved', settings.reconcile(self.plan, source, True, response)['state'])
 
+    def test_repository_policy_requires_every_current_branch(self):
+        main = {**self.plan, 'profile': 'repository-policy'}
+        develop = {**main, 'branch': 'develop', 'profile': 'qbit'}
+        for plans in ([main, develop], [develop, main]):
+            source, request = Mock(), Mock()
+            result = settings.reconcile_repository(plans, [], source, True, request)
+            self.assertEqual('not-managed', result['state'])
+            source.assert_not_called()
+            request.assert_not_called()
+        for plans, findings in [
+            ([main, {**main, 'branch': 'develop', 'changed': True}], []),
+            ([main], [{'repository': main['repository'], 'branch': 'develop', 'state': 'unresolved'}]),
+        ]:
+            request = Mock()
+            self.assertEqual('waiting-source', settings.reconcile_repository(
+                plans, findings, Mock(), True, request)['state'])
+            request.assert_not_called()
+
+    def test_repository_policy_checks_all_heads_and_writes_once(self):
+        plans = [self.plan, {**self.plan, 'branch': 'develop', 'head': 'b' * 40}]
+        def source(path):
+            if '/branches/' in path:
+                return {'commit': {'sha': next(p['head'] for p in plans if path.endswith('/' + p['branch']))}}
+            return {'archived': False, 'default_branch': 'main'}
+        request = Mock(side_effect=[{'feature_flags': self.before}, {},
+                                   {'feature_flags': {**self.before, 'autocancel-builds': True}}])
+        self.assertEqual({'state': 'enforced', 'changed': True},
+                         settings.reconcile_repository(plans, [], source, True, request))
+        self.assertEqual(1, sum(len(call.args) == 2 for call in request.call_args_list))
+        request = Mock()
+        stale = lambda path: {'commit': {'sha': self.plan['head']}}
+        self.assertEqual('unresolved', settings.reconcile_repository(plans, [], stale, True, request)['state'])
+        request.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()

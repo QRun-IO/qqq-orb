@@ -222,13 +222,13 @@ def main():
                     args.output.write_text(json.dumps(report, indent=2), encoding='utf-8')
     if args.circle_settings:
         import circle_project_settings
-        settings, seen = [], set()
-        for plan in sorted(plans, key=lambda p: p['changed']):
-            if plan['repository'] in seen:
-                continue
-            seen.add(plan['repository'])
-            settings.append({'repository': plan['repository'], 'profile': plan['profile'],
-                             **circle_project_settings.reconcile(plan, api, apply=args.apply)})
+        settings = []
+        for repo in sorted({plan['repository'] for plan in plans}):
+            branches = [plan for plan in plans if plan['repository'] == repo]
+            settings.append({'repository': repo,
+                             'profiles': sorted({plan['profile'] for plan in branches}),
+                             **circle_project_settings.reconcile_repository(
+                                 branches, findings, api, apply=args.apply)})
             args.output.with_suffix('.circle-settings.json').write_text(
                 json.dumps(settings, indent=2), encoding='utf-8')
     print(json.dumps({'targets': len(plans), 'changed': sum(p['changed'] for p in plans),
