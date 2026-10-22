@@ -26,6 +26,7 @@ POLICY_TEMPLATE = json.loads((_TEMPLATE_DIR / "mcp-policy.json").read_text(encod
 REPOSITORY_POLICY_TEMPLATE = json.loads((_TEMPLATE_DIR / "repository-policy.json").read_text(encoding="utf-8"))
 MARKETING_TEMPLATE = json.loads((_TEMPLATE_DIR / "marketing.json").read_text(encoding="utf-8"))
 HOMEBREW_TEMPLATE = json.loads((_TEMPLATE_DIR / "homebrew-tap.json").read_text(encoding="utf-8"))
+APPLICATION_TEMPLATE = json.loads((_TEMPLATE_DIR / "application-template.json").read_text(encoding="utf-8"))
 # END PROFILE RESOURCES
 
 
@@ -71,7 +72,7 @@ def load_manifest(path, setup_version):
     if not isinstance(data, dict):
         raise ManifestError("Manifest must be a mapping")
     profile = data.get("profile")
-    if profile not in ("qbit", "core", "frontend-material", "frontend-core", "cli", "voyage", "frontend-next", "all", "app-starter", "android", "mcp-policy", "repository-policy", "marketing", "node-artifact", "homebrew-tap"):
+    if profile not in ("qbit", "core", "frontend-material", "frontend-core", "cli", "voyage", "frontend-next", "all", "app-starter", "android", "mcp-policy", "repository-policy", "marketing", "node-artifact", "homebrew-tap", "application-template"):
         raise ManifestError("Unsupported profile")
     allowed = ("profile", "orb_version", "default_branch", "docs_only", "publish")
     if profile == "homebrew-tap":
@@ -84,7 +85,7 @@ def load_manifest(path, setup_version):
             allowed += ("release_completion", "release_on_main", "release_tag_policy", "test_branch_policy")
     elif profile == "cli":
         allowed += ("publish_context",)
-    elif profile in ("voyage", "frontend-next", "app-starter", "android", "mcp-policy", "repository-policy", "marketing"):
+    elif profile in ("voyage", "frontend-next", "app-starter", "android", "mcp-policy", "repository-policy", "marketing", "application-template"):
         allowed = ("profile", "orb_version", "default_branch")
     elif profile == "all":
         allowed = ("profile", "orb_version", "default_branch", "publish", "publish_context")
@@ -174,7 +175,7 @@ def load_manifest(path, setup_version):
             "release_tag_policy": tag_policy, "test_branch_policy": test_policy,
             "docs_only": boolean(data, "docs_only", False),
             "publish_context": publish_context,
-            "publish": {key: boolean(publishing, key, key != "asciidoc" and profile not in ("cli", "all", "repository-policy")
+            "publish": {key: boolean(publishing, key, key != "asciidoc" and profile not in ("cli", "all", "repository-policy", "application-template")
                                       and not (profile == "qbit" and key in ("hotfix", "feature")))
                         for key in publish_keys}}
 
@@ -516,7 +517,12 @@ def homebrew_template(config, branch, tag):
     return result
 
 
-PROFILE_TEMPLATES = {"homebrew-tap": homebrew_template, "qbit": qbit_template, "core": core_template,
+def application_template(config, branch, tag):
+    del config, branch, tag
+    return copy.deepcopy(APPLICATION_TEMPLATE)
+
+
+PROFILE_TEMPLATES = {"application-template": application_template, "homebrew-tap": homebrew_template, "qbit": qbit_template, "core": core_template,
                      "repository-policy": repository_policy_template,
                      "frontend-material": frontend_template, "frontend-core": frontend_template,
                      "cli": cli_template, "voyage": voyage_template, "frontend-next": next_template, "all": all_template, "app-starter": starter_template, "android": android_template, "mcp-policy": policy_template, "marketing": marketing_template}

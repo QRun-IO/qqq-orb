@@ -1,20 +1,4 @@
 {
-  "QRun-IO/new-qqq-application-template": {
-    "baseline_sha": "730a836a666535a361927d83f15720e91eb71541",
-    "required_paths": [
-      "README.md"
-    ],
-    "forbidden_prefixes": [
-      ".circleci/",
-      ".github/workflows/"
-    ],
-    "forbidden_paths": [
-      ".qqq-ci.yml",
-      "Jenkinsfile",
-      ".gitlab-ci.yml"
-    ],
-    "rationale": "Template source; core generated-consumer acceptance owns validation."
-  },
   "QRun-IO/qqq-maven-registry": {
     "baseline_sha": "134576e4e701984635105f97c8f52aa1e27205b2",
     "required_paths": [

@@ -49,6 +49,7 @@ PROFILE_PARAMETERS = {
     "marketing": {},
     "node-artifact": {},
     "homebrew-tap": {},
+    "application-template": {},
 }
 
 
@@ -68,7 +69,7 @@ def canonical_caller(profile, version, explicit_manifest=False, release_tag_poli
         "orb_version": version,
         "filters": {"branches": {"ignore": "automation/qbit-rc-pending"}, "tags": {"only": "/.*/"}},
     }
-    if profile in ("node-artifact", "homebrew-tap"):
+    if profile in ("node-artifact", "homebrew-tap", "application-template"):
         options["filters"]["tags"] = {"ignore": "/.*/"}
     if profile == "frontend-next":
         options["filters"]["branches"] = {"ignore": "/.*/"}

@@ -29,3 +29,13 @@ One small job in a digest-pinned Homebrew container validates the exact checkout
 reads all OS/architecture variants, fetches their binaries with checksum verification,
 then installs and tests the Linux formula. It does not publish or update formulae.
 macOS downloads are verified, but this Linux job does not execute macOS binaries.
+
+
+### Application template acceptance
+
+The `application-template` profile renders the checked-out template through pinned
+qctl code and a checksum-verified catalog. It runs transforms but never post-generation
+hooks, then performs Maven verify on the generated application with all its tests.
+The renderer and Maven dependencies are cached; test reports and the generated JAR
+are retained. This is acceptance of a generated consumer, not Maven publication.
+Only the standard profile, orb version, and default branch are consumer settings.
