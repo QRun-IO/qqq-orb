@@ -613,6 +613,15 @@ class PipelineTests(unittest.TestCase):
         for entry in baseline["workflows"]["publish_snapshot"]["jobs"]:
             if "qqq-orb/mvn_publish" in entry:
                 entry["qqq-orb/mvn_publish"]["requires"] += ["snapshot_sample_coverage_gate", "qqq-orb/static_analysis"]
+        # Dependency assembly repeats neither analyzer; all acceptance commands stay exact.
+        assembly_jobs = ("sample_acceptance", "sample_multinode_acceptance", "sample_consumer_acceptance")
+        for name in assembly_jobs:
+            assemblies = [step["run"] for step in baseline["jobs"][name]["steps"]
+                          if isinstance(step, dict) and "run" in step
+                          and "-DskipTests clean install" in step["run"]["command"]]
+            self.assertEqual(len(assemblies), 1, name)
+            assemblies[0]["command"] = assemblies[0]["command"].replace(
+                "-DskipTests clean install", "-DskipTests -Dspotbugs.skip=true -Dpmd.skip=true clean install")
         self.git("tag", "v1.0.0")
         self.git("tag", "publish-fixture")
         events = [("feature/test", "", "test_only"), ("develop", "", "publish_snapshot"),
