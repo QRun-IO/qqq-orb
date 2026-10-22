@@ -87,3 +87,8 @@ elif name=='npx':
         result, rows, _ = self.run_job("release-please", 'release')
         self.assertEqual(result.returncode, 25, result.stderr)
         self.assertEqual(len(rows), 1)
+
+    def test_release_commands_do_not_contain_unescaped_circleci_tags(self):
+        # CircleCI parses shell text before execution; bare heredocs are invalid.
+        for job in ("update-cd-repo", "release-please"):
+            self.assertNotRegex(command(job), r"(?<!\\)<<")
