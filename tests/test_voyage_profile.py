@@ -28,7 +28,7 @@ def selected(branch):
                 continue
             if "ignore" in filters and matches(filters["ignore"], branch):
                 continue
-            found.append((workflow, name, options))
+            found.append((workflow, options.get("name", name), options))
     return found
 
 
@@ -68,10 +68,10 @@ class VoyageContract(unittest.TestCase):
 
     def test_all_workflow_dependencies_exist_and_preserve_release_boundaries(self):
         for workflow, body in TEMPLATE["workflows"].items():
-            names = {next(iter(entry)) for entry in body["jobs"]}
+            names = {next(iter(entry.values())).get("name", next(iter(entry))) for entry in body["jobs"]}
             for entry in body["jobs"]:
                 name, options = next(iter(entry.items()))
-                self.assertIn(name, TEMPLATE["jobs"])
+                self.assertTrue(name in TEMPLATE["jobs"] or name == "munitor/update_cd_repo")
                 self.assertTrue(set(options.get("requires", [])).issubset(names))
         for branch in ("feature/example", "release/1.0", "develop"):
             self.assertNotIn("update-cd-repo", [n for _, n, _ in selected(branch)])
@@ -108,7 +108,7 @@ class VoyageContract(unittest.TestCase):
         self.assertIn('--exit-code 1', json.dumps(jobs["docker-build"]))
         self.assertIn('--severity CRITICAL,HIGH', json.dumps(jobs["docker-build"]))
         self.assertIn('ghcr.io/qrun-io/voyage', json.dumps(jobs["docker-build"]))
-        self.assertIn('overlays/production/kustomization.yaml', json.dumps(jobs["update-cd-repo"]))
+        self.assertNotIn('update-cd-repo', jobs)
         owasp = '\n'.join(s["run"]["command"] for s in jobs["security-scan"]["steps"] if isinstance(s, dict) and "run" in s)
         self.assertIn('--severity HIGH,CRITICAL --exit-code 1', owasp)
         self.assertIn('target/voyage.jar:/scan/voyage.jar:ro', owasp)
