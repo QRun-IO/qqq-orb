@@ -3,6 +3,7 @@ import importlib.util
 import json
 from pathlib import Path
 import re
+import tempfile
 import unittest
 from unittest import mock
 
@@ -15,6 +16,38 @@ spec.loader.exec_module(migration)
 
 
 class MigrationTests(unittest.TestCase):
+    def test_hotfix_and_integration_exclusion_preserves_main_tests_and_publications(self):
+        pattern = "/(develop|release/.*|hotfix/.*|integration.*)/"
+        config = self.config(filters={"branches": {"ignore": pattern}, "tags": {"only": []}})
+        for kind, branch in (("snapshot", "develop"), ("release_candidate", r"/release\/.*/"), ("hotfix", r"/hotfix\/.*/")):
+            config["workflows"][kind] = {"jobs": [{"qqq-orb/mvn_publish": {
+                "branch_type": kind, "filters": {"branches": {"only": [branch]}}}}]}
+        config["workflows"]["release"] = {"jobs": [{"qqq-orb/mvn_publish": {
+            "branch_type": "release", "filters": {"branches": {"ignore": "/.*/"},
+                "tags": {"only": [r"/^v\d+\.\d+\.\d+$/"]}}}}]}
+        manifest = migration.infer_manifest(config, "0.8", "develop")
+        self.assertEqual("non-release-no-hotfix-integration", manifest["test_branch_policy"])
+        self.assertFalse(manifest["release_on_main"])
+        self.assertEqual("stable", manifest["release_tag_policy"])
+        self.assertTrue(all(manifest["publish"][kind] for kind in ("snapshot", "release_candidate", "release", "hotfix")))
+        spec = importlib.util.spec_from_file_location("filter_pipeline", Path(__file__).resolve().parents[1] / "src/scripts/generate_pipeline.py")
+        pipeline = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(pipeline)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "manifest.yml"
+            path.write_text(yaml.safe_dump(manifest), encoding="utf-8")
+            loaded = pipeline.load_manifest(path, "0.8")
+        with mock.patch.object(pipeline, "proven_ci_maintenance", return_value=False), mock.patch.object(pipeline, "proven_docs_only", return_value=False), mock.patch.object(pipeline, "git", return_value=b"qualified-head\n"):
+            for branch, tag, kind in (("main", "", None), ("feature/test", "", None),
+                    ("integration-test", "", None), ("develop", "", "snapshot"),
+                    ("release/1.0", "", "release_candidate"), ("hotfix/1.0.1", "", "hotfix"),
+                    ("", "v1.0.0", "release")):
+                result = pipeline.qbit_template(loaded, branch, tag)
+                options = next(iter(next(iter(result["workflows"].values()))["jobs"][0].values()))
+                self.assertEqual(kind, options.get("branch_type"))
+                if kind is None:
+                    self.assertEqual(["automation/qbit-rc-pending", pattern], options["filters"]["branches"]["ignore"])
+
     def test_630_original_filter_intersections_equal_generated_publications(self):
         spec = importlib.util.spec_from_file_location(
             "publication_pipeline", Path(__file__).resolve().parents[1] / "src/scripts/generate_pipeline.py")

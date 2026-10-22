@@ -130,7 +130,7 @@ def load_manifest(path, setup_version):
         raise ManifestError("Unsupported QBit release tag policy")
     test_policy = data.get("test_branch_policy", "all")
     if test_policy not in ("all", "non-release", "non-release-no-integration", "feature", "non-release-no-main",
-                           "non-release-no-hotfix", "non-release-no-main-hotfix", "feature-no-hotfix"):
+                           "non-release-no-hotfix", "non-release-no-hotfix-integration", "non-release-no-main-hotfix", "feature-no-hotfix"):
         raise ManifestError("Unsupported QBit test branch policy")
     return {"profile": profile, "orb_version": version, "default_branch": default_branch,
             "java_version": java, "node_version": node, "browsers": boolean(data, "browsers", True),
@@ -238,6 +238,7 @@ def qbit_template(config, branch, tag):
                    "feature": "/(develop|main|release/.*|integration.*)/",
                    "non-release-no-main": "/(develop|main|release/.*)/",
                    "non-release-no-hotfix": "/(develop|release/.*|hotfix/.*)/",
+                   "non-release-no-hotfix-integration": "/(develop|release/.*|hotfix/.*|integration.*)/",
                    "non-release-no-main-hotfix": "/(develop|main|release/.*|hotfix/.*)/",
                    "feature-no-hotfix": "/(develop|main|release/.*|hotfix/.*|integration.*)/"}
         ignored = ignores[config.get("test_branch_policy", "all")]
