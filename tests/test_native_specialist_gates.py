@@ -124,6 +124,13 @@ class NativeTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 native.validate(repo, self.head, branch, self.request)
 
+    def test_qctl_pr_gate_excludes_push_only_native_binary_job(self):
+        worker = native.load_workflow((ROOT / '.github/workflows/qctl-native.yml').read_text())
+        self.assertNotIn('if', worker['jobs']['test'])
+        self.assertEqual("github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.full_native)",
+                         worker['jobs']['build-native']['if'])
+        self.assertEqual([{'context': 'native / test', 'app_id': 15368}], native.gates('qctl'))
+
     def test_github_yaml_events_and_duplicate_keys(self):
         self.assertEqual({'on': {'push': None}, 'enabled': True},
                          native.load_workflow('on:\n  push:\nenabled: true\n'))

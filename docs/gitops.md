@@ -45,7 +45,7 @@ business-platform, MCP-RAG and IntelliJ callers on main. It verifies each comple
 workflow inventory, canonical caller, signed immutable orb pin and matching shared
 worker source before recognizing the repository. Native verification gates bind to
 the GitHub Actions app; release-only jobs are not merge requirements. No CircleCI
-caller is added to these native consumers. qctl requires its tests and Linux build;
+caller is added to these native consumers. qctl requires its shared tests; the native binary job is push-only, and
 full platform release builds retain their existing shared-worker policy.
 
 Existing classic branch protections without a required-status-check section gain

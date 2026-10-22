@@ -42,7 +42,7 @@ def load_workflow(raw):
 # Only observed, mandatory verification gates; release-only jobs are not PR gates.
 DEFINITIONS = {
     'QRun-IO/qctl': ('qctl', ('main', 'develop'), ('qctl',),
-        ('native / test', 'native / build-native (ubuntu-latest, qctl-linux-amd64)')),
+        ('native / test',)),
     'QRun-IO/.github': ('native-workflow-lint', ('main',), ('github-workflow-lint',),
         ('actionlint / actionlint',)),
     'QRun-IO/qqq-business-platform': ('native-business', ('main',), ('business-db', 'business-e2e'),
