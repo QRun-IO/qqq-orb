@@ -31,6 +31,8 @@ jobs:
               languages.append('javascript-typescript')
           if '.py' in extensions:
               languages.append('python')
+          if '.rb' in extensions:
+              languages.append('ruby')
           if any((name.startswith('.github/workflows/') and PurePosixPath(name).suffix in {'.yml', '.yaml'})
                  or PurePosixPath(name).name in {'action.yml', 'action.yaml'} for name in files if name):
               languages.append('actions')
