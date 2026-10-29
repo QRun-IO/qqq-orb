@@ -44,8 +44,20 @@ class BranchLanguages(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn('build-mode=autobuild\n', output)
 
+    def test_java_cli_preserves_homebrew_ruby_coverage(self):
+        result, output = self.select(['src/Main.java', 'packaging/homebrew/qctl.rb', '.github/workflows/build.yml'])
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn('languages=java-kotlin,ruby,actions\n', output)
+        self.assertIn('build-mode=none\n', output)
+
+    def test_ruby_only_source_is_supported(self):
+        result, output = self.select(['Formula/qctl.rb'])
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn('languages=ruby\n', output)
+        self.assertIn('build-mode=none\n', output)
+
     def test_untracked_files_do_not_select_languages(self):
-        result, output = self.select(['src/Example.java'], ['web/generated.js', '.github/workflows/untracked.yml'])
+        result, output = self.select(['src/Example.java'], ['web/generated.js', 'generated/formula.rb', '.github/workflows/untracked.yml'])
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn('languages=java-kotlin\n', output)
 
