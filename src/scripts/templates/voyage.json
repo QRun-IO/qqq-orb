@@ -47,6 +47,24 @@
           }
         },
         {
+          "store_artifacts": {
+            "path": "target/checkstyle-result.xml",
+            "destination": "quality-and-coverage/checkstyle-result.xml"
+          }
+        },
+        {
+          "store_artifacts": {
+            "path": "target/spotbugsXml.xml",
+            "destination": "quality-and-coverage/spotbugsXml.xml"
+          }
+        },
+        {
+          "store_artifacts": {
+            "path": "target/pmd.xml",
+            "destination": "quality-and-coverage/pmd.xml"
+          }
+        },
+        {
           "persist_to_workspace": {
             "root": ".",
             "paths": [
@@ -59,8 +77,7 @@
               "Dockerfile",
               "pom.xml",
               "src",
-              ".config",
-              "sonar-project.properties"
+              ".config"
             ]
           }
         }
@@ -155,32 +172,6 @@
           "store_artifacts": {
             "path": "target/security-reports",
             "destination": "dependency-security"
-          }
-        }
-      ]
-    },
-    "sonar-scan": {
-      "machine": {
-        "image": "ubuntu-2204:current"
-      },
-      "resource_class": "medium",
-      "steps": [
-        "checkout",
-        {
-          "attach_workspace": {
-            "at": "."
-          }
-        },
-        {
-          "qqq-orb/install_java": {
-            "java_version": "21"
-          }
-        },
-        "qqq-orb/mvn_cache_restore",
-        {
-          "run": {
-            "name": "SonarCloud Analysis",
-            "command": "mvn -B sonar:sonar \\\n  -Dsonar.projectKey=qrun-io_voyage \\\n  -Dsonar.organization=qrun-io \\\n  -Dsonar.host.url=https://sonarcloud.io \\\n  -Dsonar.token=${SONAR_TOKEN} \\\n  -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \\\n  -Dsonar.scm.disabled=true\n"
           }
         }
       ]
@@ -361,21 +352,6 @@
           }
         },
         {
-          "sonar-scan": {
-            "context": [
-              "sonarcloud"
-            ],
-            "requires": [
-              "build-and-test"
-            ],
-            "filters": {
-              "branches": {
-                "only": "develop"
-              }
-            }
-          }
-        },
-        {
           "sbom": {
             "context": [
               "github"
@@ -450,24 +426,6 @@
         },
         {
           "security-scan": {
-            "requires": [
-              "build-and-test"
-            ],
-            "filters": {
-              "branches": {
-                "only": [
-                  "main",
-                  "/^release\\/.*/"
-                ]
-              }
-            }
-          }
-        },
-        {
-          "sonar-scan": {
-            "context": [
-              "sonarcloud"
-            ],
             "requires": [
               "build-and-test"
             ],

@@ -781,14 +781,12 @@ class PipelineTests(unittest.TestCase):
                 if selected == "release":
                     for name in ("update-cd-repo", "release-please"):
                         self.assertEqual({"branches": {"only": "main"}}, jobs[name]["filters"])
-                if selected in ("release", "develop"):
-                    self.assertIn("sonar-scan", jobs)
-                    self.assertEqual(["sonarcloud"], jobs["sonar-scan"]["context"])
+                self.assertNotIn("sonar", json.dumps(result).lower())
 
     def test_voyage_owns_complete_template(self):
         self.write_manifest(profile="voyage")
         result = self.render(CIRCLE_BRANCH="release/1")
-        self.assertEqual(len(result["jobs"]), 8)
+        self.assertEqual(len(result["jobs"]), 7)
         self.assertEqual(list(result["workflows"]), ["verify"])
         self.assertNotIn("__ORB_VERSION__", json.dumps(result))
         self.assertEqual(result["orbs"]["qqq-orb"], "kingsrook/qqq-orb@0.7.0")

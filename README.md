@@ -146,6 +146,15 @@ The orb auto-publishes via CircleCI:
 
 Version bumps on main default to patch. Include `[minor]` or `[major]` in a commit message to bump accordingly.
 
+## Voyage quality checks
+
+The Voyage profile requires no Sonar service, account or token. Its existing
+`mvn clean verify` runs the application's Checkstyle, PMD, SpotBugs and JaCoCo
+checks alongside unit and integration tests. The profile retains those failures
+as build failures and publishes their XML reports and `target/site` as artifacts.
+The separate secret, SAST, dependency and image scans remain unchanged, as do
+the dependencies that gate image publication and production GitOps updates.
+
 ## Project Status
 
 **Maturity:** Stable, used across all QQQ repositories
