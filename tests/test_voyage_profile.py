@@ -62,9 +62,15 @@ class VoyageContract(unittest.TestCase):
         paths = next(s["persist_to_workspace"]["paths"] for s in steps if isinstance(s, dict) and "persist_to_workspace" in s)
         for path in ("target/site", "target/jacoco.exec", "target/voyage.jar", "target/classes", "target/test-classes"):
             self.assertIn(path, paths)
-        sonar = json.dumps(TEMPLATE["jobs"]["sonar-scan"])
-        self.assertIn("target/site/jacoco/jacoco.xml", sonar)
-        self.assertIn("attach_workspace", sonar)
+        artifacts = [s["store_artifacts"]["path"] for s in steps if isinstance(s, dict) and "store_artifacts" in s]
+        for path in ("target/site", "target/checkstyle-result.xml", "target/spotbugsXml.xml", "target/pmd.xml"):
+            self.assertIn(path, artifacts)
+
+    def test_quality_requires_no_sonar_service_or_credentials(self):
+        self.assertNotIn("sonar", json.dumps(TEMPLATE).lower())
+        for branch in ("main", "develop", "release/1.0", "feature/example"):
+            names = {name for _, name, _ in selected(branch)}
+            self.assertTrue({"build-and-test", "secrets-scan", "sast-scan", "security-scan"}.issubset(names))
 
     def test_all_workflow_dependencies_exist_and_preserve_release_boundaries(self):
         for workflow, body in TEMPLATE["workflows"].items():

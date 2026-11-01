@@ -1,0 +1,6 @@
+description: >
+  macOS arm64 executor for the opt-in CLI platform lane.
+  Requires the CircleCI plan to include the m4pro.medium resource class.
+macos:
+  xcode: 16.4.0
+resource_class: m4pro.medium

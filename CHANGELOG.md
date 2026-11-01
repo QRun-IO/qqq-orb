@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `cli` profile: publishes `@qrun-io/qqq-core` between the client and the conformance package on tag publishes, and refuses to publish when core's version differs from the CLI's or from the CLI's exact core dependency
+- `cli` profile: one shared npm dist-tag for the four packages, `latest` when every version is final and `rc` when any has a prerelease part
+- `cli` profile: optional `platforms: [macos-arm64, windows-x64]` manifest key that adds `cli_platform` lanes (new `cli_macos_arm64` and `cli_windows_x64` executors); a publishing tag's `cli_verify_publish` requires them. Off by default; other profiles reject the key
+- `cli_verify.sh` runs `npm run lint` and diffs `packages/core/src/api/operations.ts` in the drift check; Node image `cimg/node:22.23`
+
 ### Fixed
 - Maven compile, verify and frontend test steps pass `--update-snapshots`, so SNAPSHOT dependencies restored from the pom-checksum-keyed `~/.m2` cache are re-checked against the remote on every build instead of going stale
 

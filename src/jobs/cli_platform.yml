@@ -1,0 +1,25 @@
+description: >
+  Opt-in CLI platform lane: install, build, unit tests and lint on a non-Linux
+  executor. Rendered by the cli profile only for manifest platforms entries.
+executor: << parameters.executor >>
+parameters:
+  executor:
+    type: executor
+    description: "qqq-orb/cli_macos_arm64 or qqq-orb/cli_windows_x64"
+  node_version:
+    type: string
+    default: "20.20.2"
+    description: "Exact Node.js version installed with the image's nvm (the packages' engines floor)"
+steps:
+  - checkout
+  - run:
+      name: Install Node.js << parameters.node_version >>
+      environment:
+        PARAM_NODE_VERSION: << parameters.node_version >>
+      command: <<include(scripts/cli_platform_node.sh)>>
+  - run:
+      name: Install locked CLI dependencies
+      command: npm ci
+  - run:
+      name: Build, tests and lint
+      command: npm run build && npm test && npm run lint
