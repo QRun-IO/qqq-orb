@@ -14,14 +14,9 @@ steps:
   - checkout
   - run:
       name: Install Node.js << parameters.node_version >>
-      command: |
-        nvm install "<< parameters.node_version >>"
-        if [[ "$OSTYPE" == darwin* ]]; then
-          nvm alias default "<< parameters.node_version >>"
-        else
-          nvm use "<< parameters.node_version >>"
-        fi
-  - run: node --version && npm --version
+      environment:
+        PARAM_NODE_VERSION: << parameters.node_version >>
+      command: <<include(scripts/cli_platform_node.sh)>>
   - run:
       name: Install locked CLI dependencies
       command: npm ci
