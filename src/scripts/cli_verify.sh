@@ -2,9 +2,10 @@
 set -euo pipefail
 
 npm run generate
-git diff --exit-code -- packages/ui-api-client/src/schema.ts
+git diff --exit-code -- packages/ui-api-client/src/schema.ts packages/core/src/api/operations.ts
 npm run build
 npm test
+npm run lint
 
 # Use the locked local executable; never download an unpinned npx fallback.
 ./node_modules/.bin/prism mock --port 4010 packages/ui-api-client/openapi/qqq-v1.json > prism.log 2>&1 &

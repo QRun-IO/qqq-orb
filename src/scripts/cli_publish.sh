@@ -6,6 +6,7 @@ node --input-type=commonjs - <<'NODE'
 const fs = require('node:fs');
 const packages = [
   ['packages/ui-api-client/package.json', '@qrun-io/qqq-ui-api-client'],
+  ['packages/core/package.json', '@qrun-io/qqq-core'],
   ['packages/conformance/package.json', '@qrun-io/qqq-ui-api-conformance'],
   ['packages/cli/package.json', '@qrun-io/qqq-cli'],
 ];
@@ -18,6 +19,12 @@ for (const [path, expectedName] of packages) {
 const client = JSON.parse(fs.readFileSync(packages[0][0], 'utf8'));
 if (!process.env.CIRCLE_TAG || process.env.CIRCLE_TAG !== 'v' + client.version) {
   throw new Error('Version tag must match the client package version');
+}
+// The CLI pins core exactly and shares its version: publish only that pair.
+const core = JSON.parse(fs.readFileSync(packages[1][0], 'utf8'));
+const cli = JSON.parse(fs.readFileSync(packages[3][0], 'utf8'));
+if (core.version !== cli.version || cli.dependencies?.['@qrun-io/qqq-core'] !== core.version) {
+  throw new Error('Core package version must match the CLI version and its exact core dependency');
 }
 NODE
 : "${GITHUB_TOKEN:?GitHub Packages write credential GITHUB_TOKEN is required}"
@@ -36,5 +43,6 @@ export NPM_CONFIG_USERCONFIG="$npm_config"
 # migration remains gated on verifying the actual context's package access.
 npm whoami --registry https://npm.pkg.github.com >/dev/null
 npm publish -w @qrun-io/qqq-ui-api-client --registry https://npm.pkg.github.com --tag rc
+npm publish -w @qrun-io/qqq-core --registry https://npm.pkg.github.com --tag rc
 npm publish -w @qrun-io/qqq-ui-api-conformance --registry https://npm.pkg.github.com --tag rc
 npm publish -w @qrun-io/qqq-cli --registry https://npm.pkg.github.com --tag rc
