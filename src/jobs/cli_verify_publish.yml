@@ -7,7 +7,7 @@ parameters:
   publish:
     type: boolean
     default: false
-    description: "Publish four workspaces with rc dist-tag; requires matching version tag and GITHUB_TOKEN"
+    description: "Publish four workspaces (dist-tag rc for prereleases, latest for final versions); requires matching version tag and GITHUB_TOKEN"
 steps:
   - checkout
   - restore_cache:

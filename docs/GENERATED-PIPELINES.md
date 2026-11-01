@@ -179,7 +179,8 @@ No context name or credential availability is inferred from the former Actions
 GITHUB_TOKEN. A tag must resolve to the current checkout; the job additionally
 checks the client version, and that core shares the CLI version and matches the
 CLI's exact core dependency, before publishing its four fixed workspaces (client,
-core, conformance, CLI) with the existing rc dist-tag. Main pushes never publish.
+core, conformance, CLI) under one dist-tag: `rc` if any of the four versions has
+a prerelease part, otherwise `latest`. Main pushes never publish.
 CLI docs-only is currently rejected because generated-client verification remains
 mandatory.
 

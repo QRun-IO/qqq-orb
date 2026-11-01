@@ -52,8 +52,8 @@ if [[ -e "$PRISM_PID_FILE" ]] && kill -0 "$(cat "$PRISM_PID_FILE")" 2>/dev/null;
   exit 1
 fi
 write_packages() {
-  local core_version=$1 core_dependency=$2 item dir name version
-  for item in 'ui-api-client qqq-ui-api-client 1.6.0-rc.1' "core qqq-core $core_version" 'conformance qqq-ui-api-conformance 1.6.0-rc.1' 'cli qqq-cli 0.1.0-rc.1'; do
+  local core_version=$1 core_dependency=$2 client_version=${3:-1.6.0-rc.1} cli_version=${4:-0.1.0-rc.1} item dir name version
+  for item in "ui-api-client qqq-ui-api-client $client_version" "core qqq-core $core_version" "conformance qqq-ui-api-conformance $client_version" "cli qqq-cli $cli_version"; do
     read -r dir name version <<< "$item"
     printf '{"name":"@qrun-io/%s","version":"%s","publishConfig":{"registry":"https://npm.pkg.github.com"},"dependencies":{"@qrun-io/qqq-core":"%s"}}\n' "$name" "$version" "$core_dependency" > "packages/$dir/package.json"
   done
@@ -63,6 +63,16 @@ export CIRCLE_TAG=v1.6.0-rc.1 GITHUB_TOKEN=test-not-a-credential
 : > "$CLI_LOG"
 bash "$scripts/cli_publish.sh"
 [[ "$(grep '^publish ' "$CLI_LOG" | cut -d' ' -f3)" == $'@qrun-io/qqq-ui-api-client\n@qrun-io/qqq-core\n@qrun-io/qqq-ui-api-conformance\n@qrun-io/qqq-cli' ]]
+[[ $(grep -c -- '--tag rc$' "$CLI_LOG") -eq 4 ]]
+# Final versions publish as latest; any prerelease among the four keeps rc.
+write_packages 1.0.0 1.0.0 1.6.0 1.0.0
+: > "$CLI_LOG"
+CIRCLE_TAG=v1.6.0 bash "$scripts/cli_publish.sh"
+[[ $(grep -c -- '--tag latest$' "$CLI_LOG") -eq 4 ]]
+[[ $(grep -c '^publish ' "$CLI_LOG") -eq 4 ]]
+write_packages 1.0.0 1.0.0 1.6.0-rc.3 1.0.0
+: > "$CLI_LOG"
+CIRCLE_TAG=v1.6.0-rc.3 bash "$scripts/cli_publish.sh"
 [[ $(grep -c -- '--tag rc$' "$CLI_LOG") -eq 4 ]]
 [[ $(grep -c '^test$' "$CLI_LOG" || true) -eq 0 ]]
 [[ ! -e "$(cat "$CONFIG_PATH_FILE")" ]]
@@ -81,4 +91,4 @@ for condition in wrong-tag missing-token denied-auth core-version core-dependenc
     exit 1
   fi
 done
-printf 'PASS: CLI validation once, drift/test/smoke failures, cleanup, tag/core-version/auth checks and four rc publishes (stubbed)\n'
+printf 'PASS: CLI validation once, drift/test/smoke failures, cleanup, tag/core-version/auth checks and four rc/latest publishes (stubbed)\n'
