@@ -64,6 +64,10 @@ def boolean(data, key, default):
     return value
 
 
+# Opt-in CLI platform lanes: manifest entry -> orb executor.
+CLI_PLATFORMS = {"macos-arm64": "qqq-orb/cli_macos_arm64", "windows-x64": "qqq-orb/cli_windows_x64"}
+
+
 def load_manifest(path, setup_version):
     raw = Path(path).read_text(encoding="utf-8")
     if len(raw) > 65536:
@@ -84,7 +88,7 @@ def load_manifest(path, setup_version):
         if profile == "qbit":
             allowed += ("release_completion", "release_on_main", "release_tag_policy", "test_branch_policy")
     elif profile == "cli":
-        allowed += ("publish_context",)
+        allowed += ("publish_context", "platforms")
     elif profile in ("voyage", "frontend-next", "app-starter", "android", "mcp-policy", "repository-policy", "marketing", "application-template"):
         allowed = ("profile", "orb_version", "default_branch")
     elif profile == "all":
@@ -159,6 +163,9 @@ def load_manifest(path, setup_version):
         raise ManifestError("CLI publication requires an explicitly verified context")
     if profile == "cli" and boolean(data, "docs_only", False):
         raise ManifestError("CLI currently requires full generated-client verification")
+    platforms = data.get("platforms", [])
+    if not isinstance(platforms, list) or any(not isinstance(x, str) or x not in CLI_PLATFORMS for x in platforms) or len(platforms) != len(set(platforms)):
+        raise ManifestError("platforms must be distinct entries of " + ", ".join(CLI_PLATFORMS))
     tag_policy = data.get("release_tag_policy", "stable")
     if tag_policy not in ("stable", "v-prefix", "none"):
         raise ManifestError("Unsupported QBit release tag policy")
@@ -174,7 +181,7 @@ def load_manifest(path, setup_version):
             "release_on_main": boolean(data, "release_on_main", False),
             "release_tag_policy": tag_policy, "test_branch_policy": test_policy,
             "docs_only": boolean(data, "docs_only", False),
-            "publish_context": publish_context,
+            "publish_context": publish_context, "platforms": platforms,
             "publish": {key: boolean(publishing, key, key != "asciidoc" and profile not in ("cli", "all", "repository-policy", "application-template")
                                       and not (profile == "qbit" and key in ("hotfix", "feature")))
                         for key in publish_keys}}
@@ -436,9 +443,16 @@ def cli_template(config, branch, tag):
     options = {"publish": publish, "filters": filters}
     if publish:
         options["context"] = [config["publish_context"]]
+    platforms = config.get("platforms", [])
+    jobs = [{"qqq-orb/cli_platform": {"name": "cli-" + p, "executor": CLI_PLATFORMS[p], "filters": copy.deepcopy(filters)}}
+            for p in platforms]
+    if publish and platforms:
+        # Every opted-in platform must pass before packages are published.
+        options["requires"] = ["cli-" + p for p in platforms]
+    jobs.append({"qqq-orb/cli_verify_publish": options})
     # CLI docs are still verified until its generated-client inputs get a dedicated policy.
     return {"version": 2.1, "orbs": {"qqq-orb": "kingsrook/qqq-orb@" + config["orb_version"]},
-            "workflows": {"publish_release" if publish else "test_only": {"jobs": [{"qqq-orb/cli_verify_publish": options}]}}}
+            "workflows": {"publish_release" if publish else "test_only": {"jobs": jobs}}}
 
 
 def marketing_template(config, branch, tag):

@@ -766,6 +766,33 @@ class PipelineTests(unittest.TestCase):
         if PACKED:
             self.assertEqual(self.render(), self.render(packed=True))
 
+    def test_cli_platform_lanes_are_opt_in_and_gate_publication(self):
+        self.write_manifest(profile="cli", default_branch="main")
+        jobs = self.render(CIRCLE_BRANCH="main")["workflows"]["test_only"]["jobs"]
+        self.assertEqual([next(iter(job)) for job in jobs], ["qqq-orb/cli_verify_publish"])
+        for invalid in (["linux-x64"], ["macos-arm64", "macos-arm64"], "macos-arm64", [{"macos-arm64": True}]):
+            self.write_manifest(profile="cli", default_branch="main", platforms=invalid)
+            self.render(ok=False)
+        self.write_manifest(profile="qbit", platforms=["macos-arm64"])
+        self.render(ok=False)
+        self.write_manifest(profile="cli", default_branch="main", platforms=["macos-arm64", "windows-x64"])
+        jobs = self.render(CIRCLE_BRANCH="main")["workflows"]["test_only"]["jobs"]
+        lanes = [job["qqq-orb/cli_platform"] for job in jobs[:2]]
+        self.assertEqual([(lane["name"], lane["executor"]) for lane in lanes],
+                         [("cli-macos-arm64", "qqq-orb/cli_macos_arm64"), ("cli-windows-x64", "qqq-orb/cli_windows_x64")])
+        verify = jobs[2]["qqq-orb/cli_verify_publish"]
+        self.assertNotIn("requires", verify)
+        self.assertTrue(all(lane["filters"] == verify["filters"] for lane in lanes))
+        self.write_manifest(profile="cli", default_branch="main", platforms=["windows-x64"],
+                            publish={"release": True}, publish_context="verified-packages")
+        self.git("tag", "v1.0.0-RC.2")
+        jobs = self.render(CIRCLE_TAG="v1.0.0-RC.2")["workflows"]["publish_release"]["jobs"]
+        self.assertEqual(jobs[0]["qqq-orb/cli_platform"]["name"], "cli-windows-x64")
+        self.assertNotIn("context", jobs[0]["qqq-orb/cli_platform"])
+        self.assertEqual(jobs[1]["qqq-orb/cli_verify_publish"]["requires"], ["cli-windows-x64"])
+        if PACKED:
+            self.assertEqual(self.render(CIRCLE_TAG="v1.0.0-RC.2"), self.render(packed=True, CIRCLE_TAG="v1.0.0-RC.2"))
+
     def test_voyage_selected_workflow_retains_all_filters_and_actions(self):
         self.write_manifest(profile="voyage")
         template = json.loads(json.dumps(pipeline.VOYAGE_TEMPLATE).replace("__ORB_VERSION__", "0.7.0"))

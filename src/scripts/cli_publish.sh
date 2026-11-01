@@ -2,10 +2,12 @@
 set -euo pipefail
 
 # Validate tag and fixed package destinations before asking for credentials.
-node --input-type=commonjs - <<'NODE'
+# Prints the npm dist-tag shared by all four packages.
+dist_tag=$(node --input-type=commonjs - <<'NODE'
 const fs = require('node:fs');
 const packages = [
   ['packages/ui-api-client/package.json', '@qrun-io/qqq-ui-api-client'],
+  ['packages/core/package.json', '@qrun-io/qqq-core'],
   ['packages/conformance/package.json', '@qrun-io/qqq-ui-api-conformance'],
   ['packages/cli/package.json', '@qrun-io/qqq-cli'],
 ];
@@ -19,7 +21,18 @@ const client = JSON.parse(fs.readFileSync(packages[0][0], 'utf8'));
 if (!process.env.CIRCLE_TAG || process.env.CIRCLE_TAG !== 'v' + client.version) {
   throw new Error('Version tag must match the client package version');
 }
+// The CLI pins core exactly and shares its version: publish only that pair.
+const core = JSON.parse(fs.readFileSync(packages[1][0], 'utf8'));
+const cli = JSON.parse(fs.readFileSync(packages[3][0], 'utf8'));
+if (core.version !== cli.version || cli.dependencies?.['@qrun-io/qqq-core'] !== core.version) {
+  throw new Error('Core package version must match the CLI version and its exact core dependency');
+}
+// Final releases become latest; any prerelease part (e.g. -rc.1, -beta.2) in
+// any of the four keeps every package on rc, so latest never points at an rc.
+const versions = packages.map(([path]) => JSON.parse(fs.readFileSync(path, 'utf8')).version);
+console.log(versions.some((version) => version.includes('-')) ? 'rc' : 'latest');
 NODE
+)
 : "${GITHUB_TOKEN:?GitHub Packages write credential GITHUB_TOKEN is required}"
 export NODE_AUTH_TOKEN="$GITHUB_TOKEN"
 # Store only an environment substitution, never the token itself.
@@ -35,6 +48,7 @@ export NPM_CONFIG_USERCONFIG="$npm_config"
 # Authentication alone is not proof of package write permission; hosted publish
 # migration remains gated on verifying the actual context's package access.
 npm whoami --registry https://npm.pkg.github.com >/dev/null
-npm publish -w @qrun-io/qqq-ui-api-client --registry https://npm.pkg.github.com --tag rc
-npm publish -w @qrun-io/qqq-ui-api-conformance --registry https://npm.pkg.github.com --tag rc
-npm publish -w @qrun-io/qqq-cli --registry https://npm.pkg.github.com --tag rc
+npm publish -w @qrun-io/qqq-ui-api-client --registry https://npm.pkg.github.com --tag "$dist_tag"
+npm publish -w @qrun-io/qqq-core --registry https://npm.pkg.github.com --tag "$dist_tag"
+npm publish -w @qrun-io/qqq-ui-api-conformance --registry https://npm.pkg.github.com --tag "$dist_tag"
+npm publish -w @qrun-io/qqq-cli --registry https://npm.pkg.github.com --tag "$dist_tag"

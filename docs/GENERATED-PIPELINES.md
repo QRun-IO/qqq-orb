@@ -170,16 +170,26 @@ rather than silently ignored on these profiles. Existing direct jobs remain usab
 
 ## CLI profile
 
-`cli` owns npm install, generated-client drift, build, unit tests and the real
-Prism smoke contract through `cli_verify_publish`. Publication is **disabled by
+`cli` owns npm install, generated-client and operations drift, build, unit tests,
+lint and the real Prism smoke contract through `cli_verify_publish`. Publication is **disabled by
 default**. To enable the existing v-tag publication, declare `publish.release:
 true` plus `publish_context: VERIFIED_CONTEXT_NAME`, after verifying that an
 existing trusted CircleCI context grants the required GitHub Packages permission.
 No context name or credential availability is inferred from the former Actions
 GITHUB_TOKEN. A tag must resolve to the current checkout; the job additionally
-checks the client version before publishing its three fixed workspaces with the
-existing rc dist-tag. Main pushes never publish. CLI docs-only is currently
-rejected because generated-client verification remains mandatory.
+checks the client version, and that core shares the CLI version and matches the
+CLI's exact core dependency, before publishing its four fixed workspaces (client,
+core, conformance, CLI) under one dist-tag: `rc` if any of the four versions has
+a prerelease part, otherwise `latest`. Main pushes never publish.
+CLI docs-only is currently rejected because generated-client verification remains
+mandatory.
+
+Optional platform lanes are **off by default**. `platforms: [macos-arm64,
+windows-x64]` (either or both) adds one `cli_platform` job per entry (`npm ci`,
+build, tests and lint on Node 20 via the image's nvm), named `cli-macos-arm64` /
+`cli-windows-x64`. On a publishing tag `cli_verify_publish` requires them. The
+lanes use the `m4pro.medium` macOS and `windows.medium` resource classes, which
+the CircleCI plan must include.
 
 ## Conservative documentation routing
 

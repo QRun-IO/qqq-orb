@@ -1,0 +1,7 @@
+description: >
+  Windows x64 executor for the opt-in CLI platform lane. Steps run in Git Bash.
+  Requires the CircleCI plan to include the windows.medium resource class.
+machine:
+  image: windows-server-2022-gui:current
+resource_class: windows.medium
+shell: bash.exe
