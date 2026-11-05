@@ -1,0 +1,22 @@
+schema: 1
+scoped_delegation: true
+components:
+  source:
+    toolchains:
+      node: 22.20.0
+    build:
+      tool: source
+      commands:
+      - - tracked-files
+verification:
+  push:
+    branches:
+    - dev
+    - develop
+    - hotfix/**
+    - main
+    - master
+    - qualification/**
+    - rc
+    - release/**
+    tags: []
